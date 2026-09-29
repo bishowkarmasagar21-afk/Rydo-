@@ -1,6 +1,6 @@
 /* ============================================================================
-   RYDO Passenger App - Stylesheet
-   Mobile-first, responsive design
+   RYDO Passenger App - Complete Stylesheet
+   Mobile-first, responsive design for RYDO ride-hailing app
    ============================================================================ */
 
 * {
@@ -149,6 +149,7 @@ body {
 
 .auth-content {
     position: relative;
+    min-height: 200px;
 }
 
 .auth-form {
@@ -180,8 +181,7 @@ body {
 .auth-form input:focus {
     outline: none;
     border-color: var(--primary);
-    background: linear-gradient(#FFFFFF, #FFFFFF) padding-box,
-                linear-gradient(135deg, var(--primary), var(--secondary)) border-box;
+    box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
 }
 
 .error-message {
@@ -254,6 +254,8 @@ body {
     max-width: 1200px;
     margin: 0 auto;
     width: 100%;
+    display: flex;
+    justify-content: center;
 }
 
 /* ============================================================================
@@ -526,6 +528,9 @@ body {
 .info-row .value {
     color: var(--text-primary);
     font-weight: 600;
+    word-break: break-word;
+    text-align: right;
+    max-width: 60%;
 }
 
 .ride-actions {
@@ -550,6 +555,7 @@ body {
     justify-content: center;
     z-index: 100;
     padding: 20px;
+    overflow-y: auto;
 }
 
 .modal[hidden] {
@@ -563,6 +569,7 @@ body {
     width: 100%;
     max-width: 400px;
     box-shadow: var(--shadow-lg);
+    my-auto: auto;
 }
 
 .modal-content h2 {
