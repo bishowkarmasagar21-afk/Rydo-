@@ -82,9 +82,18 @@ Forgot password?
 </div>
 </div>
 
-<div class="field">
+<div class="field destination-box">
 <label>Destination</label>
-<input id="destination" placeholder="Enter destination address">
+
+<input
+  id="destination"
+  placeholder="Search place, area or landmark..."
+  autocomplete="off"
+>
+
+<div id="destinationSuggestions" class="suggestions hide"></div>
+
+<div id="destinationSelected" class="selected-place hide"></div>
 </div>
 
 <div id="routeMsg" class="notice"></div>
