@@ -513,48 +513,144 @@ Math.round(f).toLocaleString();
 
 async function gps(){
 
-if(!navigator.geolocation){
+  if(!navigator.geolocation){
+    $("routeMsg").textContent="GPS is not supported on this device.";
+    return;
+  }
 
-$("routeMsg").textContent=
-"GPS is not supported.";
+  $("routeMsg").textContent="📍 Finding your exact location...";
 
-return;
-}
+  navigator.geolocation.getCurrentPosition(
+    async p=>{
 
-navigator.geolocation.getCurrentPosition(
-async p=>{
+      const lat=p.coords.latitude;
+      const lon=p.coords.longitude;
+      const accuracy=Math.round(p.coords.accuracy);
 
-pickupCoords={
-lat:p.coords.latitude,
-lon:p.coords.longitude,
-label:"Current location",
-query:"__gps__"
-};
+      // Reject clearly inaccurate GPS positions
+      if(!Number.isFinite(lat)||!Number.isFinite(lon)){
+        $("routeMsg").textContent="Unable to get a valid GPS position.";
+        return;
+      }
 
-$("pickup").value=
-"Current location";
+      if(accuracy>100){
+        $("routeMsg").textContent=
+          "GPS accuracy is too low ("+accuracy+"m). Move to an open area and try again.";
+        return;
+      }
 
-map.setView(
-[
-pickupCoords.lat,
-pickupCoords.lon
-],
-16
-);
+      pickupCoords={
+        lat:lat,
+        lon:lon,
+        query:"__gps__",
+        accuracy:accuracy
+      };
 
-if($("destination").value.trim())
-await routeCalc();
+      // Show exact GPS coordinates on the map
+      map.setView([lat,lon],18);
 
-},
-()=>
-$("routeMsg").textContent=
-"GPS permission was denied or unavailable.",
-{
-enableHighAccuracy:true,
-timeout:10000
-}
-);
-}
+      // Reverse geocode exact GPS position
+      try{
+
+        $("routeMsg").textContent=
+          "📍 Location found. Getting address...";
+
+        const u=
+          "https://nominatim.openstreetmap.org/reverse"+
+          "?format=json"+
+          "&lat="+encodeURIComponent(lat)+
+          "&lon="+encodeURIComponent(lon)+
+          "&zoom=18"+
+          "&addressdetails=1";
+
+        const r=await fetch(u,{
+          headers:{
+            "Accept":"application/json"
+          }
+        });
+
+        if(!r.ok)
+          throw new Error("Address lookup failed.");
+
+        const d=await r.json();
+
+        const address=
+          d.display_name||
+          ("GPS location ("+lat.toFixed(6)+", "+lon.toFixed(6)+")");
+
+        pickupCoords.label=address;
+
+        // Put the actual detected address into pickup field
+        $("pickup").value=address;
+
+        // Remove old pickup/destination markers and route
+        map.eachLayer(x=>{
+          if(
+            x instanceof L.Polyline||
+            x instanceof L.Marker
+          )x.remove();
+        });
+
+        // Exact passenger position marker
+        L.marker([lat,lon])
+          .addTo(map)
+          .bindPopup(
+            "📍 Your location<br>Accuracy: approximately "+
+            accuracy+" meters"
+          )
+          .openPopup();
+
+        $("routeMsg").textContent=
+          "📍 Your location found • GPS accuracy ~"+accuracy+"m";
+
+        // Calculate route if destination exists
+        if($("destination").value.trim()){
+          await routeCalc();
+        }
+
+      }catch(e){
+
+        // GPS coordinates are still valid even if address lookup fails
+        $("pickup").value=
+          "GPS: "+lat.toFixed(6)+", "+lon.toFixed(6);
+
+        $("routeMsg").textContent=
+          "📍 GPS location found (~"+accuracy+
+          "m accuracy), but address lookup failed.";
+
+        if($("destination").value.trim()){
+          await routeCalc();
+        }
+      }
+
+    },
+
+    error=>{
+
+      let message="Unable to get your location.";
+
+      if(error.code===1)
+        message=
+          "Location permission denied. Allow location access for Rydo.";
+
+      else if(error.code===2)
+        message=
+          "Your location is unavailable. Turn on phone Location/GPS and try again.";
+
+      else if(error.code===3)
+        message=
+          "GPS took too long. Move to an open area and try again.";
+
+      $("routeMsg").textContent="📍 "+message;
+    },
+
+    {
+      enableHighAccuracy:true,
+      timeout:20000,
+      maximumAge:0
+    }
+  );
+  }
 
 async function requestRide(){
 
