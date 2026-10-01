@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RYDO Driver</title>
+  <title>RYDO Driver Portal</title>
 
   <link rel="stylesheet" href="driver.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -13,47 +13,67 @@
 
   <!-- LOGIN -->
   <section id="loginScreen" class="auth-screen">
-    <div class="auth-card">
-      <div class="logo">RYDO</div>
-      <p class="tagline">Driver Portal</p>
-
-      <h1>Welcome Back</h1>
-      <p class="subtext">Login to start driving with RYDO.</p>
-
-      <form id="driverLoginForm">
-        <input
-          type="email"
-          id="loginEmail"
-          placeholder="Email address"
-          required
-        >
-
-        <div class="password-box">
-          <input
-            type="password"
-            id="loginPassword"
-            placeholder="Password"
-            required
-          >
-          <button type="button" id="toggleLoginPassword">Show</button>
+    <div class="auth-container">
+      <div class="auth-card">
+        <div class="auth-header">
+          <div class="logo">RYDO</div>
+          <p class="tagline">Driver Portal</p>
         </div>
 
-        <button type="button" id="forgotPasswordBtn" class="link-btn">
-          Forgot Password?
-        </button>
+        <div class="auth-content">
+          <h1>Welcome Back</h1>
+          <p class="description">Login to your driver account and start accepting rides.</p>
 
-        <button type="submit" class="main-btn">
-          Login
-        </button>
-      </form>
+          <form id="driverLoginForm" class="auth-form">
+            <div class="form-group">
+              <label for="loginEmail" class="form-label">Email Address</label>
+              <input
+                type="email"
+                id="loginEmail"
+                class="form-input"
+                placeholder="you@example.com"
+                required
+                autocomplete="email"
+              >
+            </div>
 
-      <p id="loginMessage" class="message"></p>
+            <div class="form-group">
+              <label for="loginPassword" class="form-label">Password</label>
+              <div class="password-wrapper">
+                <input
+                  type="password"
+                  id="loginPassword"
+                  class="form-input password-input"
+                  placeholder="••••••••"
+                  required
+                  autocomplete="current-password"
+                >
+                <button type="button" id="toggleLoginPassword" class="password-toggle">
+                  <span class="toggle-text">Show</span>
+                </button>
+              </div>
+            </div>
 
-      <div class="switch-auth">
-        New driver?
-        <button type="button" id="showRegistrationBtn">
-          Register Now
-        </button>
+            <button type="button" id="forgotPasswordBtn" class="forgot-link">
+              Forgot Password?
+            </button>
+
+            <button type="submit" class="btn btn-primary">
+              Sign In
+            </button>
+          </form>
+
+          <p id="loginMessage" class="auth-message"></p>
+        </div>
+
+        <div class="auth-footer">
+          <p class="auth-prompt">
+            New driver?
+            <button type="button" id="showRegistrationBtn" class="auth-link">
+              Register here
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   </section>
@@ -61,105 +81,175 @@
 
   <!-- REGISTRATION -->
   <section id="registrationScreen" class="auth-screen hidden">
-    <div class="auth-card">
-
-      <div class="logo">RYDO</div>
-      <p class="tagline">Driver Registration</p>
-
-      <h1>Become a Driver</h1>
-      <p class="subtext">
-        Submit your details for verification.
-      </p>
-
-      <form id="driverRegistrationForm">
-
-        <input
-          type="text"
-          id="registerFullName"
-          placeholder="Full name"
-          required
-        >
-
-        <input
-          type="email"
-          id="registerEmail"
-          placeholder="Email address"
-          required
-        >
-
-        <input
-          type="tel"
-          id="registerPhone"
-          placeholder="Phone number"
-          required
-        >
-
-        <div class="password-box">
-          <input
-            type="password"
-            id="registerPassword"
-            placeholder="Create password"
-            required
-            minlength="6"
-          >
-          <button type="button" id="toggleRegisterPassword">Show</button>
+    <div class="auth-container">
+      <div class="auth-card">
+        <div class="auth-header">
+          <div class="logo">RYDO</div>
+          <p class="tagline">Driver Registration</p>
         </div>
 
-        <label>Driver License</label>
-        <input type="file" id="driverLicense" accept="image/*,.pdf" required>
+        <div class="auth-content">
+          <h1>Become a Driver</h1>
+          <p class="description">Complete your profile and vehicle details for verification.</p>
 
-        <label>Citizenship / Government ID</label>
-        <input type="file" id="driverCitizenship" accept="image/*,.pdf" required>
+          <form id="driverRegistrationForm" class="auth-form">
+            <div class="form-section">
+              <h2 class="section-title">Personal Information</h2>
 
-        <label>Driver Photo</label>
-        <input type="file" id="driverPhoto" accept="image/*" required>
+              <div class="form-group">
+                <label for="registerFullName" class="form-label">Full Name</label>
+                <input
+                  type="text"
+                  id="registerFullName"
+                  class="form-input"
+                  placeholder="John Doe"
+                  required
+                  autocomplete="name"
+                >
+              </div>
 
-        <select id="vehicleType" required>
-          <option value="">Select vehicle</option>
-          <option value="bike">Bike</option>
-          <option value="car">Car</option>
-          <option value="tuk_tuk">Tuk Tuk</option>
-        </select>
+              <div class="form-group">
+                <label for="registerEmail" class="form-label">Email Address</label>
+                <input
+                  type="email"
+                  id="registerEmail"
+                  class="form-input"
+                  placeholder="you@example.com"
+                  required
+                  autocomplete="email"
+                >
+              </div>
 
-        <input
-          type="text"
-          id="vehicleNumber"
-          placeholder="Vehicle number"
-          required
-        >
+              <div class="form-group">
+                <label for="registerPhone" class="form-label">Phone Number</label>
+                <input
+                  type="tel"
+                  id="registerPhone"
+                  class="form-input"
+                  placeholder="+977 9800000000"
+                  required
+                  autocomplete="tel"
+                >
+              </div>
 
-        <input
-          type="text"
-          id="vehicleModel"
-          placeholder="Vehicle model"
-          required
-        >
+              <div class="form-group">
+                <label for="registerPassword" class="form-label">Create Password</label>
+                <div class="password-wrapper">
+                  <input
+                    type="password"
+                    id="registerPassword"
+                    class="form-input password-input"
+                    placeholder="••••••••"
+                    required
+                    minlength="6"
+                    autocomplete="new-password"
+                  >
+                  <button type="button" id="toggleRegisterPassword" class="password-toggle">
+                    <span class="toggle-text">Show</span>
+                  </button>
+                </div>
+                <p class="form-hint">Minimum 6 characters</p>
+              </div>
+            </div>
 
-        <label>Vehicle Registration Document</label>
-        <input type="file" id="vehicleDocument" accept="image/*,.pdf" required>
+            <div class="form-section">
+              <h2 class="section-title">Required Documents</h2>
 
-        <button type="submit" class="main-btn">
-          Submit for Verification
-        </button>
+              <div class="form-group">
+                <label for="driverLicense" class="form-label">Driver License</label>
+                <div class="file-input-wrapper">
+                  <input type="file" id="driverLicense" class="file-input" accept="image/*,.pdf" required>
+                  <span class="file-placeholder">Choose file</span>
+                </div>
+              </div>
 
-      </form>
+              <div class="form-group">
+                <label for="driverCitizenship" class="form-label">Citizenship / Government ID</label>
+                <div class="file-input-wrapper">
+                  <input type="file" id="driverCitizenship" class="file-input" accept="image/*,.pdf" required>
+                  <span class="file-placeholder">Choose file</span>
+                </div>
+              </div>
 
-      <p id="registrationMessage" class="message"></p>
+              <div class="form-group">
+                <label for="driverPhoto" class="form-label">Driver Photo</label>
+                <div class="file-input-wrapper">
+                  <input type="file" id="driverPhoto" class="file-input" accept="image/*" required>
+                  <span class="file-placeholder">Choose file</span>
+                </div>
+              </div>
+            </div>
 
-      <div class="switch-auth">
-        Already registered?
-        <button type="button" id="backToLoginBtn">
-          Back to Login
-        </button>
+            <div class="form-section">
+              <h2 class="section-title">Vehicle Information</h2>
+
+              <div class="form-group">
+                <label for="vehicleType" class="form-label">Vehicle Type</label>
+                <select id="vehicleType" class="form-input" required>
+                  <option value="">Select your vehicle type</option>
+                  <option value="bike">Bike</option>
+                  <option value="car">Car</option>
+                  <option value="tuk_tuk">Tuk Tuk</option>
+                </select>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="vehicleNumber" class="form-label">Vehicle Number</label>
+                  <input
+                    type="text"
+                    id="vehicleNumber"
+                    class="form-input"
+                    placeholder="BA 1 PA 1234"
+                    required
+                  >
+                </div>
+
+                <div class="form-group">
+                  <label for="vehicleModel" class="form-label">Vehicle Model</label>
+                  <input
+                    type="text"
+                    id="vehicleModel"
+                    class="form-input"
+                    placeholder="2020 Honda"
+                    required
+                  >
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="vehicleDocument" class="form-label">Vehicle Registration Document</label>
+                <div class="file-input-wrapper">
+                  <input type="file" id="vehicleDocument" class="file-input" accept="image/*,.pdf" required>
+                  <span class="file-placeholder">Choose file</span>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">
+              Submit for Verification
+            </button>
+          </form>
+
+          <p id="registrationMessage" class="auth-message"></p>
+
+          <div class="verification-box">
+            <p>Your account must be verified before you can go online and accept rides.</p>
+          </div>
+        </div>
+
+        <div class="auth-footer">
+          <p class="auth-prompt">
+            Already registered?
+            <button type="button" id="backToLoginBtn" class="auth-link">
+              Back to login
+            </button>
+          </p>
+        </div>
       </div>
-
-      <p class="verification-note">
-        Your account must be verified before you can go online and accept rides.
-      </p>
-
     </div>
   </section>
 
   <script src="driver-auth.js"></script>
 </body>
-    </html>
+</html>
