@@ -1046,7 +1046,14 @@ await enterRide();
 }
 
 })();
+$("passengerBtn").onclick=()=>{
+  show("authScreen");
+  setAuthMode("login");
+};
 
+$("driverBtn").onclick=()=>{
+  window.location.href="driver.html";
+};
 </script>
 
 </body>
