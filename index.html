@@ -1094,6 +1094,61 @@ $("passengerBtn").onclick=()=>{
 $("driverBtn").onclick=()=>{
   window.location.href="driver.html";
 };
+  .welcome-screen{
+  min-height:auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.welcome-container{
+  width:100%;
+  padding:20px 0;
+}
+
+.welcome-branding{
+  text-align:center;
+  margin-bottom:28px;
+}
+
+.welcome-logo{
+  font-size:42px;
+  font-weight:900;
+  letter-spacing:4px;
+}
+
+.welcome-logo b{
+  color:var(--orange);
+}
+
+.welcome-tagline{
+  color:var(--muted);
+  margin-top:8px;
+  font-size:16px;
+}
+
+.role-buttons{
+  display:flex;
+  gap:12px;
+}
+
+.role-btn{
+  flex:1;
+  padding:16px;
+  border-radius:14px;
+  font-weight:800;
+  border:1px solid var(--line);
+}
+
+.passenger-btn{
+  background:linear-gradient(135deg,#ff7417,#ff963d);
+  color:#fff;
+}
+
+.driver-btn{
+  background:#101d29;
+  color:#fff;
+  }
 </script>
 
 </body>
