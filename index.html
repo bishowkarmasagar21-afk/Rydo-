@@ -236,6 +236,22 @@ function show(id){
     x.classList.remove("active");
   });
 
+  const screen=$(id);
+
+  if(screen){
+    screen.classList.add("active");
+  }
+
+  document.documentElement.scrollTop=0;
+  document.body.scrollTop=0;
+
+  setTimeout(()=>{
+    window.scrollTo(0,0);
+    document.documentElement.scrollTop=0;
+    document.body.scrollTop=0;
+  },50);
+  }
+
   $(id).classList.add("active");
 
   window.scrollTo({
