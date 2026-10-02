@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RYDO Ride</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<main class="home">
+
+<div class="logo"><span>R</span>YDO</div>
+<p class="tagline">Book your ride</p>
+
+<div class="home-card">
+
+<h1>Where are you going?</h1>
+
+<button class="location-btn" id="gps">
+📍 Use my current location
+</button>
+
+<input
+id="pickup"
+type="text"
+placeholder="Pickup location">
+
+<input
+id="destination"
+type="text"
+placeholder="Where to?">
+
+<h2>Choose vehicle</h2>
+
+<div class="vehicles">
+
+<button class="vehicle active" data-type="Bike">
+🏍️ Bike
+</button>
+
+<button class="vehicle" data-type="Car">
+🚗 Car
+</button>
+
+<button class="vehicle" data-type="Tuk Tuk">
+🛺 Tuk Tuk
+</button>
+
+</div>
+
+<div class="fare">
+Estimated fare:
+<strong id="fare">--</strong>
+</div>
+
+<button class="home-btn" id="request">
+Request Ride
+</button>
+
+<button class="cancel-btn" id="cancel">
+Cancel
+</button>
+
+<a class="back-link" href="index.html">
+← Back
+</a>
+
+</div>
+
+</main>
+
+<script src="passenger-ride.js"></script>
+
+</body>
+</html>
