@@ -1,6 +1,7 @@
 const pickup=document.getElementById("pickup");
 const destination=document.getElementById("destination");
 const fare=document.getElementById("fare");
+const request=document.getElementById("request");
 let vehicle="Bike";
 
 document.querySelectorAll(".vehicle").forEach(btn=>{
@@ -20,46 +21,41 @@ function calculateFare(){
   return;
  }
 
- const rates={
+ const price={
   Bike:50,
   Car:100,
   "Tuk Tuk":80
  };
 
- fare.textContent="NPR "+rates[vehicle];
+ fare.textContent="NPR "+price[vehicle];
 }
 
 pickup.oninput=calculateFare;
 destination.oninput=calculateFare;
 
 document.getElementById("gps").onclick=()=>{
- if(!navigator.geolocation){
-  alert("GPS is not supported.");
-  return;
- }
-
  navigator.geolocation.getCurrentPosition(
   p=>{
    pickup.value=
-   p.coords.latitude.toFixed(6)+", "+
-   p.coords.longitude.toFixed(6);
+    p.coords.latitude.toFixed(6)+", "+
+    p.coords.longitude.toFixed(6);
 
    calculateFare();
   },
   ()=>{
-   alert("Unable to get your location.");
+   alert("Please allow location access.");
   }
  );
 };
 
-document.getElementById("request").onclick=()=>{
+request.onclick=()=>{
  if(!pickup.value||!destination.value){
-  alert("Please enter pickup and destination.");
+  alert("Enter pickup and destination first.");
   return;
  }
 
  alert(
-  "Ride request created.\n"+
+  "Ride request ready\n\n"+
   "Vehicle: "+vehicle+
   "\nFare: "+fare.textContent
  );
