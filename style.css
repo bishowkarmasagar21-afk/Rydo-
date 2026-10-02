@@ -1,0 +1,99 @@
+*{
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+}
+
+body{
+  background:#050505;
+  color:#fff;
+  font-family:Arial,sans-serif;
+  min-height:100vh;
+}
+
+.home{
+  width:100%;
+  max-width:480px;
+  min-height:100vh;
+  margin:auto;
+  padding:55px 22px 25px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center;
+}
+
+.logo{
+  font-size:42px;
+  font-weight:900;
+  letter-spacing:2px;
+}
+
+.logo span{
+  color:#ffad5c;
+}
+
+.tagline{
+  color:#aaa;
+  margin-top:8px;
+  font-size:16px;
+}
+
+.home-card{
+  width:100%;
+  margin-top:70px;
+  padding:30px 22px;
+  background:#111;
+  border:1px solid #292929;
+  border-radius:22px;
+  box-shadow:0 12px 40px #000;
+}
+
+h1{
+  font-size:30px;
+  margin-bottom:12px;
+}
+
+.sub{
+  color:#999;
+  line-height:1.5;
+  margin-bottom:28px;
+}
+
+.home-btn{
+  display:block;
+  width:100%;
+  padding:16px;
+  margin-top:14px;
+  border-radius:13px;
+  background:#ffad5c;
+  color:#111;
+  text-decoration:none;
+  font-size:17px;
+  font-weight:bold;
+}
+
+.home-btn:active{
+  transform:scale(.98);
+}
+
+.login-box{
+  margin-top:28px;
+  color:#888;
+  font-size:14px;
+}
+
+.login-box a{
+  display:inline-block;
+  margin-top:9px;
+  color:#ffad5c;
+  text-decoration:none;
+  font-weight:bold;
+}
+
+.footer{
+  margin-top:auto;
+  padding-top:35px;
+  color:#555;
+  font-size:13px;
+  }
