@@ -20,7 +20,6 @@ document.getElementById("registerForm").onsubmit=async e=>{
  msg.textContent="Creating account...";
 
  try{
-
   const r=await fetch(URL+"/auth/v1/signup",{
    method:"POST",
    headers:{
@@ -41,19 +40,19 @@ document.getElementById("registerForm").onsubmit=async e=>{
   const data=await r.json();
 
   if(!r.ok){
-   msg.textContent=data.msg||
-   data.error_description||
+   msg.textContent=
+   data.msg||data.error_description||
    "Registration failed.";
    return;
   }
 
   msg.textContent=
-  "Account created. Please check your email.";
+  "Account created. Check your email.";
 
   document.getElementById("registerForm").reset();
 
  }catch(error){
-  msg.textContent="Connection error. Please try again.";
+  msg.textContent="Connection error.";
  }
 };
 
@@ -67,7 +66,6 @@ document.getElementById("loginForm").onsubmit=async e=>{
  msg.textContent="Logging in...";
 
  try{
-
   const r=await fetch(
    URL+"/auth/v1/token?grant_type=password",
    {
@@ -102,7 +100,7 @@ document.getElementById("loginForm").onsubmit=async e=>{
    data.user.id
   );
 
-  msg.textContent="Login successful.";
+  window.location.href="passenger-ride.html";
 
  }catch(error){
   msg.textContent=
