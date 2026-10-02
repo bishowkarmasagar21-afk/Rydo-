@@ -16,7 +16,8 @@
 
   <div class="home-card">
 
-    <div id="loginBox">
+    <!-- LOGIN -->
+    <section id="loginBox">
 
       <h1>Login</h1>
       <p class="sub">Login to book your RYDO ride.</p>
@@ -39,17 +40,18 @@
 
       </form>
 
-      <div class="login-box">
+      <div class="switch-box">
         <p>New to RYDO?</p>
         <button class="text-btn" id="showRegister">
           Create Account
         </button>
       </div>
 
-    </div>
+    </section>
 
 
-    <div id="registerBox" class="hidden">
+    <!-- REGISTER -->
+    <section id="registerBox" style="display:none">
 
       <h1>Create Account</h1>
       <p class="sub">Create your RYDO passenger account.</p>
@@ -74,13 +76,11 @@
         <input id="registerPassword"
           type="password"
           placeholder="Password"
-          minlength="6"
           required>
 
         <input id="confirmPassword"
           type="password"
           placeholder="Confirm password"
-          minlength="6"
           required>
 
         <button class="home-btn" type="submit">
@@ -89,20 +89,20 @@
 
       </form>
 
-      <div class="login-box">
+      <div class="switch-box">
         <p>Already have an account?</p>
         <button class="text-btn" id="showLogin">
           Login
         </button>
       </div>
 
-    </div>
+    </section>
 
     <p id="message"></p>
 
-    <div class="login-box">
-      <a href="index.html">← Back to RYDO</a>
-    </div>
+    <a class="back-link" href="index.html">
+      ← Back to RYDO
+    </a>
 
   </div>
 
@@ -111,4 +111,4 @@
 <script src="passenger.js"></script>
 
 </body>
-          </html>
+</html>
