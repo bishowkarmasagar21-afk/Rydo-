@@ -151,3 +151,55 @@ input:focus{
   height:50px;
  }
 }
+.location-btn{
+ width:100%;
+ padding:14px;
+ margin-bottom:10px;
+ border:1px solid #ffad5c;
+ border-radius:12px;
+ background:#191919;
+ color:#ffad5c;
+ font-size:15px;
+}
+
+h2{
+ margin:22px 0 10px;
+ font-size:18px;
+}
+
+.vehicles{
+ display:flex;
+ gap:8px;
+}
+
+.vehicle{
+ flex:1;
+ padding:12px 5px;
+ background:#191919;
+ color:#fff;
+ border:1px solid #444;
+ border-radius:10px;
+}
+
+.vehicle.active{
+ background:#ffad5c;
+ color:#111;
+ border-color:#ffad5c;
+}
+
+.fare{
+ margin:20px 0;
+ padding:15px;
+ background:#191919;
+ border-radius:12px;
+}
+
+.cancel-btn{
+ width:100%;
+ padding:13px;
+ margin-top:10px;
+ background:#191919;
+ color:#ff7b7b;
+ border:1px solid #ff7b7b;
+ border-radius:12px;
+ }
