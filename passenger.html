@@ -11,104 +11,124 @@
 
 <main class="home">
 
-  <div class="logo"><span>R</span>YDO</div>
-  <p class="tagline">Passenger</p>
+<div class="logo"><span>R</span>YDO</div>
+<p class="tagline">Passenger</p>
 
-  <div class="home-card">
+<div class="home-card">
 
-    <!-- LOGIN -->
-    <section id="loginBox">
+<!-- LOGIN -->
+<section id="loginBox">
 
-      <h1>Login</h1>
-      <p class="sub">Login to book your RYDO ride.</p>
+<h1>Login</h1>
+<p class="sub">Login to book your RYDO ride.</p>
 
-      <form id="loginForm">
+<form id="loginForm">
 
-        <input id="loginEmail"
-          type="email"
-          placeholder="Email address"
-          required>
+<input id="loginEmail"
+type="email"
+placeholder="Email address"
+required>
 
-        <input id="loginPassword"
-          type="password"
-          placeholder="Password"
-          required>
+<input id="loginPassword"
+type="password"
+placeholder="Password"
+required>
 
-        <button class="home-btn" type="submit">
-          Login
-        </button>
+<button class="home-btn" type="submit">
+Login
+</button>
 
-      </form>
+</form>
 
-      <div class="switch-box">
-        <p>New to RYDO?</p>
-        <button class="text-btn" id="showRegister">
-          Create Account
-        </button>
-      </div>
+<div class="switch-box">
+<p>New to RYDO?</p>
 
-    </section>
+<button class="text-btn"
+type="button"
+onclick="openRegister()">
+Create Account
+</button>
+</div>
+
+</section>
 
 
-    <!-- REGISTER -->
-    <section id="registerBox" style="display:none">
+<!-- REGISTER -->
+<section id="registerBox" style="display:none">
 
-      <h1>Create Account</h1>
-      <p class="sub">Create your RYDO passenger account.</p>
+<h1>Create Account</h1>
+<p class="sub">Create your RYDO passenger account.</p>
 
-      <form id="registerForm">
+<form id="registerForm">
 
-        <input id="name"
-          type="text"
-          placeholder="Full name"
-          required>
+<input id="name"
+type="text"
+placeholder="Full name"
+required>
 
-        <input id="phone"
-          type="tel"
-          placeholder="Phone number"
-          required>
+<input id="phone"
+type="tel"
+placeholder="Phone number"
+required>
 
-        <input id="registerEmail"
-          type="email"
-          placeholder="Email address"
-          required>
+<input id="registerEmail"
+type="email"
+placeholder="Email address"
+required>
 
-        <input id="registerPassword"
-          type="password"
-          placeholder="Password"
-          required>
+<input id="registerPassword"
+type="password"
+placeholder="Password"
+required>
 
-        <input id="confirmPassword"
-          type="password"
-          placeholder="Confirm password"
-          required>
+<input id="confirmPassword"
+type="password"
+placeholder="Confirm password"
+required>
 
-        <button class="home-btn" type="submit">
-          Create Account
-        </button>
+<button class="home-btn" type="submit">
+Create Account
+</button>
 
-      </form>
+</form>
 
-      <div class="switch-box">
-        <p>Already have an account?</p>
-        <button class="text-btn" id="showLogin">
-          Login
-        </button>
-      </div>
+<div class="switch-box">
+<p>Already have an account?</p>
 
-    </section>
+<button class="text-btn"
+type="button"
+onclick="openLogin()">
+Login
+</button>
+</div>
 
-    <p id="message"></p>
+</section>
 
-    <a class="back-link" href="index.html">
-      ← Back to RYDO
-    </a>
+<p id="message"></p>
 
-  </div>
+<a class="back-link" href="index.html">
+← Back to RYDO
+</a>
+
+</div>
 
 </main>
+
+<script>
+function openRegister(){
+ document.getElementById("loginBox").style.display="none";
+ document.getElementById("registerBox").style.display="block";
+ document.getElementById("message").textContent="";
+}
+
+function openLogin(){
+ document.getElementById("registerBox").style.display="none";
+ document.getElementById("loginBox").style.display="block";
+ document.getElementById("message").textContent="";
+}
+</script>
 
 <script src="passenger.js"></script>
 
 </body>
-</html>
+  </html>
