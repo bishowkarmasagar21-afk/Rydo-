@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>RYDO Passenger</title>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -11,45 +11,94 @@
 
 <main class="home">
 
-  <div class="logo">
-    <span>R</span>YDO
-  </div>
-
+  <div class="logo"><span>R</span>YDO</div>
   <p class="tagline">Passenger</p>
 
   <div class="home-card">
 
-    <h1>Welcome</h1>
+    <div id="loginBox">
 
-    <p class="sub">
-      Login or create your RYDO passenger account.
-    </p>
+      <h1>Login</h1>
+      <p class="sub">Login to book your RYDO ride.</p>
 
-    <form id="loginForm">
+      <form id="loginForm">
 
-      <input
-        id="email"
-        type="email"
-        placeholder="Email address"
-        required
-      >
+        <input id="loginEmail"
+          type="email"
+          placeholder="Email address"
+          required>
 
-      <input
-        id="password"
-        type="password"
-        placeholder="Password"
-        required
-      >
+        <input id="loginPassword"
+          type="password"
+          placeholder="Password"
+          required>
 
-      <button class="home-btn" type="submit">
-        Login
-      </button>
+        <button class="home-btn" type="submit">
+          Login
+        </button>
 
-    </form>
+      </form>
 
-    <a class="home-btn" href="#">
-      Create Account
-    </a>
+      <div class="login-box">
+        <p>New to RYDO?</p>
+        <button class="text-btn" id="showRegister">
+          Create Account
+        </button>
+      </div>
+
+    </div>
+
+
+    <div id="registerBox" class="hidden">
+
+      <h1>Create Account</h1>
+      <p class="sub">Create your RYDO passenger account.</p>
+
+      <form id="registerForm">
+
+        <input id="name"
+          type="text"
+          placeholder="Full name"
+          required>
+
+        <input id="phone"
+          type="tel"
+          placeholder="Phone number"
+          required>
+
+        <input id="registerEmail"
+          type="email"
+          placeholder="Email address"
+          required>
+
+        <input id="registerPassword"
+          type="password"
+          placeholder="Password"
+          minlength="6"
+          required>
+
+        <input id="confirmPassword"
+          type="password"
+          placeholder="Confirm password"
+          minlength="6"
+          required>
+
+        <button class="home-btn" type="submit">
+          Create Account
+        </button>
+
+      </form>
+
+      <div class="login-box">
+        <p>Already have an account?</p>
+        <button class="text-btn" id="showLogin">
+          Login
+        </button>
+      </div>
+
+    </div>
+
+    <p id="message"></p>
 
     <div class="login-box">
       <a href="index.html">← Back to RYDO</a>
@@ -62,4 +111,4 @@
 <script src="passenger.js"></script>
 
 </body>
-</html>
+          </html>
