@@ -415,6 +415,15 @@ if(request){
   );
 
  });
+  }
+
+  alert(
+   "Ride request ready\n\n"+
+   "Vehicle: "+vehicle+
+   "\nFare: "+fare.textContent
+  );
+
+ });
 
 }
 
