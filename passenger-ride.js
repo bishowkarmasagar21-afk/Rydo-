@@ -1,68 +1,80 @@
-const pickup=document.getElementById("pickup");
-const destination=document.getElementById("destination");
-const fare=document.getElementById("fare");
-const request=document.getElementById("request");
-let vehicle="Bike";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RYDO Ride</title>
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
 
-document.querySelectorAll(".vehicle").forEach(btn=>{
- btn.onclick=()=>{
-  document.querySelectorAll(".vehicle")
-  .forEach(x=>x.classList.remove("active"));
+<body>
 
-  btn.classList.add("active");
-  vehicle=btn.dataset.type;
-  calculateFare();
- };
-});
+<main class="home">
 
-function calculateFare(){
- if(!pickup.value||!destination.value){
-  fare.textContent="--";
-  return;
- }
+<div class="logo"><span>R</span>YDO</div>
+<p class="tagline">Book your ride</p>
 
- const price={
-  Bike:50,
-  Car:100,
-  "Tuk Tuk":80
- };
+<div class="home-card">
 
- fare.textContent="NPR "+price[vehicle];
-}
+<h1>Where are you going?</h1>
 
-pickup.oninput=calculateFare;
-destination.oninput=calculateFare;
+<div id="map"></div>
 
-document.getElementById("gps").onclick=()=>{
- navigator.geolocation.getCurrentPosition(
-  p=>{
-   pickup.value=
-    p.coords.latitude.toFixed(6)+", "+
-    p.coords.longitude.toFixed(6);
+<button class="location-btn" id="gps">
+📍 Use my current location
+</button>
 
-   calculateFare();
-  },
-  ()=>{
-   alert("Please allow location access.");
-  }
- );
-};
+<input id="pickup"
+type="text"
+placeholder="Pickup location">
 
-request.onclick=()=>{
- if(!pickup.value||!destination.value){
-  alert("Enter pickup and destination first.");
-  return;
- }
+<input id="destination"
+type="text"
+placeholder="Where to?">
 
- alert(
-  "Ride request ready\n\n"+
-  "Vehicle: "+vehicle+
-  "\nFare: "+fare.textContent
- );
-};
+<h2>Choose vehicle</h2>
 
-document.getElementById("cancel").onclick=()=>{
- pickup.value="";
- destination.value="";
- fare.textContent="--";
-};
+<div class="vehicles">
+
+<button class="vehicle active" data-type="Bike">
+🏍️ Bike
+</button>
+
+<button class="vehicle" data-type="Car">
+🚗 Car
+</button>
+
+<button class="vehicle" data-type="Tuk Tuk">
+🛺 Tuk Tuk
+</button>
+
+</div>
+
+<div class="fare">
+Estimated fare:
+<strong id="fare">--</strong>
+</div>
+
+<button class="home-btn" id="request">
+Request Ride
+</button>
+
+<button class="cancel-btn" id="cancel">
+Cancel
+</button>
+
+<a class="back-link" href="index.html">
+← Back
+</a>
+
+</div>
+
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="passenger-ride.js"></script>
+
+</body>
+</html>
