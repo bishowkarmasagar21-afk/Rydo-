@@ -211,3 +211,13 @@ h2{
  overflow:hidden;
  border:1px solid #333;
   }
+#rideStatus{
+ margin-top:12px;
+ padding:12px;
+ background:#191919;
+ border:1px solid #ffad5c;
+ border-radius:10px;
+ color:#ffad5c;
+ font-size:14px;
+ text-align:center;
+ }
