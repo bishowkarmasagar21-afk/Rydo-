@@ -1,308 +1,450 @@
 const pickup=document.getElementById("pickup");
 const destination=document.getElementById("destination");
 const fare=document.getElementById("fare");
+const gps=document.getElementById("gps");
+const request=document.getElementById("request");
+const cancel=document.getElementById("cancel");
 
-const map=L.map("map").setView([27.7172,85.3240],13);
-
-L.tileLayer(
- "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
- {attribution:"© OpenStreetMap contributors"}
-).addTo(map);
-
-let marker=null;
 let vehicle="Bike";
-let destinationTimer=null;
+let marker=null;
+let map=null;
+let searchTimer=null;
 
-const placeBox=document.createElement("div");
-placeBox.id="placeResults";
-destination.parentNode.insertBefore(placeBox,destination.nextSibling);
+/* MAP */
+
+if(typeof L!=="undefined"){
+
+ map=L.map("map").setView([27.7172,85.3240],13);
+
+ L.tileLayer(
+  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  {
+   attribution:"© OpenStreetMap contributors"
+  }
+ ).addTo(map);
+
+}
+
+/* VEHICLE BUTTONS */
 
 document.querySelectorAll(".vehicle").forEach(btn=>{
- btn.onclick=()=>{
+
+ btn.addEventListener("click",function(){
+
   document.querySelectorAll(".vehicle")
    .forEach(x=>x.classList.remove("active"));
 
-  btn.classList.add("active");
-  vehicle=btn.dataset.type;
+  this.classList.add("active");
+
+  vehicle=this.dataset.type;
+
   calculateFare();
- };
+
+ });
+
 });
 
-document.getElementById("gps").onclick=()=>{
- navigator.geolocation.getCurrentPosition(
-  p=>{
-   const lat=p.coords.latitude;
-   const lon=p.coords.longitude;
 
-   pickup.value=lat.toFixed(6)+", "+lon.toFixed(6);
+/* CURRENT LOCATION */
 
-   map.setView([lat,lon],16);
+if(gps){
 
-   if(marker) map.removeLayer(marker);
+ gps.addEventListener("click",function(){
 
-   marker=L.marker([lat,lon])
-    .addTo(map)
-    .bindPopup("Your pickup location")
-    .openPopup();
-
-   calculateFare();
-  },
-  ()=>{
-   alert("Please allow location access.");
-  },
-  {
-   enableHighAccuracy:true,
-   timeout:10000,
-   maximumAge:0
+  if(!navigator.geolocation){
+   alert("Location is not supported.");
+   return;
   }
- );
 
-};
+  gps.textContent="Getting location...";
 
-destination.addEventListener("input",()=>{
- clearTimeout(destinationTimer);
+  navigator.geolocation.getCurrentPosition(
 
- const q=destination.value.trim();
+   function(position){
 
- if(q.length<2){
-  placeBox.innerHTML="";
-  return;
- }
+    const lat=position.coords.latitude;
+    const lon=position.coords.longitude;
 
- destinationTimer=setTimeout(()=>{
-  searchPlaces(q);
- },500);
-});
+    pickup.value=
+     lat.toFixed(6)+", "+lon.toFixed(6);
 
+    if(map){
+
+     map.setView([lat,lon],16);
+
+     if(marker){
+      map.removeLayer(marker);
+     }
+
+     marker=L.marker([lat,lon])
+      .addTo(map)
+      .bindPopup("Your pickup location")
+      .openPopup();
+
+    }
+
+    gps.textContent="📍 Location selected";
+
+    calculateFare();
+
+   },
+
+   function(){
+
+    gps.textContent="📍 Use my current location";
+
+    alert("Please allow location access.");
+
+   },
+
+   {
+    enableHighAccuracy:true,
+    timeout:15000,
+    maximumAge:0
+   }
+
+  );
+
+ });
+
+}
+
+
+/* GENERAL DESTINATION SEARCH */
+
+if(destination){
+
+ destination.addEventListener("input",function(){
+
+  clearTimeout(searchTimer);
+
+  const q=this.value.trim();
+
+  removeResults();
+
+  if(q.length<2)return;
+
+  searchTimer=setTimeout(function(){
+
+   searchPlaces(q);
+
+  },600);
+
+ });
+
+}
+
+
+/* SEARCH ANY NEPAL LOCATION */
 
 async function searchPlaces(q){
-
- placeBox.innerHTML="<div class='place-item'>Searching places...</div>";
 
  try{
 
   const url=
    "https://nominatim.openstreetmap.org/search"+
    "?format=jsonv2"+
-   "&addressdetails=1"+
-   "&namedetails=1"+
-   "&limit=8"+
+   "&q="+encodeURIComponent(q)+
    "&countrycodes=np"+
-   "&layer=poi,address,natural,manmade"+
-   "&q="+encodeURIComponent(q);
+   "&limit=8"+
+   "&addressdetails=1";
 
-  const r=await fetch(url,{
+  const response=await fetch(url,{
    headers:{
     "Accept":"application/json"
    }
   });
 
-  const places=await r.json();
+  if(!response.ok)return;
 
-  placeBox.innerHTML="";
+  const places=await response.json();
 
-  if(!places.length){
-   placeBox.innerHTML=
-    "<div class='place-item'>No places found</div>";
-   return;
-  }
-
-  places.forEach(place=>{
-
-   const item=document.createElement("button");
-   item.type="button";
-   item.className="place-item";
-
-   const icon=getIcon(place);
-
-   item.innerHTML=
-    "<b>"+icon+" "+escapeHTML(
-     place.name || place.display_name.split(",")[0]
-    )+"</b>"+
-    "<small>"+escapeHTML(
-     place.display_name
-    )+"</small>";
-
-   item.onclick=()=>{
-
-    destination.value=
-     place.name || place.display_name;
-
-    const lat=parseFloat(place.lat);
-    const lon=parseFloat(place.lon);
-
-    map.setView([lat,lon],16);
-
-    if(marker) map.removeLayer(marker);
-
-    marker=L.marker([lat,lon])
-     .addTo(map)
-     .bindPopup(
-      escapeHTML(
-       place.name || place.display_name
-      )
-     )
-     .openPopup();
-
-    placeBox.innerHTML="";
-
-    calculateFare();
-   };
-
-   placeBox.appendChild(item);
-  });
+  showResults(places);
 
  }catch(error){
 
-  placeBox.innerHTML=
-   "<div class='place-item'>Place search unavailable</div>";
+  console.log("Search error:",error);
+
  }
+
 }
 
+
+/* SHOW SEARCH RESULTS */
+
+function showResults(places){
+
+ removeResults();
+
+ if(!places.length){
+
+  const box=document.createElement("div");
+
+  box.id="placeResults";
+
+  box.innerHTML=
+   "<div class='place-item'>"+
+   "No location found"+
+   "</div>";
+
+  destination.parentNode.insertBefore(
+   box,
+   destination.nextSibling
+  );
+
+  return;
+ }
+
+ const box=document.createElement("div");
+
+ box.id="placeResults";
+
+ places.forEach(function(place){
+
+  const button=document.createElement("button");
+
+  button.type="button";
+  button.className="place-item";
+
+  const name=
+   place.name ||
+   place.display_name.split(",")[0];
+
+  button.innerHTML=
+   getIcon(place)+
+   " <b>"+safe(name)+"</b>"+
+   "<small>"+
+   safe(place.display_name)+
+   "</small>";
+
+  button.addEventListener("click",function(){
+
+   destination.value=name;
+
+   const lat=parseFloat(place.lat);
+   const lon=parseFloat(place.lon);
+
+   if(map){
+
+    map.setView([lat,lon],16);
+
+    if(marker){
+     map.removeLayer(marker);
+    }
+
+    marker=L.marker([lat,lon])
+     .addTo(map)
+     .bindPopup(safe(name))
+     .openPopup();
+
+   }
+
+   removeResults();
+
+   calculateFare();
+
+  });
+
+  box.appendChild(button);
+
+ });
+
+ destination.parentNode.insertBefore(
+  box,
+  destination.nextSibling
+ );
+
+}
+
+
+/* PLACE ICON */
 
 function getIcon(place){
 
  const text=(
   (place.name||"")+" "+
-  (place.type||"")+" "+
-  (place.category||"")
+  (place.display_name||"")+" "+
+  (place.type||"")
  ).toLowerCase();
 
- if(text.includes("hotel")||text.includes("motel"))
+ if(text.includes("hotel")||
+    text.includes("motel"))
   return "🏨";
 
- if(text.includes("bank")||text.includes("atm"))
+ if(text.includes("bank")||
+    text.includes("atm"))
   return "🏦";
 
- if(
-  text.includes("hospital")||
-  text.includes("clinic")||
-  text.includes("medical")||
-  text.includes("pharmacy")
- )
+ if(text.includes("hospital")||
+    text.includes("clinic")||
+    text.includes("medical")||
+    text.includes("pharmacy"))
   return "🏥";
 
- if(
-  text.includes("bus")||
-  text.includes("station")||
-  text.includes("terminal")
- )
+ if(text.includes("bus")||
+    text.includes("terminal")||
+    text.includes("station"))
   return "🚌";
 
- if(
-  text.includes("mall")||
-  text.includes("shopping")||
-  text.includes("market")
- )
+ if(text.includes("mall")||
+    text.includes("market")||
+    text.includes("shopping"))
   return "🏬";
 
- if(
-  text.includes("restaurant")||
-  text.includes("cafe")||
-  text.includes("food")
- )
+ if(text.includes("restaurant")||
+    text.includes("cafe"))
   return "🍽️";
 
- if(
-  text.includes("government")||
-  text.includes("office")
- )
+ if(text.includes("government")||
+    text.includes("office"))
   return "🏛️";
 
- if(
-  text.includes("bridge")
- )
+ if(text.includes("bridge"))
   return "🌉";
 
- if(
-  text.includes("statue")||
-  text.includes("monument")
- )
+ if(text.includes("statue")||
+    text.includes("monument"))
   return "🗿";
 
- if(
-  text.includes("beach")
- )
+ if(text.includes("beach"))
   return "🏖️";
 
- if(
-  text.includes("temple")||
-  text.includes("church")||
-  text.includes("mosque")
- )
+ if(text.includes("temple")||
+    text.includes("church")||
+    text.includes("mosque"))
   return "🛕";
 
- if(
-  text.includes("school")||
-  text.includes("college")||
-  text.includes("university")
- )
+ if(text.includes("school")||
+    text.includes("college")||
+    text.includes("university"))
   return "🏫";
 
- if(
-  text.includes("airport")
- )
+ if(text.includes("airport"))
   return "✈️";
 
+ if(text.includes("park"))
+  return "🌳";
+
  return "📍";
+
 }
 
 
-function escapeHTML(text){
+/* SAFE TEXT */
+
+function safe(text){
 
  return String(text)
-  .replaceAll("&","&amp;")
-  .replaceAll("<","&lt;")
-  .replaceAll(">","&gt;")
-  .replaceAll('"',"&quot;")
-  .replaceAll("'","&#039;");
+  .replace(/&/g,"&amp;")
+  .replace(/</g,"&lt;")
+  .replace(/>/g,"&gt;")
+  .replace(/"/g,"&quot;")
+  .replace(/'/g,"&#039;");
+
 }
 
+
+/* REMOVE RESULTS */
+
+function removeResults(){
+
+ const old=document.getElementById("placeResults");
+
+ if(old){
+  old.remove();
+ }
+
+}
+
+
+/* FARE */
 
 function calculateFare(){
 
  if(!pickup.value||!destination.value){
+
   fare.textContent="--";
+
   return;
+
  }
 
- const price={
+ const prices={
   Bike:50,
   Car:100,
   "Tuk Tuk":80
  };
 
- fare.textContent="NPR "+price[vehicle];
+ fare.textContent="NPR "+prices[vehicle];
+
 }
 
 
-pickup.oninput=calculateFare;
+pickup.addEventListener(
+ "input",
+ calculateFare
+);
 
 
-document.getElementById("request").onclick=()=>{
+/* REQUEST RIDE */
 
- if(!pickup.value||!destination.value){
-  alert("Enter pickup and destination first.");
-  return;
+if(request){
+
+ request.addEventListener("click",function(){
+
+  if(!pickup.value){
+
+   alert("Please select your pickup location.");
+
+   return;
+
+  }
+
+  if(!destination.value){
+
+   alert("Please select a destination.");
+
+   return;
+
+  }
+
+  alert(
+   "Ride request ready\n\n"+
+   "Vehicle: "+vehicle+
+   "\nFare: "+fare.textContent
+  );
+
+ });
+
+}
+
+
+/* CANCEL */
+
+if(cancel){
+
+ cancel.addEventListener("click",function(){
+
+  pickup.value="";
+  destination.value="";
+  fare.textContent="--";
+
+  removeResults();
+
+  if(marker&&map){
+
+   map.removeLayer(marker);
+   marker=null;
+
+  }
+
+  if(gps){
+
+   gps.textContent=
+    "📍 Use my current location";
+
+  }
+
+ });
+
  }
-
- alert(
-  "Ride request ready\n"+
-  "Vehicle: "+vehicle+
-  "\nFare: "+fare.textContent
- );
-};
-
-
-document.getElementById("cancel").onclick=()=>{
-
- pickup.value="";
- destination.value="";
- fare.textContent="--";
- placeBox.innerHTML="";
-
- if(marker){
-  map.removeLayer(marker);
-  marker=null;
- }
-};
