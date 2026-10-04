@@ -1,608 +1,467 @@
-document.addEventListener("DOMContentLoaded",function(){
+document.addEventListener("DOMContentLoaded", async () => {
 
-const pickup=document.getElementById("pickup");
-const destination=document.getElementById("destination");
-const fare=document.getElementById("fare");
-const gps=document.getElementById("gps");
-const request=document.getElementById("request");
-const cancel=document.getElementById("cancel");
+const SUPABASE_URL = "https://kqtvuorasqyzjbnlkkxs.supabase.co";
+const SUPABASE_KEY = "sb_publishable_zZFJiy0YWZgOXFesVuAQcA_wd7rleMb";
 
-let vehicle="Bike";
-let pickupMarker=null;
-let destinationMarker=null;
-let routeLine=null;
-let searchTimer=null;
-let map;
+const script = document.createElement("script");
+script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+document.head.appendChild(script);
 
+await new Promise(resolve => script.onload = resolve);
 
-/* MAP */
+const db = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
 
-map=L.map("map",{
- zoomControl:true,
- attributionControl:false
-}).setView([27.7172,85.3240],13);
+const map = L.map("map").setView([27.7172,85.3240],13);
 
 L.tileLayer(
- "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
- {
-  maxZoom:19
- }
+  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  {maxZoom:19}
 ).addTo(map);
 
+let pickupCoords = null;
+let destinationCoords = null;
+let routeDistance = 0;
+let routeLine = null;
+let selectedVehicle = "Bike";
 
-/* VEHICLES */
+const pickup = document.getElementById("pickup");
+const destination = document.getElementById("destination");
+const fare = document.getElementById("fare");
+const request = document.getElementById("request");
+const cancel = document.getElementById("cancel");
 
-document.querySelectorAll(".vehicle").forEach(function(btn){
-
- btn.addEventListener("click",function(){
-
-  document.querySelectorAll(".vehicle")
-   .forEach(function(x){
-    x.classList.remove("active");
-   });
-
-  btn.classList.add("active");
-
-  vehicle=btn.dataset.type;
-
-  calculateFare();
-
- });
-
-});
-
-
-/* GPS */
-
-gps.addEventListener("click",function(){
-
- if(!navigator.geolocation){
-
-  showStatus("GPS is not supported.");
-
-  return;
- }
-
- gps.textContent="Getting exact location...";
-
- navigator.geolocation.getCurrentPosition(
-
-  function(pos){
-
-   const lat=pos.coords.latitude;
-   const lon=pos.coords.longitude;
-
-   pickup.value=
-    lat.toFixed(6)+", "+lon.toFixed(6);
-
-   setPickup(lat,lon);
-
-   gps.textContent="📍 Pickup selected";
-
-   calculateFare();
-
-   drawRouteIfReady();
-
-  },
-
-  function(){
-
-   gps.textContent=
-    "📍 Use my current location";
-
-   showStatus(
-    "Please allow location access."
-   );
-
-  },
-
-  {
-   enableHighAccuracy:true,
-   timeout:15000,
-   maximumAge:0
-  }
-
- );
-
-});
-
-
-/* DESTINATION SEARCH */
-
-destination.addEventListener(
- "input",
- function(){
-
-  clearTimeout(searchTimer);
-
-  removeResults();
-
-  const q=destination.value.trim();
-
-  if(q.length<2)return;
-
-  searchTimer=setTimeout(
-   function(){
-    searchPlaces(q);
-   },
-   700
-  );
-
- }
-);
-
-
-/* GENERAL NEPAL SEARCH */
-
-async function searchPlaces(q){
-
- try{
-
-  const url=
-   "https://nominatim.openstreetmap.org/search"+
-   "?format=jsonv2"+
-   "&q="+encodeURIComponent(q)+
-   "&countrycodes=np"+
-   "&layer=address,poi,natural,manmade,railway"+
-   "&limit=10"+
-   "&addressdetails=1"+
-   "&accept-language=en";
-
-  const r=await fetch(url,{
-   headers:{
-    "Accept":"application/json"
-   }
-  });
-
-  if(!r.ok)throw new Error();
-
-  const places=await r.json();
-
-  showResults(places);
-
- }catch(error){
-
-  showStatus(
-   "Destination search unavailable."
-  );
-
- }
-
+function status(message){
+  const box = document.getElementById("rideStatus");
+  if(box) box.textContent = message;
 }
 
+function addMarker(lat,lon,text){
+  return L.marker([lat,lon]).addTo(map).bindPopup(text);
+}
 
-/* SEARCH RESULTS */
+async function searchPlace(text,mode){
 
-function showResults(places){
+  if(text.length < 3) return;
 
- removeResults();
+  const url =
+    "https://nominatim.openstreetmap.org/search?" +
+    new URLSearchParams({
+      q:text,
+      format:"json",
+      limit:"6",
+      countrycodes:"np",
+      addressdetails:"1"
+    });
 
- const box=document.createElement("div");
+  try{
+    const res = await fetch(url,{
+      headers:{Accept:"application/json"}
+    });
 
- box.id="placeResults";
+    const data = await res.json();
 
- if(!places.length){
+    const box = document.getElementById(
+      mode === "pickup" ? "pickupResults" : "placeResults"
+    );
 
-  box.innerHTML=
-   "<div class='place-item'>"+
-   "No Nepal location found"+
-   "</div>";
+    if(!box) return;
 
- }else{
+    box.innerHTML = "";
 
-  places.forEach(function(place){
+    data.forEach(place => {
 
-   const button=
-    document.createElement("button");
+      const button = document.createElement("button");
+      button.className = "place-item";
+      button.type = "button";
 
-   button.type="button";
-   button.className="place-item";
+      button.innerHTML =
+        "<b>📍 " + place.display_name.split(",")[0] + "</b>" +
+        "<small>" + place.display_name + "</small>";
 
-   const name=
-    place.name ||
-    place.display_name.split(",")[0];
+      button.onclick = () => {
 
-   button.innerHTML=
-    getIcon(place)+
-    " <b>"+safe(name)+"</b>"+
-    "<small>"+
-    safe(place.display_name)+
-    "</small>";
+        const coords = {
+          lat:Number(place.lat),
+          lon:Number(place.lon)
+        };
 
-   button.addEventListener(
-    "click",
-    function(){
+        if(mode === "pickup"){
+          pickup.value = place.display_name;
+          pickupCoords = coords;
+        }else{
+          destination.value = place.display_name;
+          destinationCoords = coords;
+        }
 
-     const lat=parseFloat(place.lat);
-     const lon=parseFloat(place.lon);
+        box.innerHTML = "";
 
-     destination.value=name;
+        map.setView(
+          [coords.lat,coords.lon],
+          15
+        );
 
-     setDestination(lat,lon);
+        addMarker(
+          coords.lat,
+          coords.lon,
+          place.display_name
+        );
 
-     removeResults();
+        if(pickupCoords && destinationCoords){
+          drawRoute();
+        }
+      };
 
-     calculateFare();
+      box.appendChild(button);
+    });
 
-     drawRouteIfReady();
+  }catch(error){
+    console.error(error);
+  }
+}
 
+pickup.addEventListener("input",()=>{
+  searchPlace(pickup.value,"pickup");
+});
+
+destination.addEventListener("input",()=>{
+  searchPlace(destination.value,"destination");
+});
+
+document.getElementById("gps").addEventListener("click",()=>{
+
+  if(!navigator.geolocation){
+    status("GPS is not available on this device.");
+    return;
+  }
+
+  status("Finding your exact location...");
+
+  navigator.geolocation.getCurrentPosition(
+    async position => {
+
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+
+      pickupCoords = {lat,lon};
+
+      try{
+
+        const res = await fetch(
+          "https://nominatim.openstreetmap.org/reverse?" +
+          new URLSearchParams({
+            lat,
+            lon,
+            format:"json",
+            zoom:"18",
+            addressdetails:"1"
+          })
+        );
+
+        const data = await res.json();
+
+        pickup.value =
+          data.display_name ||
+          `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+
+      }catch{
+
+        pickup.value =
+          `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+      }
+
+      map.setView([lat,lon],17);
+
+      addMarker(lat,lon,"Your pickup location");
+
+      status("Pickup location found.");
+
+      if(destinationCoords){
+        drawRoute();
+      }
+    },
+
+    error => {
+      status("Unable to get GPS location. Please allow location access.");
+      console.error(error);
+    },
+
+    {
+      enableHighAccuracy:true,
+      timeout:15000,
+      maximumAge:0
     }
-   );
+  );
+});
 
-   box.appendChild(button);
+async function drawRoute(){
 
+  if(!pickupCoords || !destinationCoords) return;
+
+  const url =
+    `https://router.project-osrm.org/route/v1/driving/` +
+    `${pickupCoords.lon},${pickupCoords.lat};` +
+    `${destinationCoords.lon},${destinationCoords.lat}` +
+    `?overview=full&geometries=geojson`;
+
+  try{
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if(!data.routes || !data.routes.length){
+      status("Route could not be found.");
+      return;
+    }
+
+    const route = data.routes[0];
+
+    routeDistance = route.distance / 1000;
+
+    if(routeLine){
+      map.removeLayer(routeLine);
+    }
+
+    routeLine = L.geoJSON(
+      route.geometry
+    ).addTo(map);
+
+    map.fitBounds(routeLine.getBounds(),{
+      padding:[30,30]
+    });
+
+    await updateFare();
+
+    status(
+      `Route: ${routeDistance.toFixed(1)} km`
+    );
+
+  }catch(error){
+
+    console.error(error);
+    status("Unable to calculate route.");
+
+  }
+}
+
+document.querySelectorAll(".vehicle").forEach(button=>{
+
+  button.addEventListener("click",async ()=>{
+
+    document.querySelectorAll(".vehicle")
+      .forEach(b=>b.classList.remove("active"));
+
+    button.classList.add("active");
+
+    selectedVehicle = button.dataset.type;
+
+    await updateFare();
   });
+});
 
- }
+async function updateFare(){
 
- destination.parentNode.insertBefore(
-  box,
-  destination.nextSibling
- );
-
-}
-
-
-/* PICKUP MARKER */
-
-function setPickup(lat,lon){
-
- if(pickupMarker){
-  map.removeLayer(pickupMarker);
- }
-
- pickupMarker=L.marker([lat,lon])
-  .addTo(map)
-  .bindPopup("Pickup location");
-
- map.setView([lat,lon],16);
-
-}
-
-
-/* DESTINATION MARKER */
-
-function setDestination(lat,lon){
-
- if(destinationMarker){
-  map.removeLayer(destinationMarker);
- }
-
- destinationMarker=L.marker([lat,lon])
-  .addTo(map)
-  .bindPopup("Destination")
-  .openPopup();
-
- map.setView([lat,lon],16);
-
-}
-
-
-/* ROUTE */
-
-async function drawRouteIfReady(){
-
- if(!pickupMarker ||
-    !destinationMarker){
-
-  return;
- }
-
- const a=
-  pickupMarker.getLatLng();
-
- const b=
-  destinationMarker.getLatLng();
-
- const url=
-  "https://router.project-osrm.org/route/v1/driving/"+
-  a.lng+","+a.lat+";"+
-  b.lng+","+b.lat+
-  "?overview=full&geometries=geojson";
-
- try{
-
-  showStatus("Calculating route...");
-
-  const response=await fetch(url);
-
-  if(!response.ok)throw new Error();
-
-  const data=await response.json();
-
-  if(!data.routes ||
-     !data.routes.length){
-
-   showStatus("Route not found.");
-
-   return;
+  if(!routeDistance){
+    fare.textContent = "--";
+    return;
   }
 
-  const route=data.routes[0];
+  const type =
+    selectedVehicle
+      .toLowerCase()
+      .replace(/\s+/g,"_");
+
+  const {data,error} = await db
+    .from("fare_rules")
+    .select(
+      "base_fare,per_km_fare,platform_commission_percent"
+    )
+    .eq("vehicle_type",type)
+    .eq("is_active",true)
+    .maybeSingle();
+
+  if(error){
+    console.error(error);
+    fare.textContent = "Error";
+    status("Unable to load fare rules.");
+    return;
+  }
+
+  if(!data){
+    fare.textContent = "Unavailable";
+    status(`No active fare rule for ${selectedVehicle}.`);
+    return;
+  }
+
+  const total =
+    Number(data.base_fare) +
+    Number(data.per_km_fare) * routeDistance;
+
+  fare.textContent =
+    `NPR ${Math.round(total)}`;
+}
+
+request.addEventListener("click",async ()=>{
+
+  if(!pickupCoords){
+    status("Please select your pickup location.");
+    return;
+  }
+
+  if(!destinationCoords){
+    status("Please select your destination.");
+    return;
+  }
+
+  if(!routeDistance){
+    status("Please wait for the route and fare.");
+    return;
+  }
+
+  request.disabled = true;
+  status("Creating your ride request...");
+
+  try{
+
+    const {
+      data:{user},
+      error:authError
+    } = await db.auth.getUser();
+
+    if(authError || !user){
+      request.disabled = false;
+      status("Please login before requesting a ride.");
+      return;
+    }
+
+    const type =
+      selectedVehicle
+        .toLowerCase()
+        .replace(/\s+/g,"_");
+
+    const {
+      data:rule,
+      error:ruleError
+    } = await db
+      .from("fare_rules")
+      .select(
+        "base_fare,per_km_fare,platform_commission_percent"
+      )
+      .eq("vehicle_type",type)
+      .eq("is_active",true)
+      .maybeSingle();
+
+    if(ruleError || !rule){
+      request.disabled = false;
+      status("Fare rule not available.");
+      return;
+    }
+
+    const totalFare =
+      Math.round(
+        Number(rule.base_fare) +
+        Number(rule.per_km_fare) * routeDistance
+      );
+
+    const commission =
+      Number(rule.platform_commission_percent || 15);
+
+    const adminEarnings =
+      Math.round(totalFare * commission / 100);
+
+    const driverEarnings =
+      totalFare - adminEarnings;
+
+    const ride = {
+
+      passenger_id:user.id,
+
+      pickup:pickup.value,
+
+      destination:destination.value,
+
+      vehicle_type:type,
+
+      distance_km:
+        Number(routeDistance.toFixed(2)),
+
+      fare:totalFare,
+
+      driver_earnings:driverEarnings,
+
+      admin_earnings:adminEarnings,
+
+      payment_method:"cash",
+
+      status:"requested",
+
+      pickup_lat:pickupCoords.lat,
+
+      pickup_lon:pickupCoords.lon,
+
+      destination_lat:destinationCoords.lat,
+
+      destination_lon:destinationCoords.lon
+    };
+
+    const {
+      data,
+      error
+    } = await db
+      .from("rides")
+      .insert(ride)
+      .select()
+      .single();
+
+    if(error){
+      console.error(error);
+      request.disabled = false;
+      status("Ride request failed: " + error.message);
+      return;
+    }
+
+    fare.textContent =
+      `NPR ${totalFare}`;
+
+    status(
+      `Ride requested successfully • ${selectedVehicle} • NPR ${totalFare}`
+    );
+
+  }catch(error){
+
+    console.error(error);
+
+    request.disabled = false;
+
+    status(
+      "Ride request failed. Check your connection."
+    );
+  }
+});
+
+cancel.addEventListener("click",()=>{
+
+  pickup.value = "";
+  destination.value = "";
+
+  pickupCoords = null;
+  destinationCoords = null;
+  routeDistance = 0;
+
+  fare.textContent = "--";
 
   if(routeLine){
-   map.removeLayer(routeLine);
+    map.removeLayer(routeLine);
+    routeLine = null;
   }
 
-  routeLine=L.geoJSON(
-   route.geometry
-  ).addTo(map);
+  request.disabled = false;
 
-  const distance=
-   route.distance/1000;
+  status("Ride cancelled.");
 
-  const minutes=
-   Math.round(route.duration/60);
-
-  updateFare(distance);
-
-  showStatus(
-   "Distance: "+
-   distance.toFixed(1)+
-   " km • ETA: "+
-   minutes+
-   " min"
-  );
-
-  map.fitBounds(
-   routeLine.getBounds(),
-   {
-    padding:[30,30]
-   }
-  );
-
- }catch(error){
-
-  showStatus(
-   "Unable to calculate route."
-  );
-
- }
-
-}
-
-
-/* FARE */
-
-function calculateFare(){
-
- if(!pickup.value ||
-    !destination.value){
-
-  fare.textContent="--";
-
-  return;
- }
-
- const prices={
-  Bike:50,
-  Car:100,
-  "Tuk Tuk":80
- };
-
- fare.textContent=
-  "NPR "+prices[vehicle];
-
-}
-
-
-/* DISTANCE FARE */
-
-function updateFare(distance){
-
- const rules={
-  Bike:{base:25,km:14},
-  Car:{base:60,km:25},
-  "Tuk Tuk":{base:45,km:18}
- };
-
- const r=rules[vehicle];
-
- const total=
-  r.base+(distance*r.km);
-
- fare.textContent=
-  "NPR "+Math.round(total);
-
-}
-
-
-/* REQUEST */
-
-request.addEventListener(
- "click",
- function(){
-
-  if(!pickup.value){
-
-   showStatus(
-    "Please select pickup location."
-   );
-
-   return;
-  }
-
-  if(!destination.value){
-
-   showStatus(
-    "Please select destination."
-   );
-
-   return;
-  }
-
-  if(!destinationMarker){
-
-   showStatus(
-    "Please select a destination from search."
-   );
-
-   return;
-  }
-
-  showStatus(
-   "Ride ready • "+
-   vehicle+
-   " • "+
-   fare.textContent
-  );
-
- }
-);
-
-
-/* CANCEL */
-
-cancel.addEventListener(
- "click",
- function(){
-
-  pickup.value="";
-  destination.value="";
-  fare.textContent="--";
-
-  removeResults();
-
-  if(pickupMarker){
-   map.removeLayer(pickupMarker);
-   pickupMarker=null;
-  }
-
-  if(destinationMarker){
-   map.removeLayer(destinationMarker);
-   destinationMarker=null;
-  }
-
-  if(routeLine){
-   map.removeLayer(routeLine);
-   routeLine=null;
-  }
-
-  gps.textContent=
-   "📍 Use my current location";
-
-  removeStatus();
-
-  map.setView(
-   [27.7172,85.3240],
-   13
-  );
-
- }
-);
-
-
-/* STATUS */
-
-function showStatus(text){
-
- let box=
-  document.getElementById("rideStatus");
-
- if(!box){
-
-  box=document.createElement("div");
-
-  box.id="rideStatus";
-
-  request.parentNode.insertBefore(
-   box,
-   request.nextSibling
-  );
-
- }
-
- box.textContent=text;
-
-}
-
-
-function removeStatus(){
-
- const box=
-  document.getElementById("rideStatus");
-
- if(box)box.remove();
-
-}
-
-
-/* REMOVE SEARCH */
-
-function removeResults(){
-
- const box=
-  document.getElementById("placeResults");
-
- if(box)box.remove();
-
-}
-
-
-/* ICON */
-
-function getIcon(place){
-
- const text=(
-  (place.name||"")+" "+
-  (place.display_name||"")+" "+
-  (place.type||"")
- ).toLowerCase();
-
- if(text.includes("hotel")||
-    text.includes("motel"))return"🏨";
-
- if(text.includes("bank")||
-    text.includes("atm"))return"🏦";
-
- if(text.includes("hospital")||
-    text.includes("clinic")||
-    text.includes("medical")||
-    text.includes("pharmacy"))return"🏥";
-
- if(text.includes("bus")||
-    text.includes("terminal")||
-    text.includes("station"))return"🚌";
-
- if(text.includes("mall")||
-    text.includes("market")||
-    text.includes("shopping"))return"🏬";
-
- if(text.includes("restaurant")||
-    text.includes("cafe"))return"🍽️";
-
- if(text.includes("government")||
-    text.includes("office"))return"🏛️";
-
- if(text.includes("bridge"))return"🌉";
-
- if(text.includes("statue")||
-    text.includes("monument"))return"🗿";
-
- if(text.includes("park"))return"🌳";
-
- if(text.includes("airport"))return"✈️";
-
- if(text.includes("temple")||
-    text.includes("church")||
-    text.includes("mosque"))return"🛕";
-
- return"📍";
-
-}
-
-
-/* SAFE TEXT */
-
-function safe(text){
-
- return String(text)
-  .replace(/&/g,"&amp;")
-  .replace(/</g,"&lt;")
-  .replace(/>/g,"&gt;")
-  .replace(/"/g,"&quot;")
-  .replace(/'/g,"&#039;");
-
-}
+  map.setView([27.7172,85.3240],13);
+});
 
 });
