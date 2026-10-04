@@ -1,3 +1,5 @@
+document.addEventListener("DOMContentLoaded",function(){
+
 const pickup=document.getElementById("pickup");
 const destination=document.getElementById("destination");
 const fare=document.getElementById("fare");
@@ -8,13 +10,17 @@ const cancel=document.getElementById("cancel");
 let vehicle="Bike";
 let marker=null;
 let map=null;
-let searchTimer=null;
+let timer=null;
+
 
 /* MAP */
 
 if(typeof L!=="undefined"){
 
- map=L.map("map").setView([27.7172,85.3240],13);
+ map=L.map("map").setView(
+  [27.7172,85.3240],
+  13
+ );
 
  L.tileLayer(
   "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -25,18 +31,21 @@ if(typeof L!=="undefined"){
 
 }
 
-/* VEHICLE BUTTONS */
 
-document.querySelectorAll(".vehicle").forEach(btn=>{
+/* VEHICLES */
+
+document.querySelectorAll(".vehicle").forEach(function(btn){
 
  btn.addEventListener("click",function(){
 
   document.querySelectorAll(".vehicle")
-   .forEach(x=>x.classList.remove("active"));
+   .forEach(function(x){
+    x.classList.remove("active");
+   });
 
-  this.classList.add("active");
+  btn.classList.add("active");
 
-  vehicle=this.dataset.type;
+  vehicle=btn.dataset.type;
 
   calculateFare();
 
@@ -45,97 +54,98 @@ document.querySelectorAll(".vehicle").forEach(btn=>{
 });
 
 
-/* CURRENT LOCATION */
+/* GPS */
 
-if(gps){
+gps.addEventListener("click",function(){
 
- gps.addEventListener("click",function(){
+ if(!navigator.geolocation){
 
-  if(!navigator.geolocation){
-   alert("Location is not supported.");
-   return;
-  }
+  showStatus("GPS is not supported.");
 
-  gps.textContent="Getting location...";
+  return;
+ }
 
-  navigator.geolocation.getCurrentPosition(
+ gps.textContent="Getting location...";
 
-   function(position){
+ navigator.geolocation.getCurrentPosition(
 
-    const lat=position.coords.latitude;
-    const lon=position.coords.longitude;
+  function(pos){
 
-    pickup.value=
-     lat.toFixed(6)+", "+lon.toFixed(6);
+   const lat=pos.coords.latitude;
+   const lon=pos.coords.longitude;
 
-    if(map){
+   pickup.value=
+    lat.toFixed(6)+", "+lon.toFixed(6);
 
-     map.setView([lat,lon],16);
+   if(map){
 
-     if(marker){
-      map.removeLayer(marker);
-     }
+    map.setView([lat,lon],16);
 
-     marker=L.marker([lat,lon])
-      .addTo(map)
-      .bindPopup("Your pickup location")
-      .openPopup();
-
+    if(marker){
+     map.removeLayer(marker);
     }
 
-    gps.textContent="📍 Location selected";
+    marker=L.marker([lat,lon])
+     .addTo(map)
+     .bindPopup("Pickup location")
+     .openPopup();
 
-    calculateFare();
-
-   },
-
-   function(){
-
-    gps.textContent="📍 Use my current location";
-
-    alert("Please allow location access.");
-
-   },
-
-   {
-    enableHighAccuracy:true,
-    timeout:15000,
-    maximumAge:0
    }
 
-  );
+   gps.textContent="📍 Location selected";
 
- });
+   calculateFare();
 
-}
+  },
+
+  function(){
+
+   gps.textContent="📍 Use my current location";
+
+   showStatus(
+    "Location permission was denied."
+   );
+
+  },
+
+  {
+   enableHighAccuracy:true,
+   timeout:15000,
+   maximumAge:0
+  }
+
+ );
+
+});
 
 
-/* GENERAL DESTINATION SEARCH */
+/* DESTINATION SEARCH */
 
-if(destination){
+destination.addEventListener(
+ "input",
+ function(){
 
- destination.addEventListener("input",function(){
-
-  clearTimeout(searchTimer);
-
-  const q=this.value.trim();
+  clearTimeout(timer);
 
   removeResults();
 
+  const q=
+   destination.value.trim();
+
   if(q.length<2)return;
 
-  searchTimer=setTimeout(function(){
+  timer=setTimeout(
+   function(){
+    searchPlaces(q);
+   },
+   700
+  );
 
-   searchPlaces(q);
-
-  },600);
-
- });
-
-}
+ }
+);
 
 
-/* SEARCH ANY NEPAL LOCATION */
+/* SEARCH ANY LOCATION IN NEPAL */
 
 async function searchPlaces(q){
 
@@ -149,105 +159,108 @@ async function searchPlaces(q){
    "&limit=8"+
    "&addressdetails=1";
 
-  const response=await fetch(url,{
-   headers:{
-    "Accept":"application/json"
-   }
-  });
+  const r=await fetch(url);
 
-  if(!response.ok)return;
+  if(!r.ok)throw new Error();
 
-  const places=await response.json();
+  const places=await r.json();
 
   showResults(places);
 
- }catch(error){
+ }catch(e){
 
-  console.log("Search error:",error);
+  showStatus(
+   "Destination search unavailable."
+  );
 
  }
 
 }
 
 
-/* SHOW SEARCH RESULTS */
+/* RESULTS */
 
 function showResults(places){
 
  removeResults();
 
+ const box=
+  document.createElement("div");
+
+ box.id="placeResults";
+
  if(!places.length){
-
-  const box=document.createElement("div");
-
-  box.id="placeResults";
 
   box.innerHTML=
    "<div class='place-item'>"+
    "No location found"+
    "</div>";
 
-  destination.parentNode.insertBefore(
-   box,
-   destination.nextSibling
-  );
+ }else{
 
-  return;
- }
+  places.forEach(function(place){
 
- const box=document.createElement("div");
+   const button=
+    document.createElement("button");
 
- box.id="placeResults";
+   button.type="button";
+   button.className="place-item";
 
- places.forEach(function(place){
+   const name=
+    place.name ||
+    place.display_name.split(",")[0];
 
-  const button=document.createElement("button");
+   button.innerHTML=
+    getIcon(place)+
+    " <b>"+escapeText(name)+"</b>"+
+    "<small>"+
+    escapeText(place.display_name)+
+    "</small>";
 
-  button.type="button";
-  button.className="place-item";
+   button.addEventListener(
+    "click",
+    function(){
 
-  const name=
-   place.name ||
-   place.display_name.split(",")[0];
+     destination.value=name;
 
-  button.innerHTML=
-   getIcon(place)+
-   " <b>"+safe(name)+"</b>"+
-   "<small>"+
-   safe(place.display_name)+
-   "</small>";
+     const lat=
+      parseFloat(place.lat);
 
-  button.addEventListener("click",function(){
+     const lon=
+      parseFloat(place.lon);
 
-   destination.value=name;
+     if(map){
 
-   const lat=parseFloat(place.lat);
-   const lon=parseFloat(place.lon);
+      map.setView(
+       [lat,lon],
+       16
+      );
 
-   if(map){
+      if(marker){
+       map.removeLayer(marker);
+      }
 
-    map.setView([lat,lon],16);
+      marker=L.marker([lat,lon])
+       .addTo(map)
+       .bindPopup(
+        escapeText(name)
+       )
+       .openPopup();
 
-    if(marker){
-     map.removeLayer(marker);
+     }
+
+     removeResults();
+
+     calculateFare();
+
     }
+   );
 
-    marker=L.marker([lat,lon])
-     .addTo(map)
-     .bindPopup(safe(name))
-     .openPopup();
-
-   }
-
-   removeResults();
-
-   calculateFare();
+   box.appendChild(button);
 
   });
 
-  box.appendChild(button);
-
- });
+ }
 
  destination.parentNode.insertBefore(
   box,
@@ -257,7 +270,7 @@ function showResults(places){
 }
 
 
-/* PLACE ICON */
+/* ICONS */
 
 function getIcon(place){
 
@@ -306,33 +319,155 @@ function getIcon(place){
     text.includes("monument"))
   return "🗿";
 
- if(text.includes("beach"))
-  return "🏖️";
+ if(text.includes("park"))
+  return "🌳";
+
+ if(text.includes("airport"))
+  return "✈️";
 
  if(text.includes("temple")||
     text.includes("church")||
     text.includes("mosque"))
   return "🛕";
 
- if(text.includes("school")||
-    text.includes("college")||
-    text.includes("university"))
-  return "🏫";
-
- if(text.includes("airport"))
-  return "✈️";
-
- if(text.includes("park"))
-  return "🌳";
-
  return "📍";
+
+}
+
+
+/* FARE */
+
+function calculateFare(){
+
+ if(!pickup.value ||
+    !destination.value){
+
+  fare.textContent="--";
+
+  return;
+ }
+
+ const prices={
+  Bike:50,
+  Car:100,
+  "Tuk Tuk":80
+ };
+
+ fare.textContent=
+  "NPR "+prices[vehicle];
+
+}
+
+
+/* STATUS */
+
+function showStatus(text){
+
+ let box=
+  document.getElementById("rideStatus");
+
+ if(!box){
+
+  box=document.createElement("div");
+
+  box.id="rideStatus";
+
+  request.parentNode.insertBefore(
+   box,
+   request.nextSibling
+  );
+
+ }
+
+ box.textContent=text;
+
+}
+
+
+/* REQUEST */
+
+request.addEventListener(
+ "click",
+ function(){
+
+  if(!pickup.value){
+
+   showStatus(
+    "Please select your pickup location."
+   );
+
+   return;
+  }
+
+  if(!destination.value){
+
+   showStatus(
+    "Please select a destination."
+   );
+
+   return;
+  }
+
+  showStatus(
+   "Ride request ready • "+
+   vehicle+" • "+
+   fare.textContent
+  );
+
+ }
+);
+
+
+/* CANCEL */
+
+cancel.addEventListener(
+ "click",
+ function(){
+
+  pickup.value="";
+  destination.value="";
+  fare.textContent="--";
+
+  removeResults();
+
+  if(marker && map){
+
+   map.removeLayer(marker);
+   marker=null;
+
+  }
+
+  gps.textContent=
+   "📍 Use my current location";
+
+  const status=
+   document.getElementById(
+    "rideStatus"
+   );
+
+  if(status)status.remove();
+
+ }
+);
+
+
+/* REMOVE SEARCH */
+
+function removeResults(){
+
+ const box=
+  document.getElementById(
+   "placeResults"
+  );
+
+ if(box)box.remove();
 
 }
 
 
 /* SAFE TEXT */
 
-function safe(text){
+function escapeText(text){
 
  return String(text)
   .replace(/&/g,"&amp;")
@@ -343,117 +478,4 @@ function safe(text){
 
 }
 
-
-/* REMOVE RESULTS */
-
-function removeResults(){
-
- const old=document.getElementById("placeResults");
-
- if(old){
-  old.remove();
- }
-
-}
-
-
-/* FARE */
-
-function calculateFare(){
-
- if(!pickup.value||!destination.value){
-
-  fare.textContent="--";
-
-  return;
-
- }
-
- const prices={
-  Bike:50,
-  Car:100,
-  "Tuk Tuk":80
- };
-
- fare.textContent="NPR "+prices[vehicle];
-
-}
-
-
-pickup.addEventListener(
- "input",
- calculateFare
-);
-
-
-/* REQUEST RIDE */
-
-if(request){
-
- request.addEventListener("click",function(){
-
-  if(!pickup.value){
-
-   alert("Please select your pickup location.");
-
-   return;
-
-  }
-
-  if(!destination.value){
-
-   alert("Please select a destination.");
-
-   return;
-
-  }
-
-  alert(
-   "Ride request ready\n\n"+
-   "Vehicle: "+vehicle+
-   "\nFare: "+fare.textContent
-  );
-
- });
-  }
-
-  alert(
-   "Ride request ready\n\n"+
-   "Vehicle: "+vehicle+
-   "\nFare: "+fare.textContent
-  );
-
- });
-
-}
-
-
-/* CANCEL */
-
-if(cancel){
-
- cancel.addEventListener("click",function(){
-
-  pickup.value="";
-  destination.value="";
-  fare.textContent="--";
-
-  removeResults();
-
-  if(marker&&map){
-
-   map.removeLayer(marker);
-   marker=null;
-
-  }
-
-  if(gps){
-
-   gps.textContent=
-    "📍 Use my current location";
-
-  }
-
- });
-
- }
+});
