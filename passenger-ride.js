@@ -8,28 +8,26 @@ const request=document.getElementById("request");
 const cancel=document.getElementById("cancel");
 
 let vehicle="Bike";
-let marker=null;
-let map=null;
-let timer=null;
+let pickupMarker=null;
+let destinationMarker=null;
+let routeLine=null;
+let searchTimer=null;
+let map;
 
 
 /* MAP */
 
-if(typeof L!=="undefined"){
+map=L.map("map",{
+ zoomControl:true,
+ attributionControl:false
+}).setView([27.7172,85.3240],13);
 
- map=L.map("map").setView(
-  [27.7172,85.3240],
-  13
- );
-
- L.tileLayer(
-  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-  {
-   attribution:"© OpenStreetMap contributors"
-  }
- ).addTo(map);
-
-}
+L.tileLayer(
+ "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+ {
+  maxZoom:19
+ }
+).addTo(map);
 
 
 /* VEHICLES */
@@ -65,7 +63,7 @@ gps.addEventListener("click",function(){
   return;
  }
 
- gps.textContent="Getting location...";
+ gps.textContent="Getting exact location...";
 
  navigator.geolocation.getCurrentPosition(
 
@@ -77,33 +75,23 @@ gps.addEventListener("click",function(){
    pickup.value=
     lat.toFixed(6)+", "+lon.toFixed(6);
 
-   if(map){
+   setPickup(lat,lon);
 
-    map.setView([lat,lon],16);
-
-    if(marker){
-     map.removeLayer(marker);
-    }
-
-    marker=L.marker([lat,lon])
-     .addTo(map)
-     .bindPopup("Pickup location")
-     .openPopup();
-
-   }
-
-   gps.textContent="📍 Location selected";
+   gps.textContent="📍 Pickup selected";
 
    calculateFare();
+
+   drawRouteIfReady();
 
   },
 
   function(){
 
-   gps.textContent="📍 Use my current location";
+   gps.textContent=
+    "📍 Use my current location";
 
    showStatus(
-    "Location permission was denied."
+    "Please allow location access."
    );
 
   },
@@ -125,16 +113,15 @@ destination.addEventListener(
  "input",
  function(){
 
-  clearTimeout(timer);
+  clearTimeout(searchTimer);
 
   removeResults();
 
-  const q=
-   destination.value.trim();
+  const q=destination.value.trim();
 
   if(q.length<2)return;
 
-  timer=setTimeout(
+  searchTimer=setTimeout(
    function(){
     searchPlaces(q);
    },
@@ -145,7 +132,7 @@ destination.addEventListener(
 );
 
 
-/* SEARCH ANY LOCATION IN NEPAL */
+/* GENERAL NEPAL SEARCH */
 
 async function searchPlaces(q){
 
@@ -156,10 +143,16 @@ async function searchPlaces(q){
    "?format=jsonv2"+
    "&q="+encodeURIComponent(q)+
    "&countrycodes=np"+
-   "&limit=8"+
-   "&addressdetails=1";
+   "&layer=address,poi,natural,manmade,railway"+
+   "&limit=10"+
+   "&addressdetails=1"+
+   "&accept-language=en";
 
-  const r=await fetch(url);
+  const r=await fetch(url,{
+   headers:{
+    "Accept":"application/json"
+   }
+  });
 
   if(!r.ok)throw new Error();
 
@@ -167,7 +160,7 @@ async function searchPlaces(q){
 
   showResults(places);
 
- }catch(e){
+ }catch(error){
 
   showStatus(
    "Destination search unavailable."
@@ -178,14 +171,13 @@ async function searchPlaces(q){
 }
 
 
-/* RESULTS */
+/* SEARCH RESULTS */
 
 function showResults(places){
 
  removeResults();
 
- const box=
-  document.createElement("div");
+ const box=document.createElement("div");
 
  box.id="placeResults";
 
@@ -193,7 +185,7 @@ function showResults(places){
 
   box.innerHTML=
    "<div class='place-item'>"+
-   "No location found"+
+   "No Nepal location found"+
    "</div>";
 
  }else{
@@ -212,46 +204,27 @@ function showResults(places){
 
    button.innerHTML=
     getIcon(place)+
-    " <b>"+escapeText(name)+"</b>"+
+    " <b>"+safe(name)+"</b>"+
     "<small>"+
-    escapeText(place.display_name)+
+    safe(place.display_name)+
     "</small>";
 
    button.addEventListener(
     "click",
     function(){
 
+     const lat=parseFloat(place.lat);
+     const lon=parseFloat(place.lon);
+
      destination.value=name;
 
-     const lat=
-      parseFloat(place.lat);
-
-     const lon=
-      parseFloat(place.lon);
-
-     if(map){
-
-      map.setView(
-       [lat,lon],
-       16
-      );
-
-      if(marker){
-       map.removeLayer(marker);
-      }
-
-      marker=L.marker([lat,lon])
-       .addTo(map)
-       .bindPopup(
-        escapeText(name)
-       )
-       .openPopup();
-
-     }
+     setDestination(lat,lon);
 
      removeResults();
 
      calculateFare();
+
+     drawRouteIfReady();
 
     }
    );
@@ -270,67 +243,121 @@ function showResults(places){
 }
 
 
-/* ICONS */
+/* PICKUP MARKER */
 
-function getIcon(place){
+function setPickup(lat,lon){
 
- const text=(
-  (place.name||"")+" "+
-  (place.display_name||"")+" "+
-  (place.type||"")
- ).toLowerCase();
+ if(pickupMarker){
+  map.removeLayer(pickupMarker);
+ }
 
- if(text.includes("hotel")||
-    text.includes("motel"))
-  return "🏨";
+ pickupMarker=L.marker([lat,lon])
+  .addTo(map)
+  .bindPopup("Pickup location");
 
- if(text.includes("bank")||
-    text.includes("atm"))
-  return "🏦";
+ map.setView([lat,lon],16);
 
- if(text.includes("hospital")||
-    text.includes("clinic")||
-    text.includes("medical")||
-    text.includes("pharmacy"))
-  return "🏥";
+}
 
- if(text.includes("bus")||
-    text.includes("terminal")||
-    text.includes("station"))
-  return "🚌";
 
- if(text.includes("mall")||
-    text.includes("market")||
-    text.includes("shopping"))
-  return "🏬";
+/* DESTINATION MARKER */
 
- if(text.includes("restaurant")||
-    text.includes("cafe"))
-  return "🍽️";
+function setDestination(lat,lon){
 
- if(text.includes("government")||
-    text.includes("office"))
-  return "🏛️";
+ if(destinationMarker){
+  map.removeLayer(destinationMarker);
+ }
 
- if(text.includes("bridge"))
-  return "🌉";
+ destinationMarker=L.marker([lat,lon])
+  .addTo(map)
+  .bindPopup("Destination")
+  .openPopup();
 
- if(text.includes("statue")||
-    text.includes("monument"))
-  return "🗿";
+ map.setView([lat,lon],16);
 
- if(text.includes("park"))
-  return "🌳";
+}
 
- if(text.includes("airport"))
-  return "✈️";
 
- if(text.includes("temple")||
-    text.includes("church")||
-    text.includes("mosque"))
-  return "🛕";
+/* ROUTE */
 
- return "📍";
+async function drawRouteIfReady(){
+
+ if(!pickupMarker ||
+    !destinationMarker){
+
+  return;
+ }
+
+ const a=
+  pickupMarker.getLatLng();
+
+ const b=
+  destinationMarker.getLatLng();
+
+ const url=
+  "https://router.project-osrm.org/route/v1/driving/"+
+  a.lng+","+a.lat+";"+
+  b.lng+","+b.lat+
+  "?overview=full&geometries=geojson";
+
+ try{
+
+  showStatus("Calculating route...");
+
+  const response=await fetch(url);
+
+  if(!response.ok)throw new Error();
+
+  const data=await response.json();
+
+  if(!data.routes ||
+     !data.routes.length){
+
+   showStatus("Route not found.");
+
+   return;
+  }
+
+  const route=data.routes[0];
+
+  if(routeLine){
+   map.removeLayer(routeLine);
+  }
+
+  routeLine=L.geoJSON(
+   route.geometry
+  ).addTo(map);
+
+  const distance=
+   route.distance/1000;
+
+  const minutes=
+   Math.round(route.duration/60);
+
+  updateFare(distance);
+
+  showStatus(
+   "Distance: "+
+   distance.toFixed(1)+
+   " km • ETA: "+
+   minutes+
+   " min"
+  );
+
+  map.fitBounds(
+   routeLine.getBounds(),
+   {
+    padding:[30,30]
+   }
+  );
+
+ }catch(error){
+
+  showStatus(
+   "Unable to calculate route."
+  );
+
+ }
 
 }
 
@@ -359,6 +386,112 @@ function calculateFare(){
 }
 
 
+/* DISTANCE FARE */
+
+function updateFare(distance){
+
+ const rules={
+  Bike:{base:25,km:14},
+  Car:{base:60,km:25},
+  "Tuk Tuk":{base:45,km:18}
+ };
+
+ const r=rules[vehicle];
+
+ const total=
+  r.base+(distance*r.km);
+
+ fare.textContent=
+  "NPR "+Math.round(total);
+
+}
+
+
+/* REQUEST */
+
+request.addEventListener(
+ "click",
+ function(){
+
+  if(!pickup.value){
+
+   showStatus(
+    "Please select pickup location."
+   );
+
+   return;
+  }
+
+  if(!destination.value){
+
+   showStatus(
+    "Please select destination."
+   );
+
+   return;
+  }
+
+  if(!destinationMarker){
+
+   showStatus(
+    "Please select a destination from search."
+   );
+
+   return;
+  }
+
+  showStatus(
+   "Ride ready • "+
+   vehicle+
+   " • "+
+   fare.textContent
+  );
+
+ }
+);
+
+
+/* CANCEL */
+
+cancel.addEventListener(
+ "click",
+ function(){
+
+  pickup.value="";
+  destination.value="";
+  fare.textContent="--";
+
+  removeResults();
+
+  if(pickupMarker){
+   map.removeLayer(pickupMarker);
+   pickupMarker=null;
+  }
+
+  if(destinationMarker){
+   map.removeLayer(destinationMarker);
+   destinationMarker=null;
+  }
+
+  if(routeLine){
+   map.removeLayer(routeLine);
+   routeLine=null;
+  }
+
+  gps.textContent=
+   "📍 Use my current location";
+
+  removeStatus();
+
+  map.setView(
+   [27.7172,85.3240],
+   13
+  );
+
+ }
+);
+
+
 /* STATUS */
 
 function showStatus(text){
@@ -384,71 +517,14 @@ function showStatus(text){
 }
 
 
-/* REQUEST */
+function removeStatus(){
 
-request.addEventListener(
- "click",
- function(){
+ const box=
+  document.getElementById("rideStatus");
 
-  if(!pickup.value){
+ if(box)box.remove();
 
-   showStatus(
-    "Please select your pickup location."
-   );
-
-   return;
-  }
-
-  if(!destination.value){
-
-   showStatus(
-    "Please select a destination."
-   );
-
-   return;
-  }
-
-  showStatus(
-   "Ride request ready • "+
-   vehicle+" • "+
-   fare.textContent
-  );
-
- }
-);
-
-
-/* CANCEL */
-
-cancel.addEventListener(
- "click",
- function(){
-
-  pickup.value="";
-  destination.value="";
-  fare.textContent="--";
-
-  removeResults();
-
-  if(marker && map){
-
-   map.removeLayer(marker);
-   marker=null;
-
-  }
-
-  gps.textContent=
-   "📍 Use my current location";
-
-  const status=
-   document.getElementById(
-    "rideStatus"
-   );
-
-  if(status)status.remove();
-
- }
-);
+}
 
 
 /* REMOVE SEARCH */
@@ -456,18 +532,69 @@ cancel.addEventListener(
 function removeResults(){
 
  const box=
-  document.getElementById(
-   "placeResults"
-  );
+  document.getElementById("placeResults");
 
  if(box)box.remove();
 
 }
 
 
+/* ICON */
+
+function getIcon(place){
+
+ const text=(
+  (place.name||"")+" "+
+  (place.display_name||"")+" "+
+  (place.type||"")
+ ).toLowerCase();
+
+ if(text.includes("hotel")||
+    text.includes("motel"))return"🏨";
+
+ if(text.includes("bank")||
+    text.includes("atm"))return"🏦";
+
+ if(text.includes("hospital")||
+    text.includes("clinic")||
+    text.includes("medical")||
+    text.includes("pharmacy"))return"🏥";
+
+ if(text.includes("bus")||
+    text.includes("terminal")||
+    text.includes("station"))return"🚌";
+
+ if(text.includes("mall")||
+    text.includes("market")||
+    text.includes("shopping"))return"🏬";
+
+ if(text.includes("restaurant")||
+    text.includes("cafe"))return"🍽️";
+
+ if(text.includes("government")||
+    text.includes("office"))return"🏛️";
+
+ if(text.includes("bridge"))return"🌉";
+
+ if(text.includes("statue")||
+    text.includes("monument"))return"🗿";
+
+ if(text.includes("park"))return"🌳";
+
+ if(text.includes("airport"))return"✈️";
+
+ if(text.includes("temple")||
+    text.includes("church")||
+    text.includes("mosque"))return"🛕";
+
+ return"📍";
+
+}
+
+
 /* SAFE TEXT */
 
-function escapeText(text){
+function safe(text){
 
  return String(text)
   .replace(/&/g,"&amp;")
