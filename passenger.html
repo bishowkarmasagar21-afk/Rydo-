@@ -1,134 +1,226 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RYDO Passenger</title>
+<meta name="viewport"
+ content="width=device-width,initial-scale=1">
+
+<title>RYDO Ride</title>
+
+<link rel="stylesheet"
+ href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
 <link rel="stylesheet" href="style.css">
+
+<style>
+#map{
+ width:100%;
+ height:280px;
+ min-height:280px;
+ margin:18px 0;
+ border-radius:14px;
+ overflow:hidden;
+ border:1px solid #444;
+ display:block;
+}
+
+.leaflet-container{
+ width:100%;
+ height:100%;
+}
+
+#placeResults{
+ width:100%;
+ margin-top:5px;
+ background:#111;
+ border:1px solid #ffad5c;
+ border-radius:12px;
+ overflow:hidden;
+ position:relative;
+ z-index:1000;
+}
+
+.place-item{
+ width:100%;
+ display:block;
+ padding:12px;
+ text-align:left;
+ background:#111;
+ color:#fff;
+ border:0;
+ border-bottom:1px solid #333;
+ cursor:pointer;
+}
+
+.place-item b{
+ color:#ffad5c;
+}
+
+.place-item small{
+ display:block;
+ margin-top:4px;
+ color:#aaa;
+ line-height:1.3;
+}
+
+#rideStatus{
+ margin-top:12px;
+ padding:12px;
+ background:#191919;
+ border:1px solid #ffad5c;
+ border-radius:10px;
+ color:#ffad5c;
+ text-align:center;
+}
+</style>
+
 </head>
 
 <body>
 
 <main class="home">
 
-<div class="logo"><span>R</span>YDO</div>
-<p class="tagline">Passenger</p>
+<div class="logo">
+ <span>R</span>YDO
+</div>
+
+<p class="tagline">
+ Book your ride
+</p>
 
 <div class="home-card">
 
-<!-- LOGIN -->
-<section id="loginBox">
+<h1>
+ Where are you going?
+</h1>
 
-<h1>Login</h1>
-<p class="sub">Login to book your RYDO ride.</p>
+<!-- MAP -->
 
-<form id="loginForm">
+<div id="map"></div>
 
-<input id="loginEmail"
-type="email"
-placeholder="Email address"
-required>
 
-<input id="loginPassword"
-type="password"
-placeholder="Password"
-required>
+<!-- GPS -->
 
-<button class="home-btn" type="submit">
-Login
+<button
+ class="location-btn"
+ id="gps"
+ type="button">
+
+📍 Use my current location
+
 </button>
 
-</form>
 
-<div class="switch-box">
-<p>New to RYDO?</p>
+<!-- PICKUP -->
 
-<button class="text-btn"
-type="button"
-onclick="openRegister()">
-Create Account
+<input
+ id="pickup"
+ type="text"
+ placeholder="Pickup location">
+
+
+<!-- DESTINATION -->
+
+<input
+ id="destination"
+ type="text"
+ placeholder="Search any destination in Nepal">
+
+
+<!-- VEHICLES -->
+
+<h2>
+ Choose vehicle
+</h2>
+
+<div class="vehicles">
+
+<button
+ class="vehicle active"
+ data-type="Bike"
+ type="button">
+
+🏍️ Bike
+
 </button>
+
+<button
+ class="vehicle"
+ data-type="Car"
+ type="button">
+
+🚗 Car
+
+</button>
+
+<button
+ class="vehicle"
+ data-type="Tuk Tuk"
+ type="button">
+
+🛺 Tuk Tuk
+
+</button>
+
 </div>
 
-</section>
 
+<!-- FARE -->
 
-<!-- REGISTER -->
-<section id="registerBox" style="display:none">
+<div class="fare">
 
-<h1>Create Account</h1>
-<p class="sub">Create your RYDO passenger account.</p>
+Estimated fare:
 
-<form id="registerForm">
+<strong id="fare">
+--
+</strong>
 
-<input id="name"
-type="text"
-placeholder="Full name"
-required>
-
-<input id="phone"
-type="tel"
-placeholder="Phone number"
-required>
-
-<input id="registerEmail"
-type="email"
-placeholder="Email address"
-required>
-
-<input id="registerPassword"
-type="password"
-placeholder="Password"
-required>
-
-<input id="confirmPassword"
-type="password"
-placeholder="Confirm password"
-required>
-
-<button class="home-btn" type="submit">
-Create Account
-</button>
-
-</form>
-
-<div class="switch-box">
-<p>Already have an account?</p>
-
-<button class="text-btn"
-type="button"
-onclick="openLogin()">
-Login
-</button>
 </div>
 
-</section>
 
-<p id="message"></p>
+<!-- REQUEST -->
 
-<a class="back-link" href="index.html">
-← Back to RYDO
+<button
+ class="home-btn"
+ id="request"
+ type="button">
+
+Request Ride
+
+</button>
+
+
+<!-- CANCEL -->
+
+<button
+ class="cancel-btn"
+ id="cancel"
+ type="button">
+
+Cancel
+
+</button>
+
+
+<a
+ class="back-link"
+ href="index.html">
+
+← Back
+
 </a>
 
 </div>
 
 </main>
 
-<script>
-function openRegister(){
- document.getElementById("loginBox").style.display="none";
- document.getElementById("registerBox").style.display="block";
- document.getElementById("message").textContent="";
-}
 
-function openLogin(){
- document.getElementById("registerBox").style.display="none";
- document.getElementById("loginBox").style.display="block";
- document.getElementById("message").textContent="";
-}
+<script
+ src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
 </script>
 
-<script src="passenger.js"></script>
+<script src="passenger-ride.js"></script>
 
 </body>
-  </html>
+</html>
