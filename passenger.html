@@ -1,228 +1,396 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
+const SUPABASE_URL = "https://kqtvuorasqyzjbnlkkxs.supabase.co";
+const SUPABASE_KEY = "sb_publishable_zZFJiy0YWZgOXFesVuAQcA_wd7rleMb";
 
-<meta charset="UTF-8">
-<meta name="viewport"
- content="width=device-width,initial-scale=1">
+let db;
+let map;
+let marker;
+let routeLine;
+let pickupPoint = null;
+let destinationPoint = null;
+let routeDistance = 0;
+let selectedVehicle = "Bike";
 
-<title>RYDO Ride</title>
+const $ = id => document.getElementById(id);
 
-<link rel="stylesheet"
- href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-
-<link rel="stylesheet" href="style.css">
-
-<style>
-#map{
- width:100%;
- height:280px;
- min-height:280px;
- margin:18px 0;
- border-radius:14px;
- overflow:hidden;
- border:1px solid #444;
- display:block;
+async function start() {
+  const s = document.createElement("script");
+  s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+  s.onload = init;
+  document.head.appendChild(s);
 }
 
-.leaflet-container{
- width:100%;
- height:100%;
+async function init() {
+  db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  map = L.map("map").setView([27.7172, 85.3240], 13);
+
+  L.tileLayer(
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    { maxZoom: 19 }
+  ).addTo(map);
+
+  await RydoFare.load(db);
+
+  setupButtons();
+  updateFare();
 }
 
-#placeResults{
- width:100%;
- margin-top:5px;
- background:#111;
- border:1px solid #ffad5c;
- border-radius:12px;
- overflow:hidden;
- position:relative;
- z-index:1000;
+function setupButtons() {
+  document.querySelectorAll(".vehicle").forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll(".vehicle")
+        .forEach(x => x.classList.remove("active"));
+
+      btn.classList.add("active");
+      selectedVehicle = btn.dataset.type;
+      updateFare();
+    };
+  });
+
+  $("gps").onclick = getLocation;
+  $("request").onclick = requestRide;
+  $("cancel").onclick = resetRide;
+
+  $("destination").addEventListener("input", searchDestination);
+  $("pickup").addEventListener("input", searchPickup);
 }
 
-.place-item{
- width:100%;
- display:block;
- padding:12px;
- text-align:left;
- background:#111;
- color:#fff;
- border:0;
- border-bottom:1px solid #333;
- cursor:pointer;
+function getLocation() {
+  if (!navigator.geolocation) {
+    return status("GPS is not supported on this device.");
+  }
+
+  status("Finding your location...");
+
+  navigator.geolocation.getCurrentPosition(
+    async pos => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+
+      pickupPoint = { lat, lon };
+
+      $("pickup").value = "Current location";
+
+      setMarker(lat, lon);
+      map.setView([lat, lon], 16);
+
+      try {
+        const r = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`
+        );
+
+        const data = await r.json();
+        $("pickup").value =
+          data.display_name || "Current location";
+      } catch {
+        $("pickup").value = "Current location";
+      }
+
+      await makeRoute();
+    },
+    () => status("Unable to get your location. Check GPS permission."),
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 5000
+    }
+  );
 }
 
-.place-item b{
- color:#ffad5c;
+async function searchDestination() {
+  const q = $("destination").value.trim();
+
+  if (q.length < 2) {
+    removeResults();
+    return;
+  }
+
+  const box = resultsBox();
+
+  try {
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&countrycodes=np&limit=6&q=${encodeURIComponent(q)}`
+    );
+
+    const data = await r.json();
+
+    box.innerHTML = "";
+
+    data.forEach(place => {
+      const b = document.createElement("button");
+      b.className = "place-item";
+      b.type = "button";
+      b.innerHTML = `<b>${place.display_name.split(",")[0]}</b>
+      <small>${place.display_name}</small>`;
+
+      b.onclick = async () => {
+        destinationPoint = {
+          lat: Number(place.lat),
+          lon: Number(place.lon)
+        };
+
+        $("destination").value = place.display_name;
+        removeResults();
+
+        setDestinationMarker(
+          destinationPoint.lat,
+          destinationPoint.lon
+        );
+
+        await makeRoute();
+      };
+
+      box.appendChild(b);
+    });
+  } catch {
+    status("Destination search failed.");
+  }
 }
 
-.place-item small{
- display:block;
- margin-top:4px;
- color:#aaa;
- line-height:1.3;
+async function searchPickup() {
+  const q = $("pickup").value.trim();
+
+  if (q.length < 2 || q === "Current location") {
+    removeResults();
+    return;
+  }
+
+  const box = resultsBox();
+
+  try {
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&countrycodes=np&limit=5&q=${encodeURIComponent(q)}`
+    );
+
+    const data = await r.json();
+
+    box.innerHTML = "";
+
+    data.forEach(place => {
+      const b = document.createElement("button");
+      b.className = "place-item";
+      b.type = "button";
+      b.innerHTML = `<b>${place.display_name.split(",")[0]}</b>
+      <small>${place.display_name}</small>`;
+
+      b.onclick = async () => {
+        pickupPoint = {
+          lat: Number(place.lat),
+          lon: Number(place.lon)
+        };
+
+        $("pickup").value = place.display_name;
+        removeResults();
+
+        setMarker(
+          pickupPoint.lat,
+          pickupPoint.lon
+        );
+
+        map.setView(
+          [pickupPoint.lat, pickupPoint.lon],
+          15
+        );
+
+        await makeRoute();
+      };
+
+      box.appendChild(b);
+    });
+  } catch {
+    status("Pickup search failed.");
+  }
 }
 
-#rideStatus{
- margin-top:12px;
- padding:12px;
- background:#191919;
- border:1px solid #ffad5c;
- border-radius:10px;
- color:#ffad5c;
- text-align:center;
+function resultsBox() {
+  let box = document.getElementById("placeResults");
+
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "placeResults";
+    $("destination").parentNode.insertBefore(
+      box,
+      $("destination").nextSibling
+    );
+  }
+
+  return box;
 }
-</style>
 
-</head>
+function removeResults() {
+  const box = document.getElementById("placeResults");
+  if (box) box.remove();
+}
 
-<body>
+function setMarker(lat, lon) {
+  if (marker) marker.remove();
 
-<main class="home">
+  marker = L.marker([lat, lon])
+    .addTo(map)
+    .bindPopup("Pickup")
+    .openPopup();
+}
 
-<div class="logo">
- <span>R</span>YDO
-</div>
+function setDestinationMarker(lat, lon) {
+  L.marker([lat, lon])
+    .addTo(map)
+    .bindPopup("Destination");
+}
 
-<p class="tagline">
- Book your ride
-</p>
+async function makeRoute() {
+  if (!pickupPoint || !destinationPoint) {
+    updateFare();
+    return;
+  }
 
-<div class="home-card">
+  status("Calculating route...");
 
-<h1>
- Where are you going?
-</h1>
+  try {
+    const url =
+      `https://router.project-osrm.org/route/v1/driving/` +
+      `${pickupPoint.lon},${pickupPoint.lat};` +
+      `${destinationPoint.lon},${destinationPoint.lat}` +
+      `?overview=full&geometries=geojson`;
 
-<!-- MAP -->
+    const r = await fetch(url);
+    const data = await r.json();
 
-<div id="map"></div>
+    if (!data.routes || !data.routes[0]) {
+      return status("Route could not be found.");
+    }
 
+    const route = data.routes[0];
 
-<!-- GPS -->
+    routeDistance = route.distance / 1000;
 
-<button
- class="location-btn"
- id="gps"
- type="button">
+    if (routeLine) routeLine.remove();
 
-📍 Use my current location
+    routeLine = L.geoJSON(route.geometry).addTo(map);
 
-</button>
+    map.fitBounds(routeLine.getBounds(), {
+      padding: [30, 30]
+    });
 
+    updateFare();
 
-<!-- PICKUP -->
+    status(
+      `${routeDistance.toFixed(1)} km • ` +
+      `${Math.round(route.duration / 60)} min`
+    );
+  } catch {
+    status("Route calculation failed.");
+  }
+}
 
-<input
- id="pickup"
- type="text"
- placeholder="Pickup location">
+function updateFare() {
+  const result = RydoFare.calculate(
+    selectedVehicle,
+    routeDistance
+  );
 
+  if (!result) {
+    $("fare").textContent = "--";
+    return;
+  }
 
-<!-- DESTINATION -->
+  $("fare").textContent =
+    `NPR ${result.estimated_fare}`;
+}
 
-<input
- id="destination"
- type="text"
- placeholder="Search any destination in Nepal">
+async function requestRide() {
+  if (!pickupPoint || !destinationPoint) {
+    return status("Select pickup and destination first.");
+  }
 
+  if (!routeDistance) {
+    return status("Route distance is not available.");
+  }
 
-<!-- VEHICLES -->
+  const {
+    data: { user }
+  } = await db.auth.getUser();
 
-<h2>
- Choose vehicle
-</h2>
+  if (!user) {
+    return status("Please log in before requesting a ride.");
+  }
 
-<div class="vehicles">
+  const fare = RydoFare.calculate(
+    selectedVehicle,
+    routeDistance
+  );
 
-<button
- class="vehicle active"
- data-type="Bike"
- type="button">
+  if (!fare) {
+    return status("Fare is unavailable for this vehicle.");
+  }
 
-🏍️ Bike
+  const commission =
+    fare.commission_percent / 100;
 
-</button>
+  const adminEarnings =
+    Math.round(fare.estimated_fare * commission);
 
-<button
- class="vehicle"
- data-type="Car"
- type="button">
+  const driverEarnings =
+    fare.estimated_fare - adminEarnings;
 
-🚗 Car
+  const { error } = await db.from("rides").insert({
+    passenger_id: user.id,
+    pickup: $("pickup").value,
+    destination: $("destination").value,
+    vehicle_type: fare.vehicle_type,
+    distance_km: fare.distance_km,
+    fare: fare.estimated_fare,
+    driver_earnings: driverEarnings,
+    admin_earnings: adminEarnings,
+    payment_method: "cash",
+    payment_status: "pending",
+    status: "requested",
+    pickup_lat: pickupPoint.lat,
+    pickup_lon: pickupPoint.lon,
+    destination_lat: destinationPoint.lat,
+    destination_lon: destinationPoint.lon
+  });
 
-</button>
+  if (error) {
+    console.error(error);
+    return status("Ride request failed: " + error.message);
+  }
 
-<button
- class="vehicle"
- data-type="Tuk Tuk"
- type="button">
+  status(
+    `Ride requested • ${routeDistance.toFixed(1)} km • ` +
+    `NPR ${fare.estimated_fare}`
+  );
+}
 
-🛺 Tuk Tuk
+function resetRide() {
+  pickupPoint = null;
+  destinationPoint = null;
+  routeDistance = 0;
 
-</button>
+  if (marker) {
+    marker.remove();
+    marker = null;
+  }
 
-</div>
+  if (routeLine) {
+    routeLine.remove();
+    routeLine = null;
+  }
 
+  $("pickup").value = "";
+  $("destination").value = "";
+  $("fare").textContent = "--";
 
-<!-- FARE -->
+  status("Ride cancelled.");
+}
 
-<div class="fare">
+function status(message) {
+  const el = $("rideStatus");
 
-Estimated fare:
+  if (el) {
+    el.textContent = message;
+  } else {
+    console.log(message);
+  }
+}
 
-<strong id="fare">
---
-</strong>
-
-</div>
-
-
-<!-- REQUEST -->
-
-<button
- class="home-btn"
- id="request"
- type="button">
-
-Request Ride
-
-</button>
-
-
-<!-- CANCEL -->
-
-<button
- class="cancel-btn"
- id="cancel"
- type="button">
-
-Cancel
-
-</button>
-
-
-<a
- class="back-link"
- href="index.html">
-
-← Back
-
-</a>
-
-</div>
-
-</main>
-
-
-<script
- src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-</script>
-
-<script src="passenger-ride.js"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="passenger-fare.js"></script>
-<script src="passenger-ride.js"></script>
-</body>
-</html>
+start();
