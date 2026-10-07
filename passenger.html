@@ -1,396 +1,236 @@
-const SUPABASE_URL = "https://kqtvuorasqyzjbnlkkxs.supabase.co";
-const SUPABASE_KEY = "sb_publishable_zZFJiy0YWZgOXFesVuAQcA_wd7rleMb";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ryde</title>
+<style>
+:root{--bg:#E6ECF0;--ink:#0F1720;--mut:#6B7785;--card:#FFFFFF;--road:#FFFFFF;--park:#CFE5D5;--water:#C5DDEB;--blk:#DDE5EA;--me:#2563EB;--line:#E3E8EE;--chip:#F2F5F8;--btn:#0F1720;--btnt:#fff;--ok:#12805C;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10151C;--ink:#F1F5F9;--mut:#93A0B0;--card:#1A222C;--road:#2B3644;--park:#1D3A2B;--water:#1B3446;--blk:#161D26;--me:#5B8DFF;--line:#2A3441;--chip:#232D39;--btn:#F1F5F9;--btnt:#0F1720;--ok:#3DD6A0}}
+:root[data-theme="dark"]{--bg:#10151C;--ink:#F1F5F9;--mut:#93A0B0;--card:#1A222C;--road:#2B3644;--park:#1D3A2B;--water:#1B3446;--blk:#161D26;--me:#5B8DFF;--line:#2A3441;--chip:#232D39;--btn:#F1F5F9;--btnt:#0F1720;--ok:#3DD6A0}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.35 "Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;justify-content:center}
+#app{width:100%;max-width:460px;height:100%;display:flex;flex-direction:column;position:relative}
+#map{flex:1;min-height:0;position:relative}
+canvas{position:absolute;inset:0;width:100%;height:100%}
+#back{position:absolute;top:12px;left:12px;width:42px;height:42px;border-radius:50%;border:0;background:var(--card);color:var(--ink);font-size:20px;box-shadow:0 2px 8px rgba(0,0,0,.18);display:none;cursor:pointer}
+#brand{position:absolute;top:12px;right:12px;background:var(--card);padding:8px 14px;border-radius:20px;font-weight:800;letter-spacing:-.02em;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+#sheet{background:var(--card);border-radius:20px 20px 0 0;padding:10px 16px 16px;max-height:64%;overflow:auto;box-shadow:0 -4px 18px rgba(0,0,0,.14);position:relative}
+.grab{width:38px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 12px}
+h2{font-size:21px;letter-spacing:-.02em;margin:0 0 10px}
+.sub{color:var(--mut);font-size:14px}
+.search{display:flex;align-items:center;gap:10px;background:var(--chip);border-radius:12px;padding:14px;font-weight:700;margin-bottom:6px}
+.place{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;border-bottom:1px solid var(--line);padding:12px 0;text-align:left;color:var(--ink);font:inherit;cursor:pointer}
+.place:last-child{border:0}
+.ic{width:38px;height:38px;border-radius:50%;background:var(--chip);display:grid;place-items:center;flex:none;font-size:17px}
+.place b,.ride b{display:block}
+.ride{display:flex;align-items:center;gap:12px;width:100%;border:2px solid transparent;background:none;border-radius:14px;padding:10px;text-align:left;color:var(--ink);font:inherit;cursor:pointer}
+.ride.sel{border-color:var(--ink);background:var(--chip)}
+.ride .ic{background:transparent;font-size:30px;width:52px}
+.ride .p{margin-left:auto;font-weight:800}
+.pay{display:flex;justify-content:space-between;padding:12px 4px;margin:6px 0;border-top:1px solid var(--line);font-size:14px}
+.btn{width:100%;border:0;border-radius:14px;padding:16px;background:var(--btn);color:var(--btnt);font:inherit;font-weight:800;font-size:17px;cursor:pointer}
+.btn.alt{background:var(--chip);color:var(--ink);margin-top:8px;font-size:15px;padding:13px}
+button:focus-visible{outline:3px solid var(--me);outline-offset:2px}
+.drv{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.av{width:54px;height:54px;border-radius:50%;background:var(--me);color:#fff;display:grid;place-items:center;font-weight:800;font-size:19px;flex:none}
+.plate{margin-left:auto;text-align:right}
+.plate span{display:inline-block;border:2px solid var(--ink);border-radius:6px;padding:2px 8px;font-weight:800;letter-spacing:.06em}
+.big{font-size:30px;font-weight:800;letter-spacing:-.03em}
+.pin{display:flex;justify-content:space-between;align-items:center;background:var(--chip);border-radius:12px;padding:12px 14px;margin-bottom:10px;font-size:14px}
+.pin b{font-size:20px;letter-spacing:.2em}
+.acts{display:flex;gap:8px}
+.acts .btn{font-size:15px;padding:13px}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin:10px 0 4px}
+.bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .4s}
+.stars{display:flex;gap:6px;justify-content:center;margin:10px 0}
+.stars button{background:none;border:0;font-size:34px;color:var(--line);cursor:pointer;padding:0 2px}
+.stars button.on{color:#F5B301}
+.tips{display:flex;gap:8px;margin-bottom:12px}
+.tips button{flex:1;padding:11px;border-radius:12px;border:2px solid var(--line);background:none;color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
+.tips button.on{border-color:var(--ink)}
+.center{text-align:center}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:6px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="map"><canvas id="c"></canvas><button id="back" aria-label="Back">&#8592;</button><div id="brand">Ryde</div></div>
+  <div id="sheet"></div>
+</div>
 
-let db;
-let map;
-let marker;
-let routeLine;
-let pickupPoint = null;
-let destinationPoint = null;
-let routeDistance = 0;
-let selectedVehicle = "Bike";
+<script>
+const $=id=>document.getElementById(id);
+const cv=$('c'),ctx=cv.getContext('2d'),sheet=$('sheet');
+const G=60,SPEED=60,X0=0,X1=360,Y0=60,Y1=420;
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const rnd=a=>a[Math.floor(Math.random()*a.length)];
+const ME={x:180,y:240};
+const PLACES=[
+ {n:'Airport Terminal 2',s:'Departures, Level 3',x:300,y:120,i:'✈️'},
+ {n:'Central Station',s:'Main entrance',x:60,y:120,i:'🚆'},
+ {n:'City Mall',s:'North gate',x:60,y:360,i:'🛍️'},
+ {n:'Greenfield University',s:'Admin building',x:300,y:360,i:'🎓'}];
+const RIDES=[
+ {n:'Economy',i:'🚗',seats:4,m:1,t:'Affordable'},
+ {n:'Comfort',i:'🚙',seats:4,m:1.35,t:'Newer cars, extra legroom'},
+ {n:'XL',i:'🚐',seats:6,m:1.8,t:'Groups up to 6'}];
+const NAMES=['Amir K.','Daniel R.','Sofia M.','Hassan A.','Lena W.'];
+const CARS=['Toyota Prius','Honda Civic','Hyundai Ioniq','Kia Niro'];
 
-const $ = id => document.getElementById(id);
+let S='home',dest=null,ride=0,drv=null,drivers=[],total=1,rating=0,tip=0,timer=null,tripStart=0;
 
-async function start() {
-  const s = document.createElement("script");
-  s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
-  s.onload = init;
-  document.head.appendChild(s);
+const dist=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
+const route=(a,b)=>{const p=[];if(b.x!==a.x)p.push({x:b.x,y:a.y});if(b.y!==a.y)p.push({x:b.x,y:b.y});return p};
+const km=px=>px/G*0.5;
+const fare=(i)=>Math.max(5,(2.5+km(dist(ME,dest))*1.7)*RIDES[i].m);
+const left=d=>{let s=0,x=d.x,y=d.y;for(const p of d.path){s+=Math.abs(p.x-x)+Math.abs(p.y-y);x=p.x;y=p.y}return s};
+
+function mkDrivers(){
+  drivers=Array.from({length:6},(_,i)=>({id:i,x:Math.round((Math.random()*6))*G,y:Y0+Math.round(Math.random()*6)*G,a:0,path:[],busy:false,cb:null,
+    name:NAMES[i%5],car:rnd(CARS),plate:'RY '+(100+Math.floor(Math.random()*899))+' '+String.fromCharCode(65+Math.random()*26|0)}));
+}
+function step(d,dt){
+  if(!d.path.length){
+    if(d.busy){const f=d.cb;d.cb=null;if(f)f();return}
+    const o=[[G,0],[-G,0],[0,G],[0,-G]].map(([a,b])=>({x:d.x+a,y:d.y+b})).filter(p=>p.x>=X0&&p.x<=X1&&p.y>=Y0&&p.y<=Y1);
+    d.path.push(rnd(o));
+  }
+  let m=SPEED*(d.busy?1.5:.6)*dt;
+  while(m>0&&d.path.length){
+    const t=d.path[0],dx=t.x-d.x,dy=t.y-d.y,l=Math.abs(dx)+Math.abs(dy);
+    d.a=Math.atan2(dy,dx);
+    if(l<=m){d.x=t.x;d.y=t.y;d.path.shift();m-=l}
+    else{d.x+=Math.sign(dx)*m*(dx?1:0);d.y+=Math.sign(dy)*m*(dy?1:0);m=0}
+  }
 }
 
-async function init() {
-  db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-  map = L.map("map").setView([27.7172, 85.3240], 13);
-
-  L.tileLayer(
-    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    { maxZoom: 19 }
-  ).addTo(map);
-
-  await RydoFare.load(db);
-
-  setupButtons();
-  updateFare();
-}
-
-function setupButtons() {
-  document.querySelectorAll(".vehicle").forEach(btn => {
-    btn.onclick = () => {
-      document.querySelectorAll(".vehicle")
-        .forEach(x => x.classList.remove("active"));
-
-      btn.classList.add("active");
-      selectedVehicle = btn.dataset.type;
-      updateFare();
+function go(s){S=s;render()}
+function pick(i){dest=PLACES[i];go('options')}
+function sel(i){ride=i;render()}
+function confirm(){
+  go('search');
+  timer=setTimeout(()=>{
+    const free=drivers.filter(d=>!d.busy).sort((a,b)=>dist(a,ME)-dist(b,ME));
+    drv=free[0];drv.busy=true;
+    const st=drv.path[0]||{x:drv.x,y:drv.y};
+    drv.path=[st,...route(st,ME)];
+    total=Math.max(1,left(drv));
+    drv.cb=()=>{
+      tripStart=1;drv.path=route(ME,dest);total=Math.max(1,left(drv));
+      drv.cb=()=>{drv.busy=false;go('done')};
+      go('trip');
     };
+    go('arriving');
+  },2600);
+}
+function cancel(){
+  clearTimeout(timer);
+  if(drv){drv.busy=false;drv.cb=null;drv.path=[]}
+  drv=null;go('home');
+}
+function star(n){rating=n;render()}
+function setTip(n){tip=n;render()}
+function finish(){drv=null;dest=null;rating=0;tip=0;tripStart=0;go('home')}
+
+function render(){
+  $('back').style.display=S==='options'?'block':'none';
+  let h='<div class="grab"></div>';
+  if(S==='home'){
+    h+='<h2>Where to?</h2><div class="search">🔍 <span>Search destination</span></div>';
+    h+=PLACES.map((p,i)=>`<button class="place" onclick="pick(${i})"><span class="ic">${p.i}</span><span><b>${p.n}</b><span class="sub">${p.s}</span></span></button>`).join('');
+  }
+  if(S==='options'){
+    h+=`<h2>Choose a ride</h2><div class="sub" style="margin:-6px 0 8px">To ${dest.n} · ${km(dist(ME,dest)).toFixed(1)} km</div>`;
+    h+=RIDES.map((r,i)=>{
+      const near=Math.max(2,Math.round(Math.min(...drivers.map(d=>dist(d,ME)))/G)+1+i);
+      return `<button class="ride ${i===ride?'sel':''}" onclick="sel(${i})"><span class="ic">${r.i}</span><span><b>${r.n} · ${r.seats} seats</b><span class="sub">${near} min away · ${r.t}</span></span><span class="p">$${fare(i).toFixed(2)}</span></button>`}).join('');
+    h+=`<div class="pay"><span>💳 Visa ···· 4242</span><span class="sub">Change</span></div><button class="btn" onclick="confirm()">Confirm ${RIDES[ride].n}</button>`;
+  }
+  if(S==='search'){
+    h+=`<div class="center" style="padding:10px 0 6px"><h2>Finding your driver…</h2><div class="sub">Matching you with the closest ${RIDES[ride].n} car</div></div><button class="btn alt" onclick="cancel()">Cancel request</button>`;
+  }
+  if(S==='arriving'||S==='trip'){
+    const t=S==='arriving';
+    h+=`<div class="sub" style="margin-bottom:2px"><span class="dot"></span>${t?'Driver is on the way':'Heading to '+dest.n}</div>`;
+    h+=`<div class="big" id="eta"></div><div class="bar"><i id="pr"></i></div>`;
+    h+=`<div class="drv" style="margin-top:12px"><div class="av">${drv.name[0]}</div><div><b>${drv.name}</b><div class="sub">★ 4.9 · ${drv.car}</div></div><div class="plate"><span>${drv.plate}</span></div></div>`;
+    if(t)h+=`<div class="pin"><span>Tell the driver your PIN</span><b>4 8 2 1</b></div><div class="acts"><button class="btn alt" style="margin:0">📞 Call</button><button class="btn alt" style="margin:0">💬 Message</button><button class="btn alt" style="margin:0" onclick="cancel()">Cancel</button></div>`;
+    else h+=`<div class="acts"><button class="btn alt" style="margin:0">Share trip</button><button class="btn alt" style="margin:0">Safety</button></div>`;
+  }
+  if(S==='done'){
+    h+=`<div class="center"><h2>You've arrived</h2><div class="big">$${(fare(ride)+tip).toFixed(2)}</div><div class="sub">${RIDES[ride].n} · ${drv.name} · Visa ···· 4242</div>
+    <div class="stars" role="group" aria-label="Rate your driver">${[1,2,3,4,5].map(n=>`<button class="${n<=rating?'on':''}" onclick="star(${n})" aria-label="${n} stars">★</button>`).join('')}</div>
+    <div class="tips">${[0,1,2,5].map(n=>`<button class="${tip===n?'on':''}" onclick="setTip(${n})">${n?'$'+n:'No tip'}</button>`).join('')}</div>
+    <button class="btn" onclick="finish()">Done</button></div>`;
+  }
+  sheet.innerHTML=h;resize();
+}
+$('back').onclick=()=>go('home');
+
+function tick(){
+  if(!$('eta')||!drv)return;
+  const l=left(drv),m=Math.max(1,Math.ceil(km(l)*2.2));
+  $('eta').textContent=(S==='arriving'?'Arrives in ':'Drop-off in ')+m+' min';
+  $('pr').style.width=Math.round((1-l/total)*100)+'%';
+}
+setInterval(tick,300);
+
+let W=0,H=0,sc=1,ox=0,oy=0,dpr=1;
+function resize(){
+  const r=$('map').getBoundingClientRect();if(!r.width)return;
+  dpr=window.devicePixelRatio||1;W=r.width;H=r.height;
+  cv.width=W*dpr;cv.height=H*dpr;
+  sc=Math.min(W/340,H/330);
+  ox=W/2-180*sc;oy=H/2-240*sc;
+}
+addEventListener('resize',resize);
+new ResizeObserver(resize).observe($('map'));
+
+function draw(t){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle=css('--blk');ctx.fillRect(0,0,W,H);
+  ctx.setTransform(dpr*sc,0,0,dpr*sc,dpr*ox,dpr*oy);
+  const gx0=-500,gx1=900;
+  ctx.fillStyle=css('--water');ctx.fillRect(gx0,-300,gx1-gx0,170);
+  ctx.fillStyle=css('--park');
+  ctx.fillRect(70,190,100,40);ctx.fillRect(250,250,40,100);ctx.fillRect(70,250,40,40);
+  ctx.strokeStyle=css('--road');ctx.lineWidth=13;ctx.lineCap='round';
+  for(let x=-420;x<=780;x+=G){ctx.beginPath();ctx.moveTo(x,-100);ctx.lineTo(x,900);ctx.stroke()}
+  for(let y=-60;y<=840;y+=G){ctx.beginPath();ctx.moveTo(gx0,y);ctx.lineTo(gx1,y);ctx.stroke()}
+  // route
+  if(dest&&S!=='home'){
+    ctx.strokeStyle=css('--ink');ctx.lineWidth=5;ctx.lineJoin='round';
+    ctx.beginPath();ctx.moveTo(ME.x,ME.y);route(ME,dest).forEach(p=>ctx.lineTo(p.x,p.y));ctx.stroke();
+    ctx.fillStyle=css('--ink');ctx.fillRect(dest.x-8,dest.y-8,16,16);
+    ctx.fillStyle=css('--card');ctx.fillRect(dest.x-3,dest.y-3,6,6);
+  }
+  // me + pulse
+  const p=(t/1400)%1;
+  ctx.fillStyle=css('--me');
+  ctx.globalAlpha=S==='search'?.35*(1-p):.18*(1-p);
+  ctx.beginPath();ctx.arc(ME.x,ME.y,10+p*(S==='search'?90:30),0,7);ctx.fill();ctx.globalAlpha=1;
+  if(S!=='trip'){ctx.beginPath();ctx.arc(ME.x,ME.y,9,0,7);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke()}
+  // cars
+  drivers.forEach(d=>{
+    if(drv&&S!=='home'&&S!=='options'&&d!==drv)return;
+    ctx.save();ctx.translate(d.x,d.y);ctx.rotate(d.a);
+    const me=d===drv;
+    ctx.fillStyle=me?css('--ink'):css('--mut');
+    ctx.beginPath();ctx.roundRect(-10,-6,20,12,4);ctx.fill();
+    ctx.fillStyle=css('--card');ctx.fillRect(1,-4,6,8);
+    ctx.restore();
   });
-
-  $("gps").onclick = getLocation;
-  $("request").onclick = requestRide;
-  $("cancel").onclick = resetRide;
-
-  $("destination").addEventListener("input", searchDestination);
-  $("pickup").addEventListener("input", searchPickup);
 }
-
-function getLocation() {
-  if (!navigator.geolocation) {
-    return status("GPS is not supported on this device.");
-  }
-
-  status("Finding your location...");
-
-  navigator.geolocation.getCurrentPosition(
-    async pos => {
-      const lat = pos.coords.latitude;
-      const lon = pos.coords.longitude;
-
-      pickupPoint = { lat, lon };
-
-      $("pickup").value = "Current location";
-
-      setMarker(lat, lon);
-      map.setView([lat, lon], 16);
-
-      try {
-        const r = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`
-        );
-
-        const data = await r.json();
-        $("pickup").value =
-          data.display_name || "Current location";
-      } catch {
-        $("pickup").value = "Current location";
-      }
-
-      await makeRoute();
-    },
-    () => status("Unable to get your location. Check GPS permission."),
-    {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 5000
-    }
-  );
+let last=performance.now();
+function loop(t){
+  const dt=Math.min(.05,(t-last)/1000);last=t;
+  drivers.forEach(d=>step(d,dt));
+  draw(t);requestAnimationFrame(loop);
 }
-
-async function searchDestination() {
-  const q = $("destination").value.trim();
-
-  if (q.length < 2) {
-    removeResults();
-    return;
-  }
-
-  const box = resultsBox();
-
-  try {
-    const r = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&countrycodes=np&limit=6&q=${encodeURIComponent(q)}`
-    );
-
-    const data = await r.json();
-
-    box.innerHTML = "";
-
-    data.forEach(place => {
-      const b = document.createElement("button");
-      b.className = "place-item";
-      b.type = "button";
-      b.innerHTML = `<b>${place.display_name.split(",")[0]}</b>
-      <small>${place.display_name}</small>`;
-
-      b.onclick = async () => {
-        destinationPoint = {
-          lat: Number(place.lat),
-          lon: Number(place.lon)
-        };
-
-        $("destination").value = place.display_name;
-        removeResults();
-
-        setDestinationMarker(
-          destinationPoint.lat,
-          destinationPoint.lon
-        );
-
-        await makeRoute();
-      };
-
-      box.appendChild(b);
-    });
-  } catch {
-    status("Destination search failed.");
-  }
-}
-
-async function searchPickup() {
-  const q = $("pickup").value.trim();
-
-  if (q.length < 2 || q === "Current location") {
-    removeResults();
-    return;
-  }
-
-  const box = resultsBox();
-
-  try {
-    const r = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&countrycodes=np&limit=5&q=${encodeURIComponent(q)}`
-    );
-
-    const data = await r.json();
-
-    box.innerHTML = "";
-
-    data.forEach(place => {
-      const b = document.createElement("button");
-      b.className = "place-item";
-      b.type = "button";
-      b.innerHTML = `<b>${place.display_name.split(",")[0]}</b>
-      <small>${place.display_name}</small>`;
-
-      b.onclick = async () => {
-        pickupPoint = {
-          lat: Number(place.lat),
-          lon: Number(place.lon)
-        };
-
-        $("pickup").value = place.display_name;
-        removeResults();
-
-        setMarker(
-          pickupPoint.lat,
-          pickupPoint.lon
-        );
-
-        map.setView(
-          [pickupPoint.lat, pickupPoint.lon],
-          15
-        );
-
-        await makeRoute();
-      };
-
-      box.appendChild(b);
-    });
-  } catch {
-    status("Pickup search failed.");
-  }
-}
-
-function resultsBox() {
-  let box = document.getElementById("placeResults");
-
-  if (!box) {
-    box = document.createElement("div");
-    box.id = "placeResults";
-    $("destination").parentNode.insertBefore(
-      box,
-      $("destination").nextSibling
-    );
-  }
-
-  return box;
-}
-
-function removeResults() {
-  const box = document.getElementById("placeResults");
-  if (box) box.remove();
-}
-
-function setMarker(lat, lon) {
-  if (marker) marker.remove();
-
-  marker = L.marker([lat, lon])
-    .addTo(map)
-    .bindPopup("Pickup")
-    .openPopup();
-}
-
-function setDestinationMarker(lat, lon) {
-  L.marker([lat, lon])
-    .addTo(map)
-    .bindPopup("Destination");
-}
-
-async function makeRoute() {
-  if (!pickupPoint || !destinationPoint) {
-    updateFare();
-    return;
-  }
-
-  status("Calculating route...");
-
-  try {
-    const url =
-      `https://router.project-osrm.org/route/v1/driving/` +
-      `${pickupPoint.lon},${pickupPoint.lat};` +
-      `${destinationPoint.lon},${destinationPoint.lat}` +
-      `?overview=full&geometries=geojson`;
-
-    const r = await fetch(url);
-    const data = await r.json();
-
-    if (!data.routes || !data.routes[0]) {
-      return status("Route could not be found.");
-    }
-
-    const route = data.routes[0];
-
-    routeDistance = route.distance / 1000;
-
-    if (routeLine) routeLine.remove();
-
-    routeLine = L.geoJSON(route.geometry).addTo(map);
-
-    map.fitBounds(routeLine.getBounds(), {
-      padding: [30, 30]
-    });
-
-    updateFare();
-
-    status(
-      `${routeDistance.toFixed(1)} km • ` +
-      `${Math.round(route.duration / 60)} min`
-    );
-  } catch {
-    status("Route calculation failed.");
-  }
-}
-
-function updateFare() {
-  const result = RydoFare.calculate(
-    selectedVehicle,
-    routeDistance
-  );
-
-  if (!result) {
-    $("fare").textContent = "--";
-    return;
-  }
-
-  $("fare").textContent =
-    `NPR ${result.estimated_fare}`;
-}
-
-async function requestRide() {
-  if (!pickupPoint || !destinationPoint) {
-    return status("Select pickup and destination first.");
-  }
-
-  if (!routeDistance) {
-    return status("Route distance is not available.");
-  }
-
-  const {
-    data: { user }
-  } = await db.auth.getUser();
-
-  if (!user) {
-    return status("Please log in before requesting a ride.");
-  }
-
-  const fare = RydoFare.calculate(
-    selectedVehicle,
-    routeDistance
-  );
-
-  if (!fare) {
-    return status("Fare is unavailable for this vehicle.");
-  }
-
-  const commission =
-    fare.commission_percent / 100;
-
-  const adminEarnings =
-    Math.round(fare.estimated_fare * commission);
-
-  const driverEarnings =
-    fare.estimated_fare - adminEarnings;
-
-  const { error } = await db.from("rides").insert({
-    passenger_id: user.id,
-    pickup: $("pickup").value,
-    destination: $("destination").value,
-    vehicle_type: fare.vehicle_type,
-    distance_km: fare.distance_km,
-    fare: fare.estimated_fare,
-    driver_earnings: driverEarnings,
-    admin_earnings: adminEarnings,
-    payment_method: "cash",
-    payment_status: "pending",
-    status: "requested",
-    pickup_lat: pickupPoint.lat,
-    pickup_lon: pickupPoint.lon,
-    destination_lat: destinationPoint.lat,
-    destination_lon: destinationPoint.lon
-  });
-
-  if (error) {
-    console.error(error);
-    return status("Ride request failed: " + error.message);
-  }
-
-  status(
-    `Ride requested • ${routeDistance.toFixed(1)} km • ` +
-    `NPR ${fare.estimated_fare}`
-  );
-}
-
-function resetRide() {
-  pickupPoint = null;
-  destinationPoint = null;
-  routeDistance = 0;
-
-  if (marker) {
-    marker.remove();
-    marker = null;
-  }
-
-  if (routeLine) {
-    routeLine.remove();
-    routeLine = null;
-  }
-
-  $("pickup").value = "";
-  $("destination").value = "";
-  $("fare").textContent = "--";
-
-  status("Ride cancelled.");
-}
-
-function status(message) {
-  const el = $("rideStatus");
-
-  if (el) {
-    el.textContent = message;
-  } else {
-    console.log(message);
-  }
-}
-
-start();
+mkDrivers();render();requestAnimationFrame(loop);
+</script>
+</body>
+  </html>
