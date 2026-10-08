@@ -1,1 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <title>RYDO Passenger</title>
+
+  <!-- RYDO existing UI -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Map -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  >
+</head>
+
+<body>
+
+  <!-- ================= HEADER ================= -->
+
+  <header class="top">
+    <a href="index.html" class="logo">
+      <span>R</span>YDO
+    </a>
+
+    <div id="accountArea"></div>
+  </header>
+
+
+  <!-- ================= AUTH SCREEN ================= -->
+
+  <main id="authScreen" class="screen active">
+
+    <div class="box">
+
+      <div class="brand">
+        <div class="brand-mark">R</div>
+        <h1>RYDO</h1>
+        <p>Move your way.</p>
+      </div>
+
+
+      <!-- LOGIN / REGISTER TABS -->
+
+      <div class="auth-tabs">
+
+        <button
+          id="loginTab"
+          class="auth-tab active"
+          type="button">
+          Login
+        </button>
+
+        <button
+          id="registerTab"
+          class="auth-tab"
+          type="button">
+          Register
+        </button>
+
+      </div>
+
+
+      <!-- MESSAGE -->
+
+      <div
+        id="authMessage"
+        class="auth-message">
+      </div>
+
+
+      <!-- ================= LOGIN ================= -->
+
+      <section
+        id="loginPanel"
+        class="auth-panel active">
+
+        <h2>Welcome back</h2>
+
+        <p class="panel-text">
+          Login to book your RYDO ride.
+        </p>
+
+
+        <form id="loginForm">
+
+          <label for="loginEmail">
+            Email address
+          </label>
+
+          <input
+            id="loginEmail"
+            type="email"
+            placeholder="Enter your email"
+            autocomplete="email"
+            required
+          >
+
+
+          <label for="loginPassword">
+            Password
+          </label>
+
+          <input
+            id="loginPassword"
+            type="password"
+            placeholder="Enter your password"
+            autocomplete="current-password"
+            required
+          >
+
+
+          <button
+            type="submit"
+            class="primary-btn">
+            Login
+          </button>
+
+        </form>
+
+
+        <button
+          id="forgotPasswordBtn"
+          type="button"
+          class="text-btn">
+          Forgot password?
+        </button>
+
+      </section>
+
+
+      <!-- ================= REGISTER ================= -->
+
+      <section
+        id="registerPanel"
+        class="auth-panel">
+
+        <h2>Create passenger account</h2>
+
+        <p class="panel-text">
+          Register once and start booking RYDO rides.
+        </p>
+
+
+        <form id="registerForm">
+
+          <label for="registerName">
+            Full name
+          </label>
+
+          <input
+            id="registerName"
+            type="text"
+            placeholder="Your full name"
+            autocomplete="name"
+            required
+          >
+
+
+          <label for="registerPhone">
+            Phone number
+          </label>
+
+          <input
+            id="registerPhone"
+            type="tel"
+            placeholder="98XXXXXXXX"
+            autocomplete="tel"
+            required
+          >
+
+
+          <label for="registerEmail">
+            Email address
+          </label>
+
+          <input
+            id="registerEmail"
+            type="email"
+            placeholder="Your email"
+            autocomplete="email"
+            required
+          >
+
+
+          <label for="registerPassword">
+            Password
+          </label>
+
+          <input
+            id="registerPassword"
+            type="password"
+            placeholder="Create a password"
+            autocomplete="new-password"
+            required
+          >
+
+
+          <label for="registerConfirm">
+            Confirm password
+          </label>
+
+          <input
+            id="registerConfirm"
+            type="password"
+            placeholder="Confirm your password"
+            autocomplete="new-password"
+            required
+          >
+
+
+          <button
+            type="submit"
+            class="primary-btn">
+            Create Account
+          </button>
+
+        </form>
+
+      </section>
+
+    </div>
+
+  </main>
+
+
+  <!-- ================= RIDE BOOKING ================= -->
+
+  <main
+    id="rideScreen"
+    class="screen">
+
+    <div class="ride-layout">
+
+
+      <!-- BOOKING PANEL -->
+
+      <section class="ride-panel">
+
+        <div class="panel-header">
+
+          <div>
+            <h2>Book a ride</h2>
+
+            <p>
+              Where would you like to go?
+            </p>
+          </div>
+
+        </div>
+
+
+        <!-- PICKUP -->
+
+        <div class="location-field">
+
+          <label for="pickup">
+            Pickup
+          </label>
+
+          <div class="input-row">
+
+            <input
+              id="pickup"
+              type="text"
+              placeholder="Choose pickup location"
+              autocomplete="off"
+            >
+
+            <button
+              id="myLocationBtn"
+              type="button"
+              title="Use my location">
+              ⌖
+            </button>
+
+          </div>
+
+          <div
+            id="pickupSuggestions"
+            class="suggestions">
+          </div>
+
+        </div>
+
+
+        <!-- DESTINATION -->
+
+        <div class="location-field">
+
+          <label for="destination">
+            Destination
+          </label>
+
+          <input
+            id="destination"
+            type="text"
+            placeholder="Where are you going?"
+            autocomplete="off"
+          >
+
+          <div
+            id="destinationSuggestions"
+            class="suggestions">
+          </div>
+
+        </div>
+
+
+        <!-- VEHICLE -->
+
+        <div class="ride-section">
+
+          <h3>Choose vehicle</h3>
+
+          <div class="vehicle-options">
+
+            <button
+              type="button"
+              class="vehicle-option active"
+              data-vehicle="bike">
+
+              <span>🏍️</span>
+              <strong>Bike</strong>
+
+            </button>
+
+
+            <button
+              type="button"
+              class="vehicle-option"
+              data-vehicle="car">
+
+              <span>🚗</span>
+              <strong>Car</strong>
+
+            </button>
+
+
+            <button
+              type="button"
+              class="vehicle-option"
+              data-vehicle="tuk_tuk">
+
+              <span>🛺</span>
+              <strong>Tuk Tuk</strong>
+
+            </button>
+
+          </div>
+
+        </div>
+
+
+        <!-- TRIP INFO -->
+
+        <div class="trip-info">
+
+          <div>
+            <span>Distance</span>
+            <strong id="distance">
+              --
+            </strong>
+          </div>
+
+          <div>
+            <span>ETA</span>
+            <strong id="eta">
+              --
+            </strong>
+          </div>
+
+        </div>
+
+
+        <!-- FARE -->
+
+        <div class="fare-card">
+
+          <span>Estimated fare</span>
+
+          <strong id="fare">
+            Rs. --
+          </strong>
+
+        </div>
+
+
+        <!-- PAYMENT -->
+
+        <div class="ride-section">
+
+          <h3>Payment method</h3>
+
+          <div class="payment-options">
+
+            <button
+              type="button"
+              class="payment-option active"
+              data-payment="cash">
+
+              💵 Cash
+
+            </button>
+
+
+            <button
+              type="button"
+              class="payment-option"
+              data-payment="online">
+
+              📱 Online
+
+            </button>
+
+          </div>
+
+        </div>
+
+
+        <!-- REQUEST -->
+
+        <button
+          id="requestRideBtn"
+          type="button"
+          class="primary-btn ride-request-btn">
+
+          Request Ride
+
+        </button>
+
+
+        <!-- ACCOUNT -->
+
+        <button
+          id="settingsBtn"
+          type="button"
+          class="secondary-btn">
+
+          Account & Settings
+
+        </button>
+
+
+        <button
+          id="logoutBtn"
+          type="button"
+          class="secondary-btn">
+
+          Logout
+
+        </button>
+
+      </section>
+
+
+      <!-- MAP -->
+
+      <section class="map-panel">
+
+        <div id="map"></div>
+
+      </section>
+
+    </div>
+
+  </main>
+
+
+  <!-- ================= ACTIVE RIDE ================= -->
+
+  <main
+    id="activeScreen"
+    class="screen">
+
+    <div class="active-ride-box">
+
+      <div class="ride-status-icon">
+        🚕
+      </div>
+
+      <h2 id="rideStatusTitle">
+        Finding your driver
+      </h2>
+
+      <p id="rideStatusText">
+        Your RYDO request has been sent.
+      </p>
+
+
+      <div
+        id="driverInfo"
+        class="driver-info">
+
+        <div>
+          <span>Driver</span>
+          <strong id="driverName">
+            Waiting...
+          </strong>
+        </div>
+
+        <div>
+          <span>Vehicle</span>
+          <strong id="driverVehicle">
+            --
+          </strong>
+        </div>
+
+        <div>
+          <span>ETA</span>
+          <strong id="driverEta">
+            --
+          </strong>
+        </div>
+
+      </div>
+
+
+      <div class="ride-actions">
+
+        <button
+          type="button"
+          id="callDriverBtn">
+          📞 Call
+        </button>
+
+        <button
+          type="button"
+          id="messageDriverBtn">
+          💬 Message
+        </button>
+
+      </div>
+
+
+      <button
+        type="button"
+        id="cancelRideBtn"
+        class="danger-btn">
+
+        Cancel Ride
+
+      </button>
+
+
+      <button
+        type="button"
+        id="backToBookingBtn"
+        class="secondary-btn">
+
+        Back to Booking
+
+      </button>
+
+    </div>
+
+  </main>
+
+
+  <!-- ================= ACCOUNT ================= -->
+
+  <main
+    id="accountScreen"
+    class="screen">
+
+    <div class="account-box">
+
+      <h2>Account & Settings</h2>
+
+      <div class="account-info">
+
+        <div>
+          <span>Name</span>
+          <strong id="accountName">--</strong>
+        </div>
+
+        <div>
+          <span>Email</span>
+          <strong id="accountEmail">--</strong>
+        </div>
+
+        <div>
+          <span>Phone</span>
+          <strong id="accountPhone">--</strong>
+        </div>
+
+      </div>
+
+
+      <button
+        id="backToRideBtn"
+        type="button"
+        class="secondary-btn">
+
+        Back to Booking
+
+      </button>
+
+
+      <button
+        id="deleteAccountBtn"
+        type="button"
+        class="danger-btn">
+
+        Delete Account
+
+      </button>
+
+    </div>
+
+  </main>
+
+
+  <!-- MAP LIBRARY -->
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+
+  <!-- EXISTING RYDO PASSENGER JAVASCRIPT -->
+
+  <script src="passenger-ride.js"></script>
+
+</body>
+          </html>
