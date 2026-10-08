@@ -10,95 +10,113 @@
 
 <body>
 
-<header class="top">
-  <div class="logo"><b>R</b>YDO <span>ADMIN</span></div>
-  <button id="logoutBtn">Logout</button>
-</header>
+<div id="adminLogin" class="auth">
+  <div class="box">
+    <div class="logo"><b>R</b>YDO</div>
+    <h1>Admin Panel</h1>
+    <p>Secure administrator login</p>
 
-<section id="loginPage" class="page">
-  <div class="card login">
-    <h1>Admin Login</h1>
-    <p>RYDO management center</p>
+    <form id="adminLoginForm">
+      <input id="adminEmail" type="email"
+             placeholder="Admin email" required>
 
-    <input id="adminEmail" type="email" placeholder="Admin email">
-    <input id="adminPassword" type="password" placeholder="Password">
+      <input id="adminPassword" type="password"
+             placeholder="Password" required>
 
-    <button id="loginBtn" class="mainBtn">LOGIN</button>
-    <p id="loginMsg"></p>
+      <button id="adminLoginBtn" type="submit">Login</button>
+
+      <div id="adminMessage"></div>
+    </form>
   </div>
-</section>
+</div>
 
-<section id="adminPage" class="page hide">
+<div id="adminApp" style="display:none">
 
-  <div class="card">
-    <h1>Dashboard</h1>
-    <p id="adminName">RYDO Administrator</p>
-  </div>
+  <header class="top">
+    <div class="logo"><b>R</b>YDO</div>
+    <button id="logoutBtn">Logout</button>
+  </header>
 
-  <div class="stats">
-    <div>Passengers<strong id="passengers">0</strong></div>
-    <div>Drivers<strong id="drivers">0</strong></div>
-    <div>Pending Drivers<strong id="pendingDrivers">0</strong></div>
-    <div>Online Drivers<strong id="onlineDrivers">0</strong></div>
-    <div>Active Rides<strong id="activeRides">0</strong></div>
-    <div>Completed Rides<strong id="completedRides">0</strong></div>
-    <div>Cancelled Rides<strong id="cancelledRides">0</strong></div>
-    <div>Rydo Earnings<strong id="rydoEarnings">Rs. 0</strong></div>
-  </div>
+  <main>
 
-  <nav class="menu">
-    <button data-page="driversPage">Drivers</button>
-    <button data-page="passengersPage">Passengers</button>
-    <button data-page="ridesPage">Rides</button>
-    <button data-page="faresPage">Fares</button>
-    <button data-page="paymentsPage">Payments</button>
-    <button data-page="settingsPage">Settings</button>
-  </nav>
+    <section class="welcome">
+      <h1>RYDO Admin Dashboard</h1>
+      <p>Manage your Rydo platform.</p>
+    </section>
 
-  <div id="driversPage" class="panel">
-    <h2>Driver Verification</h2>
-    <div id="driverList">
-      <p>Loading drivers...</p>
-    </div>
-  </div>
+    <section class="stats">
+      <div><b id="totalPassengers">0</b><span>Passengers</span></div>
+      <div><b id="totalDrivers">0</b><span>Drivers</span></div>
+      <div><b id="totalRides">0</b><span>Rides</span></div>
+      <div><b id="totalRevenue">Rs 0</b><span>Revenue</span></div>
+    </section>
 
-  <div id="passengersPage" class="panel hide">
-    <h2>Passengers</h2>
-    <div id="passengerList"></div>
-  </div>
+    <nav class="nav">
+      <button data-panel="drivers">Drivers</button>
+      <button data-panel="passengers">Passengers</button>
+      <button data-panel="rides">Rides</button>
+      <button data-panel="fares">Fares</button>
+      <button data-panel="payments">Payments</button>
+      <button data-panel="settings">Settings</button>
+    </nav>
 
-  <div id="ridesPage" class="panel hide">
-    <h2>Ride Management</h2>
-    <div id="rideList"></div>
-  </div>
+    <section id="drivers" class="panel">
+      <h2>Driver Verification</h2>
+      <div id="driverList">Loading...</div>
+    </section>
 
-  <div id="faresPage" class="panel hide">
-    <h2>Fare Rules</h2>
-    <div id="fareList"></div>
-  </div>
+    <section id="passengers" class="panel">
+      <h2>Passengers</h2>
+      <div id="passengerList">Loading...</div>
+    </section>
 
-  <div id="paymentsPage" class="panel hide">
-    <h2>Payments & Earnings</h2>
-    <div id="paymentList"></div>
-  </div>
+    <section id="rides" class="panel">
+      <h2>Rides</h2>
+      <div id="rideList">Loading...</div>
+    </section>
 
-  <div id="settingsPage" class="panel hide">
-    <h2>System Settings</h2>
+    <section id="fares" class="panel">
+      <h2>Fare Rules</h2>
+      <div id="fareList">Loading...</div>
+    </section>
 
-    <button id="passwordBtn">Change Admin Password</button>
-    <button id="refreshBtn">Refresh Dashboard</button>
-  </div>
+    <section id="payments" class="panel">
+      <h2>Payments</h2>
+      <div id="paymentList">Loading...</div>
+    </section>
 
-</section>
+    <section id="settings" class="panel">
+      <h2>Admin Settings</h2>
+      <button id="changePasswordBtn">Change Password</button>
+    </section>
 
-<script src="admin-auth.js"></script>
-<script src="admin-dashboard.js"></script>
-<script src="admin-drivers.js"></script>
-<script src="admin-passengers.js"></script>
-<script src="admin-rides.js"></script>
-<script src="admin-fares.js"></script>
-<script src="admin-payments.js"></script>
-<script src="admin-settings.js"></script>
+  </main>
+</div>
+
+<script src="./admin-auth.js"></script>
+<script src="./admin-dashboard.js"></script>
+<script src="./admin-drivers.js"></script>
+<script src="./admin-passengers.js"></script>
+<script src="./admin-rides.js"></script>
+<script src="./admin-fares.js"></script>
+<script src="./admin-payments.js"></script>
+<script src="./admin-settings.js"></script>
+
+<script>
+document.querySelectorAll("[data-panel]").forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll(".panel").forEach(p=>p.style.display="none");
+    document.getElementById(btn.dataset.panel).style.display="block";
+  };
+});
+
+document.getElementById("logoutBtn")?.addEventListener("click",async()=>{
+  if(window.supabaseClient){
+    await window.supabaseClient.auth.signOut();
+  }
+  location.reload();
+});
+</script>
 
 </body>
 </html>
