@@ -1,1 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<title>RYDO - Move Your Way</title>
+
+<style>
+*{
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+}
+
+html,body{
+  width:100%;
+  min-height:100%;
+  font-family:Arial,sans-serif;
+  background:#07111b;
+  color:#fff;
+}
+
+body{
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* HEADER */
+.header{
+  height:92px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 22px;
+  background:#08131f;
+  border-bottom:1px solid #1c2b38;
+}
+
+.logo{
+  font-size:38px;
+  font-weight:900;
+  letter-spacing:5px;
+  color:#fff;
+}
+
+.logo span{
+  color:#ff8a25;
+}
+
+.settings{
+  width:48px;
+  height:48px;
+  border:1px solid #52606c;
+  border-radius:12px;
+  background:#111f2b;
+  color:#fff;
+  font-size:24px;
+  cursor:pointer;
+}
+
+.settings:active{
+  transform:scale(.95);
+}
+
+/* HERO */
+.hero{
+  min-height:calc(100vh - 92px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:35px 20px 60px;
+  background:
+    radial-gradient(circle at 85% 20%,rgba(255,116,23,.12),transparent 30%),
+    linear-gradient(145deg,#07111b,#0b1722 55%,#101820);
+}
+
+.content{
+  width:100%;
+  max-width:650px;
+  text-align:center;
+}
+
+.badge{
+  display:inline-block;
+  padding:8px 15px;
+  margin-bottom:22px;
+  border:1px solid #ff7a1a;
+  border-radius:30px;
+  color:#ff9b4a;
+  font-size:13px;
+  font-weight:bold;
+  letter-spacing:1px;
+}
+
+.title{
+  font-size:clamp(42px,12vw,72px);
+  line-height:1;
+  font-weight:900;
+  letter-spacing:2px;
+  margin-bottom:18px;
+}
+
+.title span{
+  color:#ff8124;
+}
+
+.subtitle{
+  font-size:clamp(19px,5vw,27px);
+  font-weight:700;
+  line-height:1.35;
+  margin-bottom:12px;
+}
+
+.description{
+  max-width:500px;
+  margin:0 auto 35px;
+  color:#aebbc6;
+  font-size:16px;
+  line-height:1.6;
+}
+
+/* BUTTONS */
+.buttons{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  width:100%;
+  max-width:390px;
+  margin:0 auto;
+}
+
+.main-btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  min-height:58px;
+  border-radius:14px;
+  text-decoration:none;
+  font-size:18px;
+  font-weight:800;
+  cursor:pointer;
+  transition:.2s;
+}
+
+.ride-btn{
+  background:#ff8124;
+  color:#101820;
+  border:2px solid #ff8124;
+}
+
+.driver-btn{
+  background:transparent;
+  color:#fff;
+  border:2px solid #ff8124;
+}
+
+.main-btn:hover{
+  transform:translateY(-2px);
+}
+
+.ride-btn:hover{
+  background:#ff963f;
+}
+
+.driver-btn:hover{
+  background:rgba(255,129,36,.12);
+}
+
+.main-btn:active{
+  transform:scale(.98);
+}
+
+/* INFO */
+.info{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+  max-width:600px;
+  margin:42px auto 0;
+}
+
+.info-card{
+  padding:16px 8px;
+  background:#0d1c29;
+  border:1px solid #203342;
+  border-radius:14px;
+}
+
+.icon{
+  font-size:24px;
+  margin-bottom:8px;
+}
+
+.info-card strong{
+  display:block;
+  font-size:13px;
+}
+
+.info-card small{
+  display:block;
+  color:#8798a6;
+  margin-top:5px;
+  font-size:11px;
+}
+
+/* SETTINGS PANEL */
+.overlay{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.72);
+  z-index:20;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+
+.overlay.show{
+  display:flex;
+}
+
+.settings-box{
+  width:100%;
+  max-width:390px;
+  background:#0d1a26;
+  border:1px solid #304252;
+  border-radius:20px;
+  padding:25px;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+}
+
+.settings-box h2{
+  margin-bottom:8px;
+}
+
+.settings-box p{
+  color:#9eabb5;
+  line-height:1.5;
+  margin-bottom:22px;
+}
+
+.close-btn{
+  width:100%;
+  min-height:50px;
+  border:0;
+  border-radius:12px;
+  background:#ff8124;
+  color:#111;
+  font-weight:800;
+  font-size:16px;
+  cursor:pointer;
+}
+
+/* MOBILE */
+@media(max-width:420px){
+  .header{
+    height:82px;
+    padding:0 17px;
+  }
+
+  .logo{
+    font-size:31px;
+  }
+
+  .settings{
+    width:44px;
+    height:44px;
+  }
+
+  .hero{
+    min-height:calc(100vh - 82px);
+    padding-top:45px;
+  }
+
+  .info{
+    grid-template-columns:1fr;
+    max-width:300px;
+  }
+
+  .info-card{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    text-align:left;
+  }
+
+  .icon{
+    margin:0;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<header class="header">
+  <div class="logo">RY<span>DO</span></div>
+
+  <button class="settings" onclick="openSettings()" aria-label="Settings">
+    ⚙
+  </button>
+</header>
+
+<main class="hero">
+
+  <section class="content">
+
+    <div class="badge">NEPAL'S RIDE PLATFORM</div>
+
+    <h1 class="title">
+      Move <span>your way.</span>
+    </h1>
+
+    <h2 class="subtitle">
+      Safe and simple rides across Nepal.
+    </h2>
+
+    <p class="description">
+      Book a ride when you need one, or join Rydo as a driver
+      and start moving people around Nepal.
+    </p>
+
+    <div class="buttons">
+
+      <!-- PASSENGER -->
+      <a class="main-btn ride-btn" href="passenger.html">
+        🚕&nbsp; Book a Ride
+      </a>
+
+      <!-- DRIVER -->
+      <a class="main-btn driver-btn" href="driver.html">
+        🚗&nbsp; Become a Driver
+      </a>
+
+    </div>
+
+    <div class="info">
+
+      <div class="info-card">
+        <div class="icon">📍</div>
+        <div>
+          <strong>Easy Booking</strong>
+          <small>Choose your pickup and destination</small>
+        </div>
+      </div>
+
+      <div class="info-card">
+        <div class="icon">🛡️</div>
+        <div>
+          <strong>Safer Rides</strong>
+          <small>Built with verified drivers in mind</small>
+        </div>
+      </div>
+
+      <div class="info-card">
+        <div class="icon">🇳🇵</div>
+        <div>
+          <strong>Made for Nepal</strong>
+          <small>Designed for local riders</small>
+        </div>
+      </div>
+
+    </div>
+
+  </section>
+
+</main>
+
+<!-- SETTINGS -->
+<div class="overlay" id="settingsPanel">
+
+  <div class="settings-box">
+
+    <h2>RYDO Settings</h2>
+
+    <p>
+      Settings and account controls will be available here
+      as the Rydo passenger and driver systems are connected.
+    </p>
+
+    <button class="close-btn" onclick="closeSettings()">
+      Close
+    </button>
+
+  </div>
+
+</div>
+
+<script>
+function openSettings(){
+  document.getElementById("settingsPanel").classList.add("show");
+}
+
+function closeSettings(){
+  document.getElementById("settingsPanel").classList.remove("show");
+}
+
+document.getElementById("settingsPanel").addEventListener("click",function(e){
+  if(e.target === this){
+    closeSettings();
+  }
+});
+</script>
+
+</body>
+</html>
