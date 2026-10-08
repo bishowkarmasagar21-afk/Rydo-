@@ -3,627 +3,274 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RideGo - Passenger</title>
 
-  <title>RYDO Passenger</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
 
-  <!-- RYDO existing UI -->
-  <link rel="stylesheet" href="style.css">
+    body {
+      background: #f4f6f8;
+      color: #222;
+    }
 
-  <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    header {
+      background: #111827;
+      color: white;
+      padding: 18px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
 
-  <!-- Map -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  >
+    header h1 {
+      color: #00d084;
+    }
+
+    .profile {
+      background: #374151;
+      padding: 8px 14px;
+      border-radius: 20px;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 30px auto;
+      padding: 15px;
+    }
+
+    .card {
+      background: white;
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+    }
+
+    .card h2 {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin: 15px 0 7px;
+      font-weight: bold;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      font-size: 15px;
+    }
+
+    .location {
+      position: relative;
+    }
+
+    .location::before {
+      content: "📍";
+      position: absolute;
+      right: 12px;
+      top: 12px;
+    }
+
+    .vehicles {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .vehicle {
+      border: 2px solid #ddd;
+      padding: 15px 5px;
+      text-align: center;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .vehicle:hover,
+    .vehicle.active {
+      border-color: #00d084;
+      background: #eafff5;
+    }
+
+    .vehicle .icon {
+      font-size: 30px;
+    }
+
+    .vehicle p {
+      margin-top: 5px;
+      font-weight: bold;
+    }
+
+    .fare {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f3f4f6;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .fare strong {
+      color: #00a86b;
+      font-size: 20px;
+    }
+
+    .request-btn {
+      width: 100%;
+      margin-top: 20px;
+      padding: 15px;
+      border: none;
+      border-radius: 10px;
+      background: #00d084;
+      color: white;
+      font-size: 17px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .request-btn:hover {
+      background: #00b871;
+    }
+
+    #status {
+      text-align: center;
+      margin-top: 15px;
+      color: #555;
+    }
+
+    @media (max-width: 500px) {
+      .container {
+        margin: 10px auto;
+      }
+    }
+  </style>
 </head>
 
 <body>
 
-  <!-- ================= HEADER ================= -->
-
-  <header class="top">
-    <a href="index.html" class="logo">
-      <span>R</span>YDO
-    </a>
-
-    <div id="accountArea"></div>
+  <header>
+    <h1>RideGo</h1>
+    <div class="profile">👤 Passenger</div>
   </header>
 
+  <main class="container">
 
-  <!-- ================= AUTH SCREEN ================= -->
+    <div class="card">
 
-  <main id="authScreen" class="screen active">
+      <h2>Where are you going?</h2>
 
-    <div class="box">
-
-      <div class="brand">
-        <div class="brand-mark">R</div>
-        <h1>RYDO</h1>
-        <p>Move your way.</p>
+      <label>Pickup Location</label>
+      <div class="location">
+        <input
+          type="text"
+          id="pickup"
+          placeholder="Enter pickup location">
       </div>
 
+      <label>Destination</label>
+      <div class="location">
+        <input
+          type="text"
+          id="destination"
+          placeholder="Where to?">
+      </div>
 
-      <!-- LOGIN / REGISTER TABS -->
+      <label>Select Ride</label>
 
-      <div class="auth-tabs">
+      <div class="vehicles">
 
-        <button
-          id="loginTab"
-          class="auth-tab active"
-          type="button">
-          Login
-        </button>
+        <div class="vehicle active" onclick="selectVehicle(this, 'Bike')">
+          <div class="icon">🏍️</div>
+          <p>Bike</p>
+        </div>
 
-        <button
-          id="registerTab"
-          class="auth-tab"
-          type="button">
-          Register
-        </button>
+        <div class="vehicle" onclick="selectVehicle(this, 'Car')">
+          <div class="icon">🚗</div>
+          <p>Car</p>
+        </div>
+
+        <div class="vehicle" onclick="selectVehicle(this, 'SUV')">
+          <div class="icon">🚙</div>
+          <p>SUV</p>
+        </div>
 
       </div>
 
-
-      <!-- MESSAGE -->
-
-      <div
-        id="authMessage"
-        class="auth-message">
+      <div class="fare">
+        <span>Estimated Fare</span>
+        <strong id="fare">Rs. 250</strong>
       </div>
 
+      <button class="request-btn" onclick="requestRide()">
+        Request Ride
+      </button>
 
-      <!-- ================= LOGIN ================= -->
-
-      <section
-        id="loginPanel"
-        class="auth-panel active">
-
-        <h2>Welcome back</h2>
-
-        <p class="panel-text">
-          Login to book your RYDO ride.
-        </p>
-
-
-        <form id="loginForm">
-
-          <label for="loginEmail">
-            Email address
-          </label>
-
-          <input
-            id="loginEmail"
-            type="email"
-            placeholder="Enter your email"
-            autocomplete="email"
-            required
-          >
-
-
-          <label for="loginPassword">
-            Password
-          </label>
-
-          <input
-            id="loginPassword"
-            type="password"
-            placeholder="Enter your password"
-            autocomplete="current-password"
-            required
-          >
-
-
-          <button
-            type="submit"
-            class="primary-btn">
-            Login
-          </button>
-
-        </form>
-
-
-        <button
-          id="forgotPasswordBtn"
-          type="button"
-          class="text-btn">
-          Forgot password?
-        </button>
-
-      </section>
-
-
-      <!-- ================= REGISTER ================= -->
-
-      <section
-        id="registerPanel"
-        class="auth-panel">
-
-        <h2>Create passenger account</h2>
-
-        <p class="panel-text">
-          Register once and start booking RYDO rides.
-        </p>
-
-
-        <form id="registerForm">
-
-          <label for="registerName">
-            Full name
-          </label>
-
-          <input
-            id="registerName"
-            type="text"
-            placeholder="Your full name"
-            autocomplete="name"
-            required
-          >
-
-
-          <label for="registerPhone">
-            Phone number
-          </label>
-
-          <input
-            id="registerPhone"
-            type="tel"
-            placeholder="98XXXXXXXX"
-            autocomplete="tel"
-            required
-          >
-
-
-          <label for="registerEmail">
-            Email address
-          </label>
-
-          <input
-            id="registerEmail"
-            type="email"
-            placeholder="Your email"
-            autocomplete="email"
-            required
-          >
-
-
-          <label for="registerPassword">
-            Password
-          </label>
-
-          <input
-            id="registerPassword"
-            type="password"
-            placeholder="Create a password"
-            autocomplete="new-password"
-            required
-          >
-
-
-          <label for="registerConfirm">
-            Confirm password
-          </label>
-
-          <input
-            id="registerConfirm"
-            type="password"
-            placeholder="Confirm your password"
-            autocomplete="new-password"
-            required
-          >
-
-
-          <button
-            type="submit"
-            class="primary-btn">
-            Create Account
-          </button>
-
-        </form>
-
-      </section>
+      <div id="status"></div>
 
     </div>
 
   </main>
 
+  <script>
 
-  <!-- ================= RIDE BOOKING ================= -->
+    let selectedVehicle = "Bike";
 
-  <main
-    id="rideScreen"
-    class="screen">
+    function selectVehicle(element, vehicle) {
 
-    <div class="ride-layout">
+      document.querySelectorAll(".vehicle").forEach(item => {
+        item.classList.remove("active");
+      });
 
+      element.classList.add("active");
 
-      <!-- BOOKING PANEL -->
+      selectedVehicle = vehicle;
 
-      <section class="ride-panel">
+      // Example fare calculation
+      const fares = {
+        Bike: 180,
+        Car: 250,
+        SUV: 400
+      };
 
-        <div class="panel-header">
+      document.getElementById("fare").innerText =
+        "Rs. " + fares[vehicle];
+    }
 
-          <div>
-            <h2>Book a ride</h2>
+    function requestRide() {
 
-            <p>
-              Where would you like to go?
-            </p>
-          </div>
+      const pickup = document.getElementById("pickup").value;
+      const destination = document.getElementById("destination").value;
+      const status = document.getElementById("status");
 
-        </div>
+      if (!pickup || !destination) {
+        status.innerText =
+          "Please enter pickup and destination.";
+        status.style.color = "red";
+        return;
+      }
 
+      status.style.color = "#00a86b";
 
-        <!-- PICKUP -->
+      status.innerText =
+        "🔍 Finding a " + selectedVehicle + " driver...";
 
-        <div class="location-field">
+      // Simulate driver searching
+      setTimeout(() => {
+        status.innerText =
+          "🚗 Driver found! Your driver is on the way.";
+      }, 3000);
+    }
 
-          <label for="pickup">
-            Pickup
-          </label>
-
-          <div class="input-row">
-
-            <input
-              id="pickup"
-              type="text"
-              placeholder="Choose pickup location"
-              autocomplete="off"
-            >
-
-            <button
-              id="myLocationBtn"
-              type="button"
-              title="Use my location">
-              ⌖
-            </button>
-
-          </div>
-
-          <div
-            id="pickupSuggestions"
-            class="suggestions">
-          </div>
-
-        </div>
-
-
-        <!-- DESTINATION -->
-
-        <div class="location-field">
-
-          <label for="destination">
-            Destination
-          </label>
-
-          <input
-            id="destination"
-            type="text"
-            placeholder="Where are you going?"
-            autocomplete="off"
-          >
-
-          <div
-            id="destinationSuggestions"
-            class="suggestions">
-          </div>
-
-        </div>
-
-
-        <!-- VEHICLE -->
-
-        <div class="ride-section">
-
-          <h3>Choose vehicle</h3>
-
-          <div class="vehicle-options">
-
-            <button
-              type="button"
-              class="vehicle-option active"
-              data-vehicle="bike">
-
-              <span>🏍️</span>
-              <strong>Bike</strong>
-
-            </button>
-
-
-            <button
-              type="button"
-              class="vehicle-option"
-              data-vehicle="car">
-
-              <span>🚗</span>
-              <strong>Car</strong>
-
-            </button>
-
-
-            <button
-              type="button"
-              class="vehicle-option"
-              data-vehicle="tuk_tuk">
-
-              <span>🛺</span>
-              <strong>Tuk Tuk</strong>
-
-            </button>
-
-          </div>
-
-        </div>
-
-
-        <!-- TRIP INFO -->
-
-        <div class="trip-info">
-
-          <div>
-            <span>Distance</span>
-            <strong id="distance">
-              --
-            </strong>
-          </div>
-
-          <div>
-            <span>ETA</span>
-            <strong id="eta">
-              --
-            </strong>
-          </div>
-
-        </div>
-
-
-        <!-- FARE -->
-
-        <div class="fare-card">
-
-          <span>Estimated fare</span>
-
-          <strong id="fare">
-            Rs. --
-          </strong>
-
-        </div>
-
-
-        <!-- PAYMENT -->
-
-        <div class="ride-section">
-
-          <h3>Payment method</h3>
-
-          <div class="payment-options">
-
-            <button
-              type="button"
-              class="payment-option active"
-              data-payment="cash">
-
-              💵 Cash
-
-            </button>
-
-
-            <button
-              type="button"
-              class="payment-option"
-              data-payment="online">
-
-              📱 Online
-
-            </button>
-
-          </div>
-
-        </div>
-
-
-        <!-- REQUEST -->
-
-        <button
-          id="requestRideBtn"
-          type="button"
-          class="primary-btn ride-request-btn">
-
-          Request Ride
-
-        </button>
-
-
-        <!-- ACCOUNT -->
-
-        <button
-          id="settingsBtn"
-          type="button"
-          class="secondary-btn">
-
-          Account & Settings
-
-        </button>
-
-
-        <button
-          id="logoutBtn"
-          type="button"
-          class="secondary-btn">
-
-          Logout
-
-        </button>
-
-      </section>
-
-
-      <!-- MAP -->
-
-      <section class="map-panel">
-
-        <div id="map"></div>
-
-      </section>
-
-    </div>
-
-  </main>
-
-
-  <!-- ================= ACTIVE RIDE ================= -->
-
-  <main
-    id="activeScreen"
-    class="screen">
-
-    <div class="active-ride-box">
-
-      <div class="ride-status-icon">
-        🚕
-      </div>
-
-      <h2 id="rideStatusTitle">
-        Finding your driver
-      </h2>
-
-      <p id="rideStatusText">
-        Your RYDO request has been sent.
-      </p>
-
-
-      <div
-        id="driverInfo"
-        class="driver-info">
-
-        <div>
-          <span>Driver</span>
-          <strong id="driverName">
-            Waiting...
-          </strong>
-        </div>
-
-        <div>
-          <span>Vehicle</span>
-          <strong id="driverVehicle">
-            --
-          </strong>
-        </div>
-
-        <div>
-          <span>ETA</span>
-          <strong id="driverEta">
-            --
-          </strong>
-        </div>
-
-      </div>
-
-
-      <div class="ride-actions">
-
-        <button
-          type="button"
-          id="callDriverBtn">
-          📞 Call
-        </button>
-
-        <button
-          type="button"
-          id="messageDriverBtn">
-          💬 Message
-        </button>
-
-      </div>
-
-
-      <button
-        type="button"
-        id="cancelRideBtn"
-        class="danger-btn">
-
-        Cancel Ride
-
-      </button>
-
-
-      <button
-        type="button"
-        id="backToBookingBtn"
-        class="secondary-btn">
-
-        Back to Booking
-
-      </button>
-
-    </div>
-
-  </main>
-
-
-  <!-- ================= ACCOUNT ================= -->
-
-  <main
-    id="accountScreen"
-    class="screen">
-
-    <div class="account-box">
-
-      <h2>Account & Settings</h2>
-
-      <div class="account-info">
-
-        <div>
-          <span>Name</span>
-          <strong id="accountName">--</strong>
-        </div>
-
-        <div>
-          <span>Email</span>
-          <strong id="accountEmail">--</strong>
-        </div>
-
-        <div>
-          <span>Phone</span>
-          <strong id="accountPhone">--</strong>
-        </div>
-
-      </div>
-
-
-      <button
-        id="backToRideBtn"
-        type="button"
-        class="secondary-btn">
-
-        Back to Booking
-
-      </button>
-
-
-      <button
-        id="deleteAccountBtn"
-        type="button"
-        class="danger-btn">
-
-        Delete Account
-
-      </button>
-
-    </div>
-
-  </main>
-
-
-  <!-- MAP LIBRARY -->
-
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-
-  <!-- EXISTING RYDO PASSENGER JAVASCRIPT -->
-
-  <script src="passenger-ride.js"></script>
+  </script>
 
 </body>
-          </html>
+</html>
