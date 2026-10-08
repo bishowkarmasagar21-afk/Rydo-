@@ -2,47 +2,455 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>RYDO - Move Your Way</title>
-<link rel="stylesheet" href="style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>RYDO — Move Your Way</title>
+
+<style>
+*{
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+}
+
+html,body{
+  width:100%;
+  min-height:100%;
+}
+
+body{
+  font-family:Georgia,"Times New Roman",serif;
+  background:
+    radial-gradient(circle at 80% 10%,rgba(255,116,23,.12),transparent 30%),
+    linear-gradient(135deg,#050b12,#0b1621 55%,#101a24);
+  color:#fff;
+  min-height:100vh;
+}
+
+/* HEADER */
+header{
+  height:78px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 22px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  background:rgba(4,10,16,.88);
+  position:relative;
+  z-index:5;
+}
+
+.logo{
+  font-size:31px;
+  font-weight:bold;
+  letter-spacing:7px;
+  color:#fff;
+}
+
+.logo span{
+  color:#ff7417;
+}
+
+.settings-btn{
+  width:48px;
+  height:48px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.18);
+  background:#142333;
+  color:#fff;
+  font-size:24px;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:.2s;
+}
+
+.settings-btn:hover{
+  background:#ff7417;
+  transform:translateY(-2px);
+}
+
+/* HERO */
+main{
+  min-height:calc(100vh - 78px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:35px 20px 55px;
+}
+
+.hero{
+  width:100%;
+  max-width:850px;
+  text-align:center;
+}
+
+.badge{
+  display:inline-block;
+  padding:8px 15px;
+  border:1px solid rgba(255,116,23,.5);
+  border-radius:30px;
+  color:#ff9a57;
+  background:rgba(255,116,23,.08);
+  font-size:13px;
+  letter-spacing:1.5px;
+  margin-bottom:22px;
+}
+
+.hero h1{
+  font-size:clamp(48px,13vw,92px);
+  line-height:.95;
+  letter-spacing:8px;
+  margin-bottom:18px;
+}
+
+.hero h1 span{
+  color:#ff7417;
+}
+
+.tagline{
+  font-size:clamp(22px,5vw,36px);
+  font-weight:bold;
+  margin-bottom:12px;
+}
+
+.subtitle{
+  max-width:580px;
+  margin:0 auto 35px;
+  color:#b9c5d0;
+  font-family:Arial,sans-serif;
+  font-size:16px;
+  line-height:1.7;
+}
+
+/* ACTIONS */
+.actions{
+  display:flex;
+  justify-content:center;
+  gap:14px;
+  flex-wrap:wrap;
+}
+
+.action-btn{
+  min-width:210px;
+  padding:16px 24px;
+  border-radius:13px;
+  border:2px solid #ff7417;
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:17px;
+  font-weight:bold;
+  cursor:pointer;
+  text-decoration:none;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  transition:.2s;
+}
+
+.book{
+  background:#ff7417;
+  color:#101010;
+}
+
+.driver{
+  background:transparent;
+  color:#fff;
+}
+
+.action-btn:hover{
+  transform:translateY(-3px);
+  box-shadow:0 10px 25px rgba(255,116,23,.18);
+}
+
+.book:hover{
+  background:#ff8a3d;
+}
+
+.driver:hover{
+  background:#ff7417;
+  color:#111;
+}
+
+/* FEATURES */
+.features{
+  margin:48px auto 0;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+  max-width:720px;
+}
+
+.feature{
+  background:rgba(255,255,255,.045);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:16px;
+  padding:18px 10px;
+}
+
+.feature-icon{
+  font-size:25px;
+  margin-bottom:8px;
+}
+
+.feature strong{
+  display:block;
+  font-size:14px;
+}
+
+.feature small{
+  display:block;
+  color:#8f9eab;
+  margin-top:5px;
+  font-family:Arial,sans-serif;
+  font-size:11px;
+}
+
+/* FOOTER */
+footer{
+  text-align:center;
+  color:#697987;
+  font-family:Arial,sans-serif;
+  font-size:11px;
+  padding:0 20px 22px;
+}
+
+/* SETTINGS MODAL */
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.72);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  z-index:20;
+}
+
+.modal.show{
+  display:flex;
+}
+
+.settings-box{
+  width:100%;
+  max-width:390px;
+  background:#101d29;
+  border:1px solid rgba(255,116,23,.35);
+  border-radius:20px;
+  padding:25px;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+}
+
+.settings-box h2{
+  margin-bottom:8px;
+}
+
+.settings-box p{
+  color:#9eabb7;
+  font-family:Arial,sans-serif;
+  font-size:14px;
+  line-height:1.5;
+  margin-bottom:22px;
+}
+
+.setting-item{
+  width:100%;
+  padding:15px;
+  margin-bottom:10px;
+  border-radius:12px;
+  background:#172838;
+  color:#fff;
+  border:1px solid rgba(255,255,255,.08);
+  font-family:Arial,sans-serif;
+  text-align:left;
+}
+
+.close-btn{
+  width:100%;
+  margin-top:8px;
+  padding:13px;
+  border:0;
+  border-radius:12px;
+  background:#ff7417;
+  color:#111;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+/* MOBILE */
+@media(max-width:600px){
+  header{
+    height:70px;
+    padding:0 17px;
+  }
+
+  .logo{
+    font-size:27px;
+    letter-spacing:5px;
+  }
+
+  .settings-btn{
+    width:44px;
+    height:44px;
+  }
+
+  main{
+    min-height:calc(100vh - 70px);
+    padding:30px 17px 35px;
+    align-items:flex-start;
+    padding-top:70px;
+  }
+
+  .hero h1{
+    font-size:55px;
+    letter-spacing:5px;
+  }
+
+  .tagline{
+    font-size:25px;
+  }
+
+  .subtitle{
+    font-size:14px;
+    margin-bottom:28px;
+  }
+
+  .actions{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .action-btn{
+    width:100%;
+    min-width:0;
+  }
+
+  .features{
+    grid-template-columns:1fr;
+    max-width:300px;
+    margin-top:35px;
+  }
+
+  .feature{
+    padding:14px;
+  }
+}
+</style>
 </head>
 
 <body>
 
-<main class="home">
+<header>
+  <div class="logo">R<span>Y</span>DO</div>
 
-  <div class="logo">
-    <span>R</span>YDO
-  </div>
+  <button class="settings-btn" id="settingsButton" aria-label="Settings">
+    ⚙
+  </button>
+</header>
 
-  <p class="tagline">Move your way.</p>
+<main>
+  <section class="hero">
 
-  <div class="home-card">
+    <div class="badge">NEPAL'S RIDE PLATFORM</div>
 
-    <h1>Welcome to RYDO</h1>
+    <h1>R<span>Y</span>DO</h1>
 
-    <p class="sub">
-      Simple, reliable rides for passengers and drivers.
+    <div class="tagline">Move your way.</div>
+
+    <p class="subtitle">
+      Safe and simple rides across Nepal.
+      Book a ride when you need it or join Rydo as a driver.
     </p>
 
-    <a class="home-btn" href="passenger.html">
-      Book a Ride
-    </a>
+    <div class="actions">
 
-    <a class="home-btn" href="driver.html">
-      Become a Driver
-    </a>
+      <a class="action-btn book" href="passenger.html">
+        🚕 Book a Ride
+      </a>
 
-    <div class="login-box">
-      <p>Already have an account?</p>
-      <a href="passenger.html">Login</a>
+      <a class="action-btn driver" href="driver.html">
+        🚗 Become a Driver
+      </a>
+
     </div>
+
+    <div class="features">
+
+      <div class="feature">
+        <div class="feature-icon">📍</div>
+        <strong>Easy Booking</strong>
+        <small>Choose your pickup and destination</small>
+      </div>
+
+      <div class="feature">
+        <div class="feature-icon">🛡️</div>
+        <strong>Safer Rides</strong>
+        <small>Built with verified drivers in mind</small>
+      </div>
+
+      <div class="feature">
+        <div class="feature-icon">🇳🇵</div>
+        <strong>Across Nepal</strong>
+        <small>Made for Nepal's roads and riders</small>
+      </div>
+
+    </div>
+
+  </section>
+</main>
+
+<footer>
+  © 2026 RYDO · Move your way.
+</footer>
+
+<!-- SETTINGS -->
+<div class="modal" id="settingsModal">
+
+  <div class="settings-box">
+
+    <h2>RYDO Settings</h2>
+
+    <p>
+      Basic settings for the Rydo home page.
+      Your passenger and driver account settings will be handled inside their portals.
+    </p>
+
+    <div class="setting-item">
+      🌙 &nbsp; Dark Rydo Theme
+    </div>
+
+    <div class="setting-item">
+      🇳🇵 &nbsp; Nepal
+    </div>
+
+    <button class="close-btn" id="closeSettings">
+      Close
+    </button>
 
   </div>
 
-  <p class="footer">RYDO • Nepal</p>
+</div>
 
-</main>
+<script>
+const settingsButton = document.getElementById("settingsButton");
+const settingsModal = document.getElementById("settingsModal");
+const closeSettings = document.getElementById("closeSettings");
+
+settingsButton.addEventListener("click", function(){
+  settingsModal.classList.add("show");
+});
+
+closeSettings.addEventListener("click", function(){
+  settingsModal.classList.remove("show");
+});
+
+settingsModal.addEventListener("click", function(event){
+  if(event.target === settingsModal){
+    settingsModal.classList.remove("show");
+  }
+});
+</script>
 
 </body>
-      </html>
+  </html>
