@@ -1,28 +1,23 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <title>RYDO - Passenger</title>
-
-  <link rel="stylesheet" href="passenger.css">
-
-  <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- Google Maps -->
-  <script>
+  <title>RYDO - Passenger</title>  <link rel="stylesheet" href="passenger.css">  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>  <script>
     const GOOGLE_MAPS_API_KEY = "YOUR_GOOGLE_MAPS_API_KEY";
-  </script>
-
-  <style>
+  </script>  <style>
     #map {
       width: 100%;
       height: 360px;
       border-radius: 18px;
       overflow: hidden;
       margin-top: 15px;
+    }
+
+    #activeMap {
+      width: 100%;
+      height: 360px;
+      border-radius: 18px;
+      overflow: hidden;
     }
 
     .map-box {
@@ -38,728 +33,672 @@
     .hidden {
       display: none !important;
     }
-  </style>
-</head>
+  </style></head><body><!-- HEADER --><header class="top">  <div class="logo">
+    <span>R</span>YDO
+  </div>  <button id="settingsButton" class="settings-btn">
+    ⚙
+  </button></header><!-- WELCOME --><section id="welcomeScreen" class="screen active">  <div class="hero-box"><div class="big-logo">
+  <span>R</span>YDO
+</div>
 
-<body>
+<h1>Move your way.</h1>
 
-  <!-- =========================
-       HEADER
-  ========================== -->
-  <header class="top">
-    <div class="logo">
-      <span>R</span>YDO
-    </div>
+<p>Safe, simple and reliable rides across Nepal.</p>
 
-    <button id="settingsBtn" class="settings-btn">
-      ⚙
+<div class="welcome-buttons">
+
+  <button id="passengerBtn" class="primary-btn">
+    Book a Ride
+  </button>
+
+  <button id="driverBtn" class="secondary-btn">
+    Become a Driver
+  </button>
+
+</div>
+
+  </div></section><!-- AUTH --><section id="authScreen" class="screen hidden">  <div class="auth-box"><div class="auth-logo">
+  <span>R</span>YDO
+</div>
+
+<h2>Passenger Account</h2>
+
+<p>Login or create your Rydo account.</p>
+
+
+<!-- LOGIN -->
+<div id="loginForm">
+
+  <label>Email</label>
+
+  <input
+    id="loginEmail"
+    type="email"
+    placeholder="Enter your email"
+    autocomplete="email"
+  >
+
+  <label>Password</label>
+
+  <input
+    id="loginPassword"
+    type="password"
+    placeholder="Enter your password"
+    autocomplete="current-password"
+  >
+
+  <button id="loginButton" class="primary-btn">
+    Login
+  </button>
+
+  <button id="forgotPassword" class="text-btn">
+    Forgot password?
+  </button>
+
+  <button id="registerTab" class="secondary-btn">
+    Create Account
+  </button>
+
+</div>
+
+
+<!-- REGISTER -->
+<div id="registerForm" class="hidden">
+
+  <label>Full Name</label>
+
+  <input
+    id="registerName"
+    type="text"
+    placeholder="Enter your full name"
+  >
+
+  <label>Phone Number</label>
+
+  <input
+    id="registerPhone"
+    type="tel"
+    placeholder="98XXXXXXXX"
+  >
+
+  <label>Email</label>
+
+  <input
+    id="registerEmail"
+    type="email"
+    placeholder="Enter your email"
+    autocomplete="email"
+  >
+
+  <label>Password</label>
+
+  <input
+    id="registerPassword"
+    type="password"
+    placeholder="Create a password"
+    autocomplete="new-password"
+  >
+
+  <label>Confirm Password</label>
+
+  <input
+    id="registerConfirm"
+    type="password"
+    placeholder="Confirm your password"
+    autocomplete="new-password"
+  >
+
+  <button id="registerButton" class="primary-btn">
+    Create Account
+  </button>
+
+  <button id="loginTab" class="secondary-btn">
+    Back to Login
+  </button>
+
+</div>
+
+<div id="authStatus" class="status"></div>
+
+  </div></section><!-- RIDE REQUEST --><section id="rideScreen" class="screen hidden">  <div class="ride-container"><div class="page-title">
+  <h2>Book a Ride</h2>
+  <p>Choose your pickup and destination.</p>
+</div>
+
+
+<!-- LOCATIONS -->
+<div class="location-card">
+
+  <label>Pickup Location</label>
+
+  <div class="input-row">
+
+    <input
+      id="pickup"
+      type="text"
+      placeholder="Your current location"
+    >
+
+    <button
+      id="locateButton"
+      class="small-btn"
+      onclick="getCurrentLocation()"
+    >
+      📍
     </button>
-  </header>
 
+  </div>
 
-  <!-- =========================
-       WELCOME
-  ========================== -->
-  <section id="welcomeScreen" class="screen active">
-    <div class="hero-box">
 
-      <div class="big-logo">
-        <span>R</span>YDO
-      </div>
+  <label>Destination</label>
 
-      <h1>Move your way.</h1>
-
-      <p>
-        Safe, simple and reliable rides across Nepal.
-      </p>
-
-      <div class="welcome-buttons">
-        <button id="passengerBtn" class="primary-btn">
-          Book a Ride
-        </button>
-
-        <button id="driverBtn" class="secondary-btn">
-          Become a Driver
-        </button>
-      </div>
-
-    </div>
-  </section>
-
-
-  <!-- =========================
-       AUTH
-  ========================== -->
-  <section id="authScreen" class="screen hidden">
-
-    <div class="auth-box">
-
-      <div class="auth-logo">
-        <span>R</span>YDO
-      </div>
+  <input
+    id="destination"
+    type="text"
+    placeholder="Search destination in Nepal"
+    autocomplete="off"
+  >
 
-      <h2 id="authTitle">Passenger Login</h2>
+  <div id="destinationSuggestions" class="suggestions"></div>
 
-      <p id="authMessage">
-        Login to request your ride.
-      </p>
+</div>
 
 
-      <!-- LOGIN -->
-      <div id="loginPanel">
+<!-- MAP -->
+<div class="map-box">
 
-        <label>Email</label>
-        <input
-          id="loginEmail"
-          type="email"
-          placeholder="Enter your email"
-          autocomplete="email"
-        >
+  <div id="mapLoading" class="map-loading">
+    Loading Google Maps...
+  </div>
 
-        <label>Password</label>
-        <input
-          id="loginPassword"
-          type="password"
-          placeholder="Enter your password"
-          autocomplete="current-password"
-        >
+  <div id="map"></div>
 
-        <button id="loginBtn" class="primary-btn">
-          Login
-        </button>
+</div>
 
-        <button id="forgotPasswordBtn" class="text-btn">
-          Forgot password?
-        </button>
 
-        <button id="showRegisterBtn" class="secondary-btn">
-          Create Account
-        </button>
+<!-- ROUTE -->
+<div id="routeCard" class="info-card">
 
-      </div>
+  <div class="info-row">
+    <span>Distance</span>
+    <strong id="distance">-- km</strong>
+  </div>
 
+  <div class="info-row">
+    <span>Estimated time</span>
+    <strong id="eta">-- min</strong>
+  </div>
 
-      <!-- REGISTER -->
-      <div id="registerPanel" class="hidden">
+</div>
 
-        <label>Full Name</label>
-        <input
-          id="registerName"
-          type="text"
-          placeholder="Enter your full name"
-        >
 
-        <label>Phone Number</label>
-        <input
-          id="registerPhone"
-          type="tel"
-          placeholder="98XXXXXXXX"
-        >
+<!-- VEHICLES -->
+<div class="vehicle-section">
 
-        <label>Email</label>
-        <input
-          id="registerEmail"
-          type="email"
-          placeholder="Enter your email"
-          autocomplete="email"
-        >
+  <h3>Select Vehicle</h3>
 
-        <label>Password</label>
-        <input
-          id="registerPassword"
-          type="password"
-          placeholder="Create a password"
-          autocomplete="new-password"
-        >
+  <div class="vehicle-grid">
 
-        <label>Confirm Password</label>
-        <input
-          id="registerConfirm"
-          type="password"
-          placeholder="Confirm your password"
-          autocomplete="new-password"
-        >
+    <button
+      class="vehicle-card selected"
+      data-vehicle="bike"
+    >
+      <div class="vehicle-icon">🏍️</div>
+      <strong>Bike</strong>
+      <span id="bikeFare">Rs. --</span>
+    </button>
 
-        <button id="registerBtn" class="primary-btn">
-          Create Account
-        </button>
+    <button
+      class="vehicle-card"
+      data-vehicle="car"
+    >
+      <div class="vehicle-icon">🚕</div>
+      <strong>Car</strong>
+      <span id="carFare">Rs. --</span>
+    </button>
 
-        <button id="showLoginBtn" class="secondary-btn">
-          Back to Login
-        </button>
+    <button
+      class="vehicle-card"
+      data-vehicle="tuk_tuk"
+    >
+      <div class="vehicle-icon">🛺</div>
+      <strong>Tuk-Tuk</strong>
+      <span id="tukFare">Rs. --</span>
+    </button>
 
-      </div>
+  </div>
 
-      <div id="authStatus" class="status"></div>
+</div>
 
-    </div>
 
-  </section>
+<!-- FARE -->
+<div class="fare-card">
 
+  <div>
+    <span>Estimated Fare</span>
+    <small>Based on route distance</small>
+  </div>
 
-  <!-- =========================
-       RIDE REQUEST
-  ========================== -->
-  <section id="rideScreen" class="screen hidden">
+  <strong id="fare">
+    NPR --
+  </strong>
 
-    <div class="ride-container">
+</div>
 
-      <div class="page-title">
-        <h2>Book a Ride</h2>
-        <p>Choose your pickup and destination.</p>
-      </div>
 
+<!-- PAYMENT -->
+<div class="payment-section">
 
-      <!-- LOCATION INPUTS -->
-      <div class="location-card">
+  <h3>Payment Method</h3>
 
-        <label>Pickup Location</label>
+  <div class="payment-grid">
 
-        <div class="input-row">
-          <input
-            id="pickupInput"
-            type="text"
-            placeholder="Your current location"
-          >
+    <button
+      class="payment-card selected"
+      data-payment="cash"
+    >
+      💵 Cash
+    </button>
 
-          <button id="locateBtn" class="small-btn">
-            📍
-          </button>
-        </div>
+    <button
+      class="payment-card"
+      data-payment="online"
+    >
+      📱 Online
+    </button>
 
+  </div>
 
-        <label>Destination</label>
+</div>
 
-        <input
-          id="destinationInput"
-          type="text"
-          placeholder="Search destination"
-          autocomplete="off"
-        >
 
-        <div id="destinationSuggestions" class="suggestions"></div>
+<!-- REQUEST -->
+<button
+  id="requestRide"
+  class="request-btn"
+>
+  Request Rydo
+</button>
 
-      </div>
+<div id="rideMessage" class="status"></div>
 
+  </div></section><!-- SEARCHING --><section id="searchingScreen" class="screen hidden">  <div class="status-box"><div class="loading-circle"></div>
 
-      <!-- MAP -->
-      <div class="map-box">
+<h2>Finding your driver...</h2>
 
-        <div id="mapLoading" class="map-loading">
-          Loading Google Maps...
-        </div>
+<p>
+  We're looking for a nearby Rydo driver.
+</p>
 
-        <div id="map"></div>
+<div class="search-ride-info">
 
-      </div>
+  <div>
+    <span>Vehicle</span>
+    <strong id="searchVehicle">Bike</strong>
+  </div>
 
+  <div>
+    <span>Fare</span>
+    <strong id="searchFare">Rs. --</strong>
+  </div>
 
-      <!-- ROUTE INFORMATION -->
-      <div id="routeCard" class="info-card hidden">
+</div>
 
-        <div class="info-row">
-          <span>Distance</span>
-          <strong id="distanceValue">-- km</strong>
-        </div>
+<button id="cancelRide" class="danger-btn">
+  Cancel Request
+</button>
 
-        <div class="info-row">
-          <span>Estimated time</span>
-          <strong id="durationValue">--</strong>
-        </div>
+  </div></section><!-- ACTIVE RIDE --><section id="activeScreen" class="screen hidden">  <div class="active-container"><div class="page-title">
 
-      </div>
+  <h2>Your Ride</h2>
 
+  <p id="activeStatus">
+    Finding your driver...
+  </p>
 
-      <!-- VEHICLES -->
-      <div class="vehicle-section">
+</div>
 
-        <h3>Select Vehicle</h3>
 
-        <div class="vehicle-grid">
+<!-- LIVE MAP -->
+<div class="map-box">
 
-          <button
-            class="vehicle-card active"
-            data-vehicle="bike"
-            id="bikeBtn"
-          >
-            <div class="vehicle-icon">🏍️</div>
-            <strong>Bike</strong>
-            <span id="bikeFare">Rs. --</span>
-          </button>
+  <div id="activeMap"></div>
 
-          <button
-            class="vehicle-card"
-            data-vehicle="car"
-            id="carBtn"
-          >
-            <div class="vehicle-icon">🚕</div>
-            <strong>Car</strong>
-            <span id="carFare">Rs. --</span>
-          </button>
+</div>
 
-          <button
-            class="vehicle-card"
-            data-vehicle="tuk_tuk"
-            id="tukBtn"
-          >
-            <div class="vehicle-icon">🛺</div>
-            <strong>Tuk-Tuk</strong>
-            <span id="tukFare">Rs. --</span>
-          </button>
 
-        </div>
+<!-- DRIVER -->
+<div class="driver-card">
 
-      </div>
+  <div class="driver-avatar">
+    👨‍✈️
+  </div>
 
+  <div class="driver-details">
 
-      <!-- FARE -->
-      <div class="fare-card">
+    <strong id="driverName">
+      Your Driver
+    </strong>
 
-        <div>
-          <span>Estimated Fare</span>
-          <small>Based on route distance</small>
-        </div>
+    <span id="driverPhone"></span>
 
-        <strong id="fareValue">
-          Rs. --
-        </strong>
+    <span id="driverVehicle">
+      Vehicle
+    </span>
 
-      </div>
+    <span id="driverVehicleNumber">
+      Vehicle Number
+    </span>
 
+    <span id="driverRating">
+      ⭐ --
+    </span>
 
-      <!-- PAYMENT -->
-      <div class="payment-section">
+  </div>
 
-        <h3>Payment Method</h3>
+</div>
 
-        <div class="payment-grid">
 
-          <button
-            id="cashPaymentBtn"
-            class="payment-card active"
-            data-payment="cash"
-          >
-            💵 Cash
-          </button>
+<!-- ETA -->
+<div class="eta-card">
 
-          <button
-            id="onlinePaymentBtn"
-            class="payment-card"
-            data-payment="online"
-          >
-            📱 Online
-          </button>
+  <div>
+    <span>Driver ETA</span>
+    <strong id="driverEta">--</strong>
+  </div>
 
-        </div>
+  <div>
+    <span>Distance</span>
+    <strong id="driverDistance">-- km</strong>
+  </div>
 
-      </div>
+</div>
 
 
-      <!-- REQUEST -->
-      <button
-        id="requestRideBtn"
-        class="request-btn"
-      >
-        Request Rydo
-      </button>
+<!-- FARE -->
+<div class="fare-card">
 
-      <div id="rideMessage" class="status"></div>
+  <div>
+    <span>Current Fare</span>
 
-    </div>
+    <small>
+      Calculating from traveled distance
+    </small>
+  </div>
 
-  </section>
+  <strong id="activeFare">
+    Rs. --
+  </strong>
 
+</div>
 
-  <!-- =========================
-       SEARCHING FOR DRIVER
-  ========================== -->
-  <section id="searchScreen" class="screen hidden">
 
-    <div class="status-box">
+<!-- ACTIONS -->
+<div class="ride-actions">
 
-      <div class="loading-circle"></div>
+  <button id="callDriverBtn" class="action-btn">
+    📞 Call
+  </button>
 
-      <h2>Finding your driver...</h2>
+  <button id="messageDriverBtn" class="action-btn">
+    💬 Message
+  </button>
 
-      <p>
-        We're looking for a nearby Rydo driver.
-      </p>
+  <button id="sosBtn" class="sos-btn">
+    SOS
+  </button>
 
-      <div class="search-ride-info">
+</div>
 
-        <div>
-          <span>Vehicle</span>
-          <strong id="searchVehicle">Bike</strong>
-        </div>
 
-        <div>
-          <span>Fare</span>
-          <strong id="searchFare">Rs. --</strong>
-        </div>
+<button id="cancelActiveRideBtn" class="danger-btn">
+  Cancel Ride
+</button>
 
-      </div>
+  </div></section><!-- COMPLETED --><section id="completedScreen" class="screen hidden">  <div class="complete-box"><div class="success-icon">
+  ✓
+</div>
 
-      <button id="cancelSearchBtn" class="danger-btn">
-        Cancel Request
-      </button>
+<h2>Ride Completed</h2>
 
-    </div>
+<p>Thank you for riding with Rydo.</p>
 
-  </section>
 
+<div class="final-fare">
 
-  <!-- =========================
-       ACTIVE RIDE
-  ========================== -->
-  <section id="activeScreen" class="screen hidden">
+  <span>Final Fare</span>
 
-    <div class="active-container">
+  <strong id="finalFare">
+    Rs. --
+  </strong>
 
-      <div class="page-title">
-        <h2>Your Ride</h2>
-        <p id="rideStatusText">
-          Driver is on the way.
-        </p>
-      </div>
+  <small>
+    Calculated from actual traveled distance
+  </small>
 
+</div>
 
-      <!-- LIVE MAP -->
-      <div class="map-box">
 
-        <div id="activeMap"></div>
+<div class="final-details">
 
-      </div>
+  <div>
+    <span>Distance</span>
+    <strong id="finalDistance">-- km</strong>
+  </div>
 
+  <div>
+    <span>Payment</span>
+    <strong id="finalPayment">Cash</strong>
+  </div>
 
-      <!-- DRIVER -->
-      <div class="driver-card">
+</div>
 
-        <div class="driver-avatar">
-          👨‍✈️
-        </div>
 
-        <div class="driver-details">
+<div class="rating-section">
 
-          <strong id="driverName">
-            Your Driver
-          </strong>
+  <h3>Rate your driver</h3>
 
-          <span id="driverVehicle">
-            Vehicle
-          </span>
+  <div class="stars">
 
-          <span id="driverVehicleNumber">
-            Vehicle Number
-          </span>
+    <button data-rating="1">★</button>
+    <button data-rating="2">★</button>
+    <button data-rating="3">★</button>
+    <button data-rating="4">★</button>
+    <button data-rating="5">★</button>
 
-          <span id="driverRating">
-            ⭐ --
-          </span>
+  </div>
 
-        </div>
+  <textarea
+    id="reviewInput"
+    placeholder="Write a review (optional)"
+    rows="3"
+  ></textarea>
 
-      </div>
+  <button
+    id="submitRatingBtn"
+    class="primary-btn"
+  >
+    Submit Rating
+  </button>
 
+</div>
 
-      <!-- DRIVER ETA -->
-      <div class="eta-card">
 
-        <div>
-          <span>Driver ETA</span>
-          <strong id="driverEta">--</strong>
-        </div>
+<button
+  id="newRideBtn"
+  class="secondary-btn"
+>
+  Book Another Ride
+</button>
 
-        <div>
-          <span>Distance</span>
-          <strong id="driverDistance">-- km</strong>
-        </div>
+  </div></section><!-- SETTINGS --><section id="settingsScreen" class="screen hidden">  <div class="settings-box"><h2>Settings</h2>
 
-      </div>
+<div class="account-info">
 
+  <strong id="accountName">
+    Passenger
+  </strong>
 
-      <!-- RIDE FARE -->
-      <div class="fare-card">
+  <span id="accountEmail">
+    --
+  </span>
 
-        <div>
-          <span>Current Fare</span>
-          <small id="fareCalculationText">
-            Calculating from traveled distance
-          </small>
-        </div>
+</div>
 
-        <strong id="activeFare">
-          Rs. --
-        </strong>
 
-      </div>
+<button
+  id="changePasswordBtn"
+  class="settings-item"
+>
+  🔐 Change Password
+</button>
 
+<button
+  id="logoutButton"
+  class="settings-item"
+>
+  🚪 Logout
+</button>
 
-      <!-- ACTIONS -->
-      <div class="ride-actions">
+<button
+  id="deleteAccount"
+  class="delete-account"
+>
+  Delete Account
+</button>
 
-        <button id="callDriverBtn" class="action-btn">
-          📞 Call
-        </button>
+<button
+  id="closeSettings"
+  class="secondary-btn"
+>
+  Back
+</button>
 
-        <button id="messageDriverBtn" class="action-btn">
-          💬 Message
-        </button>
+  </div></section><!-- DRIVER PORTAL --><section id="driverScreen" class="screen hidden">  <div class="status-box"><div class="big-logo">
+  <span>R</span>YDO
+</div>
 
-        <button id="sosBtn" class="sos-btn">
-          SOS
-        </button>
+<h2>Become a Rydo Driver</h2>
 
-      </div>
+<p>
+  Driver registration and verification are handled
+  through the separate Rydo driver portal.
+</p>
 
+<button
+  id="openDriverBtn"
+  class="primary-btn"
+>
+  Continue to Driver Portal
+</button>
 
-      <button id="cancelRideBtn" class="danger-btn">
-        Cancel Ride
-      </button>
+<button
+  id="backFromDriverBtn"
+  class="secondary-btn"
+>
+  Back
+</button>
 
-    </div>
+  </div></section><!-- SUPABASE --><script>
+  const SUPABASE_URL =
+    "https://kqtvuorasqyzjbnlkkxs.supabase.co";
 
-  </section>
+  const SUPABASE_KEY =
+    "sb_publishable_zZFJiy0YWZgOXFesVuAQcA_wd7rleMb";
 
+  const supabaseClient =
+    window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_KEY
+    );
+</script><!-- RYDO PASSENGER JAVASCRIPT --><script src="passenger-ride.js"></script><script src="passenger-auth.js"></script><script src="passenger-live.js"></script><!-- PAGE BUTTONS --><script>
+  function showPage(id) {
+    document.querySelectorAll(".screen").forEach(screen => {
+      screen.classList.remove("active");
+      screen.classList.add("hidden");
+    });
 
-  <!-- =========================
-       COMPLETED RIDE
-  ========================== -->
-  <section id="completedScreen" class="screen hidden">
+    const page = document.getElementById(id);
 
-    <div class="complete-box">
+    if (page) {
+      page.classList.remove("hidden");
+      page.classList.add("active");
+    }
+  }
 
-      <div class="success-icon">
-        ✓
-      </div>
+  document.getElementById("passengerBtn")
+    .addEventListener("click", () => {
+      showPage("authScreen");
+    });
 
-      <h2>Ride Completed</h2>
+  document.getElementById("driverBtn")
+    .addEventListener("click", () => {
+      showPage("driverScreen");
+    });
 
-      <p>Thank you for riding with Rydo.</p>
+  document.getElementById("settingsButton")
+    .addEventListener("click", () => {
+      if (window.openPassengerSettings) {
+        window.openPassengerSettings();
+      }
+    });
 
+  document.getElementById("openDriverBtn")
+    .addEventListener("click", () => {
+      window.location.href = "driver.html";
+    });
 
-      <div class="final-fare">
+  document.getElementById("backFromDriverBtn")
+    .addEventListener("click", () => {
+      showPage("welcomeScreen");
+    });
 
-        <span>Final Fare</span>
+  document.getElementById("cancelActiveRideBtn")
+    .addEventListener("click", () => {
+      if (window.cancelRide) {
+        window.cancelRide();
+      }
+    });
 
-        <strong id="finalFare">
-          Rs. --
-        </strong>
+  document.getElementById("newRideBtn")
+    .addEventListener("click", () => {
+      showPage("rideScreen");
+    });
+</script><!-- GOOGLE MAPS --><script>
+  function loadGoogleMaps() {
 
-        <small>
-          Calculated from actual traveled distance
-        </small>
+    if (
+      !GOOGLE_MAPS_API_KEY ||
+      GOOGLE_MAPS_API_KEY ===
+      "YOUR_GOOGLE_MAPS_API_KEY"
+    ) {
+      const loading =
+        document.getElementById("mapLoading");
 
-      </div>
-
-
-      <div class="final-details">
-
-        <div>
-          <span>Distance</span>
-          <strong id="finalDistance">-- km</strong>
-        </div>
-
-        <div>
-          <span>Payment</span>
-          <strong id="finalPayment">Cash</strong>
-        </div>
-
-      </div>
-
-
-      <div class="rating-section">
-
-        <h3>Rate your driver</h3>
-
-        <div class="stars">
-
-          <button data-rating="1">★</button>
-          <button data-rating="2">★</button>
-          <button data-rating="3">★</button>
-          <button data-rating="4">★</button>
-          <button data-rating="5">★</button>
-
-        </div>
-
-        <textarea
-          id="reviewInput"
-          placeholder="Write a review (optional)"
-          rows="3"
-        ></textarea>
-
-        <button id="submitRatingBtn" class="primary-btn">
-          Submit Rating
-        </button>
-
-      </div>
-
-
-      <button id="newRideBtn" class="secondary-btn">
-        Book Another Ride
-      </button>
-
-    </div>
-
-  </section>
-
-
-  <!-- =========================
-       SETTINGS
-  ========================== -->
-  <section id="settingsScreen" class="screen hidden">
-
-    <div class="settings-box">
-
-      <h2>Settings</h2>
-
-      <div class="account-info">
-
-        <strong id="accountName">
-          Passenger
-        </strong>
-
-        <span id="accountEmail">
-          --
-        </span>
-
-      </div>
-
-
-      <button id="changePasswordBtn" class="settings-item">
-        🔐 Change Password
-      </button>
-
-      <button id="logoutBtn" class="settings-item">
-        🚪 Logout
-      </button>
-
-      <button id="deleteAccountBtn" class="delete-account">
-        Delete Account
-      </button>
-
-      <button id="closeSettingsBtn" class="secondary-btn">
-        Back
-      </button>
-
-    </div>
-
-  </section>
-
-
-  <!-- =========================
-       DRIVER PORTAL NOTICE
-  ========================== -->
-  <section id="driverScreen" class="screen hidden">
-
-    <div class="status-box">
-
-      <div class="big-logo">
-        <span>R</span>YDO
-      </div>
-
-      <h2>Become a Rydo Driver</h2>
-
-      <p>
-        Driver registration and verification are handled through the
-        separate Rydo driver portal.
-      </p>
-
-      <button id="openDriverBtn" class="primary-btn">
-        Continue to Driver Portal
-      </button>
-
-      <button id="backFromDriverBtn" class="secondary-btn">
-        Back
-      </button>
-
-    </div>
-
-  </section>
-
-
-  <!-- =========================
-       MAIN JAVASCRIPT
-  ========================== -->
-
-  <script>
-    /*
-      Supabase configuration
-      New Rydo project
-    */
-
-    const SUPABASE_URL =
-      "https://kqtvuorasqyzjbnlkkxs.supabase.co";
-
-    const SUPABASE_KEY =
-      "sb_publishable_zZFJiy0YWZgOXFesVuAQcA_wd7rleMb";
-
-    const supabaseClient =
-      window.supabase.createClient(
-        SUPABASE_URL,
-        SUPABASE_KEY
-      );
-  </script>
-
-
-  <!-- Passenger application -->
-  <script src="passenger-ride.js"></script>
-
-
-  <!-- Google Maps loader -->
-  <script>
-    function loadGoogleMaps() {
-
-      if (
-        !GOOGLE_MAPS_API_KEY ||
-        GOOGLE_MAPS_API_KEY === "YOUR_GOOGLE_MAPS_API_KEY"
-      ) {
-        const loading =
-          document.getElementById("mapLoading");
-
-        if (loading) {
-          loading.innerHTML =
-            "Google Maps API key is required.";
-        }
-
-        return;
+      if (loading) {
+        loading.textContent =
+          "Google Maps API key is required.";
       }
 
-      const script =
-        document.createElement("script");
-
-      script.src =
-        "https://maps.googleapis.com/maps/api/js" +
-        "?key=" +
-        encodeURIComponent(GOOGLE_MAPS_API_KEY) +
-        "&libraries=places,geometry" +
-        "&callback=initRydoMap";
-
-      script.async = true;
-      script.defer = true;
-
-      document.head.appendChild(script);
+      return;
     }
 
-    window.initRydoMap =
-      function () {
+    const script =
+      document.createElement("script");
 
-        const loading =
-          document.getElementById("mapLoading");
+    script.src =
+      "https://maps.googleapis.com/maps/api/js" +
+      "?key=" +
+      encodeURIComponent(GOOGLE_MAPS_API_KEY) +
+      "&libraries=places,geometry" +
+      "&callback=initRydoMap";
 
-        if (loading) {
-          loading.classList.add("hidden");
-        }
+    script.async = true;
+    script.defer = true;
 
-        if (
-          typeof window.initializeRydoGoogleMap ===
-          "function"
-        ) {
-          window.initializeRydoGoogleMap();
-        }
-      };
+    document.head.appendChild(script);
+  }
 
-    loadGoogleMaps();
-  </script>
-
-</body>
-          </html>
+  loadGoogleMaps();
+</script></body>
+  </html>
