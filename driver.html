@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RYDO Driver</title>
+<link rel="stylesheet" href="driver.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<header class="top">
+  <div class="logo"><b>R</b>YDO</div>
+  <button id="logoutBtn" class="hide">Logout</button>
+</header>
+
+<section id="auth" class="page">
+  <div class="card">
+    <h1>RYDO Driver</h1>
+    <p>Drive with RYDO</p>
+
+    <div class="tabs">
+      <button id="loginTab">Login</button>
+      <button id="registerTab">Register</button>
+    </div>
+
+    <div id="loginBox">
+      <input id="loginEmail" type="email" placeholder="Email">
+      <input id="loginPassword" type="password" placeholder="Password">
+      <button id="loginBtn" class="mainBtn">Login</button>
+      <p id="loginMsg"></p>
+    </div>
+
+    <div id="registerBox" class="hide">
+
+      <input id="name" placeholder="Full name">
+      <input id="phone" placeholder="Phone number">
+      <input id="email" type="email" placeholder="Email">
+      <input id="password" type="password" placeholder="Password">
+
+      <h3>Driver Documents</h3>
+      <input id="license" placeholder="Driver license number">
+      <label>Driver license document</label>
+      <input id="licenseFile" type="file">
+
+      <label>Citizenship / ID document</label>
+      <input id="idFile" type="file">
+
+      <h3>Vehicle</h3>
+      <select id="vehicleType">
+        <option value="bike">Bike</option>
+        <option value="car">Car</option>
+        <option value="tuk_tuk">Tuk Tuk</option>
+      </select>
+
+      <input id="vehicleNumber" placeholder="Vehicle number">
+      <input id="vehicleModel" placeholder="Vehicle model">
+
+      <button id="registerBtn" class="mainBtn">Create Driver Account</button>
+      <p id="registerMsg"></p>
+    </div>
+  </div>
+</section>
+
+<section id="dashboard" class="page hide">
+
+  <div class="card">
+    <h2>Driver Dashboard</h2>
+    <p id="driverName"></p>
+
+    <button id="onlineBtn" class="mainBtn">GO ONLINE</button>
+  </div>
+
+  <div class="stats">
+    <div>Total Earnings<strong id="totalEarnings">Rs. 0</strong></div>
+    <div>Net Earnings<strong id="netEarnings">Rs. 0</strong></div>
+    <div>Admin Commission<strong id="commission">Rs. 0</strong></div>
+    <div>Completed<strong id="completed">0</strong></div>
+    <div>Cancelled<strong id="cancelled">0</strong></div>
+    <div>Rating<strong id="rating">0.0</strong></div>
+  </div>
+
+  <div class="card">
+    <h2>Ride Requests</h2>
+    <div id="rideRequests">
+      <p>No ride requests.</p>
+    </div>
+  </div>
+
+  <div id="activeRide" class="card hide"></div>
+
+  <div class="card">
+    <h2>Settings</h2>
+    <button id="passwordBtn">Change Password</button>
+    <button id="deleteBtn" class="danger">Delete Account</button>
+  </div>
+
+</section>
+
+<script src="driver-auth.js"></script>
+<script src="driver-rides.js"></script>
+<script src="driver-location.js"></script>
+<script src="driver-earnings.js"></script>
+<script src="driver.js"></script>
+
+</body>
+</html>
