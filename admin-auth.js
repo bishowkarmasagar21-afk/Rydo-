@@ -9,61 +9,64 @@ const client=window.supabase.createClient(
 window.supabaseClient=client;
 
 const form=document.getElementById("adminLoginForm");
-const button=document.getElementById("adminLoginBtn");
+const btn=document.getElementById("adminLoginBtn");
 const msg=document.getElementById("adminMessage");
 
-async function login(){
+async function adminLogin(e){
+  e.preventDefault();
 
   const email=document.getElementById("adminEmail").value.trim();
   const password=document.getElementById("adminPassword").value;
 
-  if(!email||!password){
-    msg.textContent="Enter email and password.";
-    return;
-  }
-
-  button.disabled=true;
-  button.textContent="Checking...";
+  msg.textContent="Checking admin account...";
+  btn.disabled=true;
 
   const {data,error}=await client.auth.signInWithPassword({
-    email:email,
-    password:password
+    email,
+    password
   });
 
   if(error){
     msg.textContent=error.message;
-    button.disabled=false;
-    button.textContent="Login";
+    btn.disabled=false;
     return;
   }
 
-  const {data:profile,error:pError}=await client
+  const {data:profile,error:pe}=await client
     .from("profiles")
     .select("full_name,role")
     .eq("id",data.user.id)
     .single();
 
-  if(pError||!profile){
-    msg.textContent="Admin profile not found.";
+  if(pe||!profile){
+    msg.textContent="Could not load admin profile.";
     await client.auth.signOut();
-    button.disabled=false;
-    button.textContent="Login";
+    btn.disabled=false;
     return;
   }
 
   if(profile.role!=="admin"){
     msg.textContent="This account is not an admin.";
     await client.auth.signOut();
-    button.disabled=false;
-    button.textContent="Login";
+    btn.disabled=false;
     return;
   }
 
+  /* ADMIN VERIFIED */
   document.getElementById("adminLogin").style.display="none";
   document.getElementById("adminApp").style.display="block";
+
+  msg.textContent="";
+  btn.disabled=false;
+
+  document.querySelectorAll(".panel").forEach(p=>{
+    p.style.display="none";
+  });
+
+  const first=document.getElementById("drivers");
+  if(first) first.style.display="block";
+
+  if(typeof loadDashboard==="function") loadDashboard();
 }
 
-form.addEventListener("submit",function(e){
-  e.preventDefault();
-  login();
-});
+form.addEventListener("submit",adminLogin);
