@@ -2,406 +2,769 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RYDO Passenger</title>
 
-<title>RYDO - Move Your Way</title>
+<link rel="stylesheet"
+ href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <style>
-*{
-  box-sizing:border-box;
-  margin:0;
-  padding:0;
-}
-
-html,body{
-  width:100%;
-  min-height:100%;
-  font-family:Arial,sans-serif;
-  background:#07111b;
-  color:#fff;
-}
-
+*{box-sizing:border-box}
 body{
-  min-height:100vh;
-  overflow-x:hidden;
+ margin:0;font-family:Arial,sans-serif;
+ background:#08111b;color:#fff;min-height:100vh
 }
-
-/* HEADER */
-.header{
-  height:92px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 22px;
-  background:#08131f;
-  border-bottom:1px solid #1c2b38;
+header{
+ height:65px;padding:0 20px;display:flex;
+ align-items:center;justify-content:space-between;
+ border-bottom:1px solid #243443;background:#0c1824
 }
-
-.logo{
-  font-size:38px;
-  font-weight:900;
-  letter-spacing:5px;
-  color:#fff;
+.logo{font-size:25px;font-weight:900;color:#fff}
+.logo b{color:#ff7417}
+button{
+ border:0;border-radius:12px;padding:13px 16px;
+ font-weight:bold;cursor:pointer
 }
-
-.logo span{
-  color:#ff8a25;
+.orange{background:#ff7417;color:white}
+.blue{background:#72c9ff;color:#06111b}
+.ghost{background:#172838;color:#fff;border:1px solid #30465a}
+.danger{background:#ff5366;color:#fff}
+.screen{display:none;padding:22px;max-width:720px;margin:auto}
+.screen.active{display:block}
+.card{
+ background:#101d29;border:1px solid #263b4d;
+ border-radius:20px;padding:20px;margin-bottom:18px;
+ box-shadow:0 12px 30px #0004
 }
-
-.settings{
-  width:48px;
-  height:48px;
-  border:1px solid #52606c;
-  border-radius:12px;
-  background:#111f2b;
-  color:#fff;
-  font-size:24px;
-  cursor:pointer;
+h1,h2{margin-top:0}
+small,.muted{color:#9db0c0}
+input{
+ width:100%;padding:14px;margin:7px 0 12px;
+ border-radius:11px;border:2px solid #ff7417;
+ background:#fff;color:#1262a0;font-size:15px
 }
-
-.settings:active{
-  transform:scale(.95);
+label{font-size:13px;color:#b9c8d5}
+.tabs{display:flex;gap:8px;margin-bottom:18px}
+.tabs button{flex:1;background:#172838;color:#fff}
+.tabs button.active{background:#ff7417}
+.row{display:flex;gap:9px}
+.row>*{flex:1}
+.choice{
+ display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 16px
 }
-
-/* HERO */
-.hero{
-  min-height:calc(100vh - 92px);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:35px 20px 60px;
-  background:
-    radial-gradient(circle at 85% 20%,rgba(255,116,23,.12),transparent 30%),
-    linear-gradient(145deg,#07111b,#0b1722 55%,#101820);
+.choice button{background:#172838;color:#fff;flex:1}
+.choice button.active{background:#ff7417}
+#map,#liveMap{height:300px;border-radius:16px;overflow:hidden;margin:12px 0}
+.notice{
+ padding:11px;border-radius:10px;background:#172838;
+ color:#b9c8d5;margin:10px 0
 }
-
-.content{
-  width:100%;
-  max-width:650px;
-  text-align:center;
+.fare{
+ display:grid;grid-template-columns:repeat(3,1fr);
+ gap:8px;margin:15px 0
 }
-
-.badge{
-  display:inline-block;
-  padding:8px 15px;
-  margin-bottom:22px;
-  border:1px solid #ff7a1a;
-  border-radius:30px;
-  color:#ff9b4a;
-  font-size:13px;
-  font-weight:bold;
-  letter-spacing:1px;
+.fare div{
+ background:#172838;border-radius:12px;padding:12px;text-align:center
 }
-
-.title{
-  font-size:clamp(42px,12vw,72px);
-  line-height:1;
-  font-weight:900;
-  letter-spacing:2px;
-  margin-bottom:18px;
+.fare b{display:block;color:#ff7417;font-size:18px;margin-top:4px}
+.actions{display:flex;gap:10px}
+.actions button{flex:1}
+.hidden{display:none!important}
+.center{text-align:center}
+.search-results{
+ background:#172838;border-radius:10px;overflow:hidden
 }
-
-.title span{
-  color:#ff8124;
+.result{
+ padding:12px;border-bottom:1px solid #30465a;cursor:pointer
 }
-
-.subtitle{
-  font-size:clamp(19px,5vw,27px);
-  font-weight:700;
-  line-height:1.35;
-  margin-bottom:12px;
-}
-
-.description{
-  max-width:500px;
-  margin:0 auto 35px;
-  color:#aebbc6;
-  font-size:16px;
-  line-height:1.6;
-}
-
-/* BUTTONS */
-.buttons{
-  display:flex;
-  flex-direction:column;
-  gap:14px;
-  width:100%;
-  max-width:390px;
-  margin:0 auto;
-}
-
-.main-btn{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  width:100%;
-  min-height:58px;
-  border-radius:14px;
-  text-decoration:none;
-  font-size:18px;
-  font-weight:800;
-  cursor:pointer;
-  transition:.2s;
-}
-
-.ride-btn{
-  background:#ff8124;
-  color:#101820;
-  border:2px solid #ff8124;
-}
-
-.driver-btn{
-  background:transparent;
-  color:#fff;
-  border:2px solid #ff8124;
-}
-
-.main-btn:hover{
-  transform:translateY(-2px);
-}
-
-.ride-btn:hover{
-  background:#ff963f;
-}
-
-.driver-btn:hover{
-  background:rgba(255,129,36,.12);
-}
-
-.main-btn:active{
-  transform:scale(.98);
-}
-
-/* INFO */
-.info{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:10px;
-  max-width:600px;
-  margin:42px auto 0;
-}
-
-.info-card{
-  padding:16px 8px;
-  background:#0d1c29;
-  border:1px solid #203342;
-  border-radius:14px;
-}
-
-.icon{
-  font-size:24px;
-  margin-bottom:8px;
-}
-
-.info-card strong{
-  display:block;
-  font-size:13px;
-}
-
-.info-card small{
-  display:block;
-  color:#8798a6;
-  margin-top:5px;
-  font-size:11px;
-}
-
-/* SETTINGS PANEL */
-.overlay{
-  display:none;
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.72);
-  z-index:20;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-}
-
-.overlay.show{
-  display:flex;
-}
-
-.settings-box{
-  width:100%;
-  max-width:390px;
-  background:#0d1a26;
-  border:1px solid #304252;
-  border-radius:20px;
-  padding:25px;
-  box-shadow:0 20px 60px rgba(0,0,0,.5);
-}
-
-.settings-box h2{
-  margin-bottom:8px;
-}
-
-.settings-box p{
-  color:#9eabb5;
-  line-height:1.5;
-  margin-bottom:22px;
-}
-
-.close-btn{
-  width:100%;
-  min-height:50px;
-  border:0;
-  border-radius:12px;
-  background:#ff8124;
-  color:#111;
-  font-weight:800;
-  font-size:16px;
-  cursor:pointer;
-}
-
-/* MOBILE */
-@media(max-width:420px){
-  .header{
-    height:82px;
-    padding:0 17px;
-  }
-
-  .logo{
-    font-size:31px;
-  }
-
-  .settings{
-    width:44px;
-    height:44px;
-  }
-
-  .hero{
-    min-height:calc(100vh - 82px);
-    padding-top:45px;
-  }
-
-  .info{
-    grid-template-columns:1fr;
-    max-width:300px;
-  }
-
-  .info-card{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    text-align:left;
-  }
-
-  .icon{
-    margin:0;
-  }
-}
+.result:last-child{border:0}
 </style>
 </head>
 
 <body>
 
-<header class="header">
-  <div class="logo">RY<span>DO</span></div>
-
-  <button class="settings" onclick="openSettings()" aria-label="Settings">
-    ⚙
-  </button>
+<header>
+ <div class="logo"><b>R</b>YDO</div>
+ <button id="logout" class="ghost hidden">Logout</button>
 </header>
 
-<main class="hero">
+<!-- AUTH -->
+<section id="auth" class="screen active">
+ <div class="card">
+  <h1>Move your way.</h1>
+  <p class="muted">Passenger account</p>
 
-  <section class="content">
-
-    <div class="badge">NEPAL'S RIDE PLATFORM</div>
-
-    <h1 class="title">
-      Move <span>your way.</span>
-    </h1>
-
-    <h2 class="subtitle">
-      Safe and simple rides across Nepal.
-    </h2>
-
-    <p class="description">
-      Book a ride when you need one, or join Rydo as a driver
-      and start moving people around Nepal.
-    </p>
-
-    <div class="buttons">
-
-      <!-- PASSENGER -->
-      <a class="main-btn ride-btn" href="passenger.html">
-        🚕&nbsp; Book a Ride
-      </a>
-
-      <!-- DRIVER -->
-      <a class="main-btn driver-btn" href="driver.html">
-        🚗&nbsp; Become a Driver
-      </a>
-
-    </div>
-
-    <div class="info">
-
-      <div class="info-card">
-        <div class="icon">📍</div>
-        <div>
-          <strong>Easy Booking</strong>
-          <small>Choose your pickup and destination</small>
-        </div>
-      </div>
-
-      <div class="info-card">
-        <div class="icon">🛡️</div>
-        <div>
-          <strong>Safer Rides</strong>
-          <small>Built with verified drivers in mind</small>
-        </div>
-      </div>
-
-      <div class="info-card">
-        <div class="icon">🇳🇵</div>
-        <div>
-          <strong>Made for Nepal</strong>
-          <small>Designed for local riders</small>
-        </div>
-      </div>
-
-    </div>
-
-  </section>
-
-</main>
-
-<!-- SETTINGS -->
-<div class="overlay" id="settingsPanel">
-
-  <div class="settings-box">
-
-    <h2>RYDO Settings</h2>
-
-    <p>
-      Settings and account controls will be available here
-      as the Rydo passenger and driver systems are connected.
-    </p>
-
-    <button class="close-btn" onclick="closeSettings()">
-      Close
-    </button>
-
+  <div class="tabs">
+   <button id="loginTab" class="active">Login</button>
+   <button id="registerTab">Register</button>
   </div>
 
-</div>
+  <div id="registerFields" class="hidden">
+   <label>Full name</label>
+   <input id="name" placeholder="Your full name">
+
+   <label>Phone</label>
+   <input id="phone" placeholder="98XXXXXXXX">
+  </div>
+
+  <label>Email</label>
+  <input id="email" type="email" placeholder="Email address">
+
+  <label>Password</label>
+  <input id="password" type="password" placeholder="Password">
+
+  <button id="authBtn" class="orange" style="width:100%">Login</button>
+
+  <button id="forgot" class="ghost" style="width:100%;margin-top:10px">
+   Forgot password
+  </button>
+
+  <div id="authMsg" class="notice"></div>
+ </div>
+</section>
+
+<!-- RIDE -->
+<section id="ride" class="screen">
+ <div class="card">
+  <h2>Book a ride</h2>
+
+  <label>Pickup location</label>
+  <div class="row">
+   <input id="pickup" placeholder="Enter pickup location">
+   <button id="gps" class="blue">📍</button>
+  </div>
+
+  <label>Destination</label>
+  <input id="destination" placeholder="Search any place in Nepal">
+
+  <div id="results" class="search-results hidden"></div>
+
+  <div id="routeMsg" class="notice">
+   Enter pickup and destination.
+  </div>
+
+  <div id="map"></div>
+
+  <label>Vehicle</label>
+  <div class="choice">
+   <button data-v="bike" class="active">🏍️ Bike</button>
+   <button data-v="car">🚗 Car</button>
+   <button data-v="tuk_tuk">🛺 Tuk Tuk</button>
+  </div>
+
+  <label>Payment</label>
+  <div class="choice">
+   <button data-p="cash" class="active">💵 Cash</button>
+   <button data-p="online">💳 Online</button>
+  </div>
+
+  <div class="fare">
+   <div>Distance<b id="distance">—</b></div>
+   <div>ETA<b id="eta">—</b></div>
+   <div>Fare<b id="fare">NPR —</b></div>
+  </div>
+
+  <button id="request" class="orange" style="width:100%">
+   Request Rydo
+  </button>
+ </div>
+
+ <div class="card">
+  <button id="settings" class="ghost" style="width:100%">
+   ⚙️ Account Settings
+  </button>
+ </div>
+</section>
+
+<!-- ACTIVE RIDE -->
+<section id="active" class="screen">
+ <div class="card">
+  <h2>Ride status</h2>
+  <div id="status" class="notice">Finding a driver...</div>
+
+  <div id="liveMap"></div>
+
+  <div class="notice">
+   <b id="driverName">Waiting for driver</b><br>
+   <span id="driverVehicle">Searching nearby...</span>
+  </div>
+
+  <div class="actions">
+   <button id="call" class="blue">📞 Call</button>
+   <button id="message" class="blue">💬 Message</button>
+  </div>
+
+  <button id="cancel" class="danger" style="width:100%;margin-top:10px">
+   Cancel Ride
+  </button>
+
+  <div id="activeMsg" class="notice"></div>
+ </div>
+</section>
 
 <script>
-function openSettings(){
-  document.getElementById("settingsPanel").classList.add("show");
+const SUPABASE_URL="https://kqtvuorasqyzjbnlkkxs.supabase.co";
+const SUPABASE_KEY="sb_publishable_zZFJiy0YWZgOXFesVuAQcA_wd7rleMb";
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+let vehicle="bike",payment="cash";
+let pickupCoords=null,destCoords=null,route=null,ride=null;
+let map=null,liveMap=null,routeLayer=null,pickMarker=null,destMarker=null;
+let poll=null,searchTimer=null;
+
+const $=id=>document.getElementById(id);
+
+function screen(id){
+ document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));
+ $(id).classList.add("active");
+ window.scrollTo(0,0);
 }
 
-function closeSettings(){
-  document.getElementById("settingsPanel").classList.remove("show");
+function msg(el,text){
+ $(el).textContent=text||"";
 }
 
-document.getElementById("settingsPanel").addEventListener("click",function(e){
-  if(e.target === this){
-    closeSettings();
-  }
+function initMap(){
+ if(map)return;
+ map=L.map("map").setView([27.7172,85.3240],13);
+ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+  maxZoom:19,
+  attribution:"© OpenStreetMap contributors"
+ }).addTo(map);
+}
+
+async function geocode(q){
+ const url=
+ "https://nominatim.openstreetmap.org/search?format=json&limit=5"+
+ "&countrycodes=np&q="+encodeURIComponent(q);
+
+ const r=await fetch(url,{headers:{Accept:"application/json"}});
+ const d=await r.json();
+
+ if(!d.length)throw new Error("Location not found in Nepal.");
+ return d;
+}
+
+function drawRoute(){
+ if(!map||!route)return;
+
+ if(routeLayer)map.removeLayer(routeLayer);
+ if(pickMarker)map.removeLayer(pickMarker);
+ if(destMarker)map.removeLayer(destMarker);
+
+ routeLayer=L.geoJSON(route.geometry,{style:{weight:5}}).addTo(map);
+
+ pickMarker=L.marker([pickupCoords.lat,pickupCoords.lon])
+  .addTo(map).bindPopup("Pickup");
+
+ destMarker=L.marker([destCoords.lat,destCoords.lon])
+  .addTo(map).bindPopup("Destination");
+
+ map.fitBounds(routeLayer.getBounds(),{padding:[25,25]});
+}
+
+async function calculateRoute(){
+ if(!pickupCoords||!destCoords)return;
+
+ msg("routeMsg","Calculating route...");
+
+ const url=
+ "https://router.project-osrm.org/route/v1/driving/"+
+ pickupCoords.lon+","+pickupCoords.lat+";"+
+ destCoords.lon+","+destCoords.lat+
+ "?overview=full&geometries=geojson";
+
+ const r=await fetch(url);
+ const j=await r.json();
+
+ if(!j.routes||!j.routes[0]){
+  throw new Error("Route could not be calculated.");
+ }
+
+ route=j.routes[0];
+
+ const km=route.distance/1000;
+ const minutes=Math.ceil(route.duration/60);
+
+ $("distance").textContent=km.toFixed(1)+" km";
+ $("eta").textContent=minutes+" min";
+
+ await calculateFare(km);
+ drawRoute();
+
+ msg("routeMsg","Route ready.");
+}
+
+async function calculateFare(km){
+ const {data,error}=await sb
+ .from("fare_rules")
+ .select("base_fare,per_km_fare")
+ .eq("vehicle_type",vehicle)
+ .eq("is_active",true)
+ .limit(1)
+ .maybeSingle();
+
+ if(error||!data){
+  $("fare").textContent="NPR —";
+  return;
+ }
+
+ const total=
+ Number(data.base_fare)+Number(data.per_km_fare)*Number(km);
+
+ $("fare").textContent=
+ "NPR "+Math.round(total).toLocaleString();
+}
+
+async function setDestination(lat,lon,label){
+ destCoords={lat,lon,label};
+ $("destination").value=label;
+ $("results").classList.add("hidden");
+
+ try{
+  await calculateRoute();
+ }catch(e){
+  msg("routeMsg",e.message);
+ }
+}
+
+async function searchDestination(){
+ const q=$("destination").value.trim();
+
+ if(q.length<2){
+  $("results").classList.add("hidden");
+  return;
+ }
+
+ try{
+  const data=await geocode(q);
+
+  $("results").innerHTML=data.map((x,i)=>
+   `<div class="result" data-i="${i}">
+    ${x.display_name}
+   </div>`
+  ).join("");
+
+  $("results").classList.remove("hidden");
+
+  document.querySelectorAll(".result").forEach((el,i)=>{
+   el.onclick=()=>setDestination(
+    Number(data[i].lat),
+    Number(data[i].lon),
+    data[i].display_name
+   );
+  });
+
+ }catch(e){
+  $("results").classList.add("hidden");
+ }
+}
+
+$("destination").addEventListener("input",()=>{
+ clearTimeout(searchTimer);
+ searchTimer=setTimeout(searchDestination,400);
 });
+
+$("gps").onclick=()=>{
+ if(!navigator.geolocation){
+  msg("routeMsg","GPS is not supported.");
+  return;
+ }
+
+ msg("routeMsg","Getting your current location...");
+
+ navigator.geolocation.getCurrentPosition(async p=>{
+  const lat=p.coords.latitude;
+  const lon=p.coords.longitude;
+  const accuracy=Math.round(p.coords.accuracy);
+
+  if(accuracy>150){
+   msg("routeMsg","GPS accuracy is too low. Move outside and try again.");
+   return;
+  }
+
+  pickupCoords={lat,lon,label:"Current location"};
+
+  $("pickup").value="Current location";
+  map.setView([lat,lon],16);
+
+  if(destCoords){
+   try{await calculateRoute()}
+   catch(e){msg("routeMsg",e.message)}
+  }else{
+   msg("routeMsg","Pickup location found. Now choose destination.");
+  }
+
+ },()=>{
+  msg("routeMsg","GPS permission was denied.");
+ },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+};
+
+$("pickup").addEventListener("change",async()=>{
+ const q=$("pickup").value.trim();
+ if(!q)return;
+
+ try{
+  const d=await geocode(q);
+  pickupCoords={
+   lat:Number(d[0].lat),
+   lon:Number(d[0].lon),
+   label:d[0].display_name
+  };
+
+  map.setView([pickupCoords.lat,pickupCoords.lon],16);
+
+  if(destCoords)await calculateRoute();
+ }catch(e){
+  msg("routeMsg",e.message);
+ }
+});
+
+document.querySelectorAll("[data-v]").forEach(b=>{
+ b.onclick=async()=>{
+  document.querySelectorAll("[data-v]").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  vehicle=b.dataset.v;
+
+  if(route){
+   await calculateFare(route.distance/1000);
+  }
+ };
+});
+
+document.querySelectorAll("[data-p]").forEach(b=>{
+ b.onclick=()=>{
+  document.querySelectorAll("[data-p]").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  payment=b.dataset.p;
+ };
+});
+
+async function requestRide(){
+ const {data:{user}}=await sb.auth.getUser();
+
+ if(!user){
+  screen("auth");
+  return;
+ }
+
+ if(!pickupCoords){
+  try{
+   const d=await geocode($("pickup").value.trim());
+   pickupCoords={
+    lat:Number(d[0].lat),
+    lon:Number(d[0].lon),
+    label:d[0].display_name
+   };
+  }catch(e){
+   msg("routeMsg",e.message);
+   return;
+  }
+ }
+
+ if(!destCoords){
+  msg("routeMsg","Please select a destination.");
+  return;
+ }
+
+ if(!route){
+  msg("routeMsg","Please wait for the route.");
+  return;
+ }
+
+ const {data:rule,error:ruleError}=await sb
+ .from("fare_rules")
+ .select("base_fare,per_km_fare,platform_commission_percent")
+ .eq("vehicle_type",vehicle)
+ .eq("is_active",true)
+ .limit(1)
+ .maybeSingle();
+
+ if(ruleError||!rule){
+  msg("routeMsg","Fare rule is not configured.");
+  return;
+ }
+
+ const km=route.distance/1000;
+ const fare=Math.round(
+  Number(rule.base_fare)+Number(rule.per_km_fare)*km
+ );
+ const commission=
+  fare*Number(rule.platform_commission_percent||0)/100;
+
+ const {data,error}=await sb
+ .from("rides")
+ .insert({
+  passenger_id:user.id,
+  pickup_location:$("pickup").value.trim(),
+  destination:$("destination").value.trim(),
+  vehicle_type:vehicle,
+  distance_km:km,
+  fare:fare,
+  driver_earnings:fare-commission,
+  admin_earnings:commission,
+  payment_method:payment,
+  payment_status:"pending",
+  status:"requested",
+  pickup_latitude:pickupCoords.lat,
+  pickup_longitude:pickupCoords.lon,
+  destination_latitude:destCoords.lat,
+  destination_longitude:destCoords.lon
+ })
+ .select()
+ .single();
+
+ if(error){
+  msg("routeMsg",error.message);
+  return;
+ }
+
+ ride=data;
+ openActive();
+ startRidePolling();
+}
+
+function openActive(){
+ screen("active");
+ initLiveMap();
+
+ if(pickupCoords)
+  liveMap.setView([pickupCoords.lat,pickupCoords.lon],15);
+
+ $("status").textContent="Finding a driver...";
+}
+
+function initLiveMap(){
+ if(liveMap)return;
+
+ liveMap=L.map("liveMap").setView([27.7172,85.324],13);
+
+ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+  maxZoom:19,
+  attribution:"© OpenStreetMap contributors"
+ }).addTo(liveMap);
+}
+
+async function refreshRide(){
+ if(!ride)return;
+
+ const {data,error}=await sb
+ .from("rides")
+ .select("*")
+ .eq("id",ride.id)
+ .maybeSingle();
+
+ if(error||!data)return;
+
+ ride=data;
+
+ $("status").textContent=
+  data.status==="requested"?"Finding a driver...":
+  data.status==="accepted"?"Driver accepted your ride":
+  data.status==="arriving"?"Driver is coming to pickup":
+  data.status==="started"?"Ride started":
+  data.status==="completed"?"Ride completed":
+  data.status==="cancelled"?"Ride cancelled":
+  data.status;
+
+ if(data.status==="completed"){
+  clearInterval(poll);
+  $("activeMsg").textContent="Ride completed.";
+ }
+
+ if(data.status==="cancelled"){
+  clearInterval(poll);
+  $("activeMsg").textContent="This ride was cancelled.";
+ }
+}
+
+function startRidePolling(){
+ clearInterval(poll);
+ refreshRide();
+ poll=setInterval(refreshRide,3000);
+}
+
+$("cancel").onclick=async()=>{
+ if(!ride)return;
+
+ if(!confirm("Cancel this ride?"))return;
+
+ const {error}=await sb
+ .from("rides")
+ .update({status:"cancelled"})
+ .eq("id",ride.id);
+
+ if(error){
+  msg("activeMsg",error.message);
+  return;
+ }
+
+ clearInterval(poll);
+ screen("ride");
+ msg("routeMsg","Ride cancelled.");
+};
+
+$("call").onclick=()=>{
+ msg("activeMsg","Driver phone number will appear here after driver contact is available.");
+};
+
+$("message").onclick=()=>{
+ msg("activeMsg","Driver messaging will be available when a driver accepts the ride.");
+};
+
+$("request").onclick=requestRide;
+
+$("settings").onclick=async()=>{
+ const {data:{user}}=await sb.auth.getUser();
+
+ if(!user)return;
+
+ const ok=confirm(
+  "Account Settings\n\n"+
+  "Press OK to sign out.\n"+
+  "Account deletion should be handled securely from the Rydo account system."
+ );
+
+ if(ok)await sb.auth.signOut();
+};
+
+let authMode="login";
+
+$("loginTab").onclick=()=>{
+ authMode="login";
+ $("loginTab").classList.add("active");
+ $("registerTab").classList.remove("active");
+ $("registerFields").classList.add("hidden");
+ $("authBtn").textContent="Login";
+ $("forgot").classList.remove("hidden");
+};
+
+$("registerTab").onclick=()=>{
+ authMode="register";
+ $("registerTab").classList.add("active");
+ $("loginTab").classList.remove("active");
+ $("registerFields").classList.remove("hidden");
+ $("authBtn").textContent="Create account";
+ $("forgot").classList.add("hidden");
+};
+
+$("authBtn").onclick=async()=>{
+ msg("authMsg","");
+
+ const email=$("email").value.trim();
+ const password=$("password").value;
+
+ if(!email||!password){
+  msg("authMsg","Enter email and password.");
+  return;
+ }
+
+ if(authMode==="register"){
+  const name=$("name").value.trim();
+  const phone=$("phone").value.trim();
+
+  if(!name||!phone){
+   msg("authMsg","Enter your name and phone.");
+   return;
+  }
+
+  const {data,error}=await sb.auth.signUp({
+   email,
+   password,
+   options:{
+    data:{full_name:name,phone:phone,role:"passenger"},
+    emailRedirectTo:location.href
+   }
+  });
+
+  if(error){
+   msg("authMsg",error.message);
+   return;
+  }
+
+  if(data.user){
+   await sb.from("profiles").upsert({
+    id:data.user.id,
+    full_name:name,
+    phone:phone,
+    role:"passenger"
+   },{onConflict:"id"});
+  }
+
+  msg("authMsg",
+   "Account created. Check your email if email verification is required."
+  );
+  return;
+ }
+
+ const {data,error}=await sb.auth.signInWithPassword({
+  email,password
+ });
+
+ if(error){
+  msg("authMsg",error.message);
+  return;
+ }
+
+ await loadUser(data.user);
+};
+
+async function loadUser(user){
+ const {data:profile}=await sb
+ .from("profiles")
+ .select("full_name,role,is_verified")
+ .eq("id",user.id)
+ .maybeSingle();
+
+ if(profile&&profile.role&&profile.role!=="passenger"){
+  await sb.auth.signOut();
+  msg("authMsg","This account is not a passenger account.");
+  return;
+ }
+
+ screen("ride");
+ $("logout").classList.remove("hidden");
+ initMap();
+
+ if(profile&&profile.is_verified===false){
+  msg("routeMsg",
+   "Your account is waiting for verification. You may continue when Rydo verifies it."
+  );
+ }
+}
+
+$("logout").onclick=async()=>{
+ clearInterval(poll);
+ await sb.auth.signOut();
+ $("logout").classList.add("hidden");
+ screen("auth");
+};
+
+$("forgot").onclick=async()=>{
+ const email=$("email").value.trim();
+
+ if(!email){
+  msg("authMsg","Enter your email first.");
+  return;
+ }
+
+ const {error}=await sb.auth.resetPasswordForEmail(email,{
+  redirectTo:location.href
+ });
+
+ msg("authMsg",error?error.message:"Password reset email sent.");
+};
+
+(async()=>{
+ const {data}=await sb.auth.getSession();
+
+ if(data.session){
+  await loadUser(data.session.user);
+ }
+})();
 </script>
 
 </body>
