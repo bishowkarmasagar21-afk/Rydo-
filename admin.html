@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RYDO Admin</title>
+<link rel="stylesheet" href="admin.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+
+<header class="top">
+  <div class="logo"><b>R</b>YDO <span>ADMIN</span></div>
+  <button id="logoutBtn">Logout</button>
+</header>
+
+<section id="loginPage" class="page">
+  <div class="card login">
+    <h1>Admin Login</h1>
+    <p>RYDO management center</p>
+
+    <input id="adminEmail" type="email" placeholder="Admin email">
+    <input id="adminPassword" type="password" placeholder="Password">
+
+    <button id="loginBtn" class="mainBtn">LOGIN</button>
+    <p id="loginMsg"></p>
+  </div>
+</section>
+
+<section id="adminPage" class="page hide">
+
+  <div class="card">
+    <h1>Dashboard</h1>
+    <p id="adminName">RYDO Administrator</p>
+  </div>
+
+  <div class="stats">
+    <div>Passengers<strong id="passengers">0</strong></div>
+    <div>Drivers<strong id="drivers">0</strong></div>
+    <div>Pending Drivers<strong id="pendingDrivers">0</strong></div>
+    <div>Online Drivers<strong id="onlineDrivers">0</strong></div>
+    <div>Active Rides<strong id="activeRides">0</strong></div>
+    <div>Completed Rides<strong id="completedRides">0</strong></div>
+    <div>Cancelled Rides<strong id="cancelledRides">0</strong></div>
+    <div>Rydo Earnings<strong id="rydoEarnings">Rs. 0</strong></div>
+  </div>
+
+  <nav class="menu">
+    <button data-page="driversPage">Drivers</button>
+    <button data-page="passengersPage">Passengers</button>
+    <button data-page="ridesPage">Rides</button>
+    <button data-page="faresPage">Fares</button>
+    <button data-page="paymentsPage">Payments</button>
+    <button data-page="settingsPage">Settings</button>
+  </nav>
+
+  <div id="driversPage" class="panel">
+    <h2>Driver Verification</h2>
+    <div id="driverList">
+      <p>Loading drivers...</p>
+    </div>
+  </div>
+
+  <div id="passengersPage" class="panel hide">
+    <h2>Passengers</h2>
+    <div id="passengerList"></div>
+  </div>
+
+  <div id="ridesPage" class="panel hide">
+    <h2>Ride Management</h2>
+    <div id="rideList"></div>
+  </div>
+
+  <div id="faresPage" class="panel hide">
+    <h2>Fare Rules</h2>
+    <div id="fareList"></div>
+  </div>
+
+  <div id="paymentsPage" class="panel hide">
+    <h2>Payments & Earnings</h2>
+    <div id="paymentList"></div>
+  </div>
+
+  <div id="settingsPage" class="panel hide">
+    <h2>System Settings</h2>
+
+    <button id="passwordBtn">Change Admin Password</button>
+    <button id="refreshBtn">Refresh Dashboard</button>
+  </div>
+
+</section>
+
+<script src="admin-auth.js"></script>
+<script src="admin-dashboard.js"></script>
+<script src="admin-drivers.js"></script>
+<script src="admin-passengers.js"></script>
+<script src="admin-rides.js"></script>
+<script src="admin-fares.js"></script>
+<script src="admin-payments.js"></script>
+<script src="admin-settings.js"></script>
+
+</body>
+</html>
