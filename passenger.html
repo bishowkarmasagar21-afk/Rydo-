@@ -29,7 +29,87 @@ function setMode(m){mode=m;$("nameWrap").classList.toggle("hidden",m!=="register
 $("loginTab").onclick=()=>setMode("login");$("registerTab").onclick=()=>setMode("register");
 async function sendOtp(){msg("");if(!db)return msg("Supabase library failed to load. Check internet and reload this page.");pendingPhone=formatPhone($("phone").value);pendingName=$("fullName").value.trim();if(!/^\+\d{8,15}$/.test(pendingPhone))return msg("Enter a valid phone number, e.g. 98XXXXXXXX or +97798XXXXXXXX.");if(mode==="register"&&!pendingName)return msg("Enter your full name first.");busy("sendBtn",true);busy("resendBtn",true);try{const {error}=await db.auth.signInWithOtp({phone:pendingPhone,options:{shouldCreateUser:mode==="register",data:mode==="register"?{full_name:pendingName,role:"passenger"}:undefined}});if(error)throw error;$("otpWrap").classList.remove("hidden");$("otp").focus();msg("SMS code requested for "+pendingPhone+". Check your messages.");}catch(e){msg("Could not send SMS OTP: "+(e.message||e))}finally{busy("sendBtn",false);busy("resendBtn",false)}}
 $("sendBtn").onclick=sendOtp;$("resendBtn").onclick=sendOtp;
-async function verifyOtp(){msg("");if(!db)return msg("Supabase library failed to load. Reload and try again.");if(!pendingPhone)return msg("Tap Send SMS OTP first.");const token=$("otp").value.trim();if(!token)return msg("Enter the SMS code.");busy("verifyBtn",true);try{const {data,error}=await db.auth.verifyOtp({phone:pendingPhone,token,type:"sms"});if(error)throw error;const user=data.user;if(!user)throw Error("No user session returned. Request a new code.");let {data:p,error:pe}=await db.from("profiles").select("id,full_name,role").eq("id",user.id).maybeSingle();if(pe)throw Error("Profile lookup failed: "+pe.message);if(!p){const {error:ie}=await db.from("profiles").insert({id:user.id,full_name:pendingName||user.user_metadata?.full_name||"Rydo Passenger",phone:user.phone||pendingPhone,role:"passenger",is_verified:true,is_online:false});if(ie)throw Error("OTP verified, but profile setup failed: "+ie.message+". The Supabase profile trigger/RLS policy must be fixed.");const q=await db.from("profiles").select("id,full_name,role").eq("id",user.id).maybeSingle();if(q.error)throw q.error;p=q.data}if(!p)throw Error("Passenger profile missing. Check the Supabase profile trigger.");if(p.role!=="passenger")throw Error("This account is not registered as a passenger.");showApp(p.full_name||pendingPhone);await loadRules();initMap();msg("Login successful.")}catch(e){msg("Login/profile error: "+(e.message||e))}finally{busy("verifyBtn",false)}}
+
+async function verifyOtp(){
+  msg("");
+  if(!db)return msg("Supabase failed to load. Reload the page.");
+  if(!pendingPhone)return msg("Tap Send SMS OTP first.");
+
+  const token=$("otp").value.trim();
+  if(!token)return msg("Enter the SMS code.");
+
+  busy("verifyBtn",true);
+
+  try{
+    const {data,error}=await db.auth.verifyOtp({
+      phone:pendingPhone,
+      token,
+      type:"sms"
+    });
+
+    if(error)throw error;
+
+    const user=data.user;
+    if(!user)throw Error("OTP verified but no user was returned.");
+
+    // The database trigger creates the profile.
+    // Fetch it; do not insert a duplicate.
+    let p=null;
+    let lastError=null;
+
+    for(let i=0;i<3;i++){
+      const result=await db.from("profiles")
+        .select("id,full_name,role,is_verified")
+        .eq("id",user.id)
+        .maybeSingle();
+
+      if(result.error){
+        lastError=result.error;
+        break;
+      }
+
+      if(result.data){
+        p=result.data;
+        break;
+      }
+
+      await new Promise(resolve=>setTimeout(resolve,500));
+    }
+
+    if(lastError){
+      throw Error("Profile lookup failed: "+lastError.message);
+    }
+
+    if(!p){
+      throw Error(
+        "OTP verified, but no profile exists for this account. "+
+        "Check the handle_new_user trigger and Supabase logs."
+      );
+    }
+
+    if(p.role!=="passenger"){
+      throw Error("This account is not registered as a passenger.");
+    }
+
+    if(p.is_verified!==true){
+      throw Error(
+        "Your passenger account is not verified in the profiles table. "+
+        "Please contact Rydo support."
+      );
+    }
+
+    showApp(p.full_name||user.phone||pendingPhone);
+    await loadRules();
+    initMap();
+    msg("Login successful.");
+
+  }catch(e){
+    msg("Login/profile error: "+(e.message||String(e)));
+  }finally{
+    busy("verifyBtn",false);
+  }
+  }
+  
 $("verifyBtn").onclick=verifyOtp;$("otp").onkeydown=e=>{if(e.key==="Enter")verifyOtp()};
 function showApp(name){$("auth").classList.add("hidden");$("app").classList.remove("hidden");$("welcome").textContent="Signed in as "+name}
 function initMap(){if(map)return;if(!window.maplibregl)return msg("Map library failed to load. Check your internet.");map=new maplibregl.Map({container:"map",style:"https://tiles.openfreemap.org/styles/liberty",center:[85.324,27.7172],zoom:12});map.addControl(new maplibregl.NavigationControl(),"top-right")}
