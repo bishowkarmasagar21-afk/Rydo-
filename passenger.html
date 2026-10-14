@@ -1,129 +1,388 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rydo Passenger</title>
-<link href="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.css" rel="stylesheet">
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#08111b">
+<title>Rydo Passenger</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.css">
 <style>
-:root{color-scheme:dark;--bg:#08111b;--panel:#142638;--orange:#ff7417;--text:#f4f7fb;--muted:#aab9c9}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px Arial}header{padding:18px;background:#101d29;border-bottom:1px solid #2b3c4d;display:flex;justify-content:space-between}.logo{font-size:25px;font-weight:900}.logo b{color:var(--orange)}main{max-width:850px;margin:auto;padding:16px}.card{background:var(--panel);padding:18px;border-radius:16px;margin:14px 0;border:1px solid #2a4053}h2{margin-top:0}input,select,button{width:100%;padding:13px;margin:6px 0;border-radius:9px;font-size:16px}input,select{background:#fff;color:#17304a;border:2px solid var(--orange)}button{background:var(--orange);color:#171717;border:0;font-weight:bold;cursor:pointer;touch-action:manipulation}button:disabled{opacity:.55}button.secondary{background:#d8edff}button.danger{background:#ff5366;color:white}.tabs,.row{display:flex;gap:8px}.tabs>* ,.row>*{flex:1;min-width:0}.tab{background:#203548;color:#fff;border:1px solid #456078}.tab.active{background:var(--orange);color:#171717}.small{font-size:13px;color:var(--muted)}.hidden{display:none!important}#map{height:300px;border-radius:12px;overflow:hidden;margin:10px 0}#message{padding:12px;border-radius:9px;background:#203548;white-space:pre-wrap;overflow-wrap:anywhere}#message:empty{display:none}.price{font-size:25px;font-weight:bold;color:#ffb27d}@media(max-width:500px){main{padding:10px}.card{padding:14px}#map{height:260px}}
-</style></head><body>
-<header><div class="logo"><b>R</b>YDO</div><span>Move your way.</span></header><main><div id="message" role="status" aria-live="polite"></div>
-<section id="auth"><div class="card"><h2>Passenger account</h2><p class="small">Register or log in with your mobile number and SMS code.</p>
-<div class="tabs"><button id="loginTab" class="tab" type="button">Login</button><button id="registerTab" class="tab active" type="button">Register</button></div>
-<div id="nameWrap"><label for="fullName">Full name</label><input id="fullName" autocomplete="name" placeholder="Your full name"></div>
-<label for="phone">Mobile number</label><input id="phone" type="tel" autocomplete="tel" placeholder="98XXXXXXXX">
+:root{color-scheme:dark;--bg:#08111b;--panel:#142638;--orange:#ff7417;--text:#f4f7fb;--muted:#aab9c9}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px Arial,sans-serif}
+header{padding:16px;background:#101d29;border-bottom:1px solid #2b3c4d;display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:25px;font-weight:900}.logo b{color:var(--orange)}
+main{max-width:850px;margin:auto;padding:12px}.card{background:var(--panel);padding:16px;border-radius:15px;margin:12px 0;border:1px solid #2a4053}
+h2{margin-top:0}label{display:block;margin-top:10px;font-size:14px}
+input,select,button{width:100%;padding:13px;margin:6px 0;border-radius:9px;font-size:16px}
+input,select{background:white;color:#17304a;border:2px solid var(--orange)}
+button{background:var(--orange);color:#171717;border:0;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.55}button.secondary{background:#d8edff}button.danger{background:#ff5366;color:white}
+.tabs,.row{display:flex;gap:8px}.tabs>* ,.row>*{flex:1;min-width:0}
+.tab{background:#203548;color:white;border:1px solid #456078}.tab.active{background:var(--orange);color:#171717}
+.small{font-size:13px;color:var(--muted);line-height:1.5}.hidden{display:none!important}
+#map{height:300px;border-radius:12px;margin:10px 0;background:#0b1722}
+#message{padding:12px;background:#203548;border-radius:9px;white-space:pre-wrap;overflow-wrap:anywhere}
+#message:empty{display:none}.price{font-size:25px;font-weight:bold;color:#ffb27d}
+@media(max-width:500px){main{padding:8px}.card{padding:12px}#map{height:260px}}
+</style>
+</head>
+<body>
+<header><div class="logo"><b>R</b>YDO</div><span>Move your way.</span></header>
+<main>
+<div id="message" role="status" aria-live="polite"></div>
+
+<section id="auth"><div class="card">
+<h2>Passenger account</h2>
+<p class="small">Register or log in with your phone and SMS code.</p>
+<div class="tabs">
+<button id="loginTab" class="tab" type="button">Login</button>
+<button id="registerTab" class="tab active" type="button">Register</button>
+</div>
+<div id="nameWrap"><label for="fullName">Full name</label>
+<input id="fullName" autocomplete="name" placeholder="Your full name"></div>
+<label for="phone">Nepal mobile number</label>
+<input id="phone" type="tel" autocomplete="tel" placeholder="98XXXXXXXX">
 <button id="sendBtn" type="button">Send SMS OTP</button>
-<div id="otpWrap" class="hidden"><label for="otp">SMS verification code</label><input id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Enter code"><button id="verifyBtn" type="button">Verify code and continue</button><button id="resendBtn" class="secondary" type="button">Send a new code</button></div><p class="small">Never share your SMS code.</p></div></section>
-<section id="app" class="hidden"><div class="card"><div class="row"><div><h2>Book a ride</h2><span id="welcome" class="small"></span></div><button id="logoutBtn" class="secondary" type="button">Log out</button></div>
-<label for="pickup">Pickup location</label><input id="pickup" placeholder="Enter pickup place"><div class="row"><button id="gpsBtn" type="button">Use my GPS</button><button id="pickupSearch" class="secondary" type="button">Find pickup</button></div>
-<label for="destination">Destination</label><input id="destination" placeholder="Hospital, bus park, landmark, address..."><button id="destinationSearch" class="secondary" type="button">Find destination</button><div id="map"></div>
-<label for="vehicle">Vehicle</label><select id="vehicle"><option value="bike">Bike</option><option value="car">Car</option><option value="tuk_tuk">Tuk Tuk</option></select><label for="payment">Payment method</label><select id="payment"><option value="cash">Cash</option><option value="online">Online</option></select>
-<button id="routeBtn" type="button">Calculate route and fare</button><p>Distance: <b id="distance">—</b></p><p>Estimated trip time: <b id="eta">—</b></p><p>Estimated fare</p><div id="fare" class="price">—</div><button id="requestBtn" type="button">Request ride</button></div>
-<div class="card"><h2>My current ride</h2><p id="rideInfo">No ride requested yet.</p><button id="cancelBtn" class="danger" type="button">Cancel requested ride</button></div>
-<div class="card"><h2>Account settings</h2><p class="small">Deleting your account is permanent.</p><button id="deleteBtn" class="danger" type="button">Delete my account</button></div></section></main>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js"></script>
+<div id="otpWrap" class="hidden">
+<label for="otp">SMS verification code</label>
+<input id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Enter code">
+<button id="verifyBtn" type="button">Verify and continue</button>
+<button id="resendBtn" class="secondary" type="button">Send a new code</button>
+</div>
+<p class="small">SMS requires a working Supabase Auth phone provider and Twilio Verify configuration. Never put your Twilio secret in this file.</p>
+</div></section>
+
+<section id="app" class="hidden">
+<div class="card">
+<div class="row"><div><h2>Book a ride</h2><span id="welcome" class="small"></span></div>
+<button id="logoutBtn" class="secondary" type="button">Log out</button></div>
+<label for="pickup">Pickup location</label>
+<input id="pickup" placeholder="Enter pickup place">
+<div class="row"><button id="gpsBtn" type="button">Use my GPS</button>
+<button id="pickupSearch" class="secondary" type="button">Find pickup</button></div>
+<label for="destination">Destination</label>
+<input id="destination" placeholder="Hospital, bus park, landmark, address...">
+<button id="destinationSearch" class="secondary" type="button">Find destination</button>
+<div id="map"></div>
+<label for="vehicle">Vehicle</label>
+<select id="vehicle"><option value="bike">Bike</option><option value="car">Car</option><option value="tuk_tuk">Tuk Tuk</option></select>
+<label for="payment">Payment</label>
+<select id="payment"><option value="cash">Cash</option><option value="online">Online</option></select>
+<button id="routeBtn" type="button">Calculate route and fare</button>
+<p>Distance: <b id="distance">—</b></p>
+<p>Estimated time: <b id="eta">—</b></p>
+<p>Estimated fare</p><div id="fare" class="price">—</div>
+<button id="requestBtn" type="button">Request ride</button>
+<p class="small">Fare uses road distance and active fare rules in Supabase.</p>
+</div>
+<div class="card"><h2>My current ride</h2><p id="rideInfo">No ride requested yet.</p>
+<button id="cancelBtn" class="danger" type="button">Cancel requested ride</button></div>
+<div class="card"><h2>Account settings</h2>
+<p class="small">Deleting your account is permanent.</p>
+<button id="deleteBtn" class="danger" type="button">Delete my account</button></div>
+</section>
+</main>
+
 <script>
-"use strict";const $=id=>document.getElementById(id);function msg(s){$("message").textContent=s||""}function busy(id,on){if($(id))$(id).disabled=on}
-const URL="https://kqtvuorasqyzjbnlkkxs.supabase.co",KEY="sb_publishable_0YO71GOwynEf3ithOtFfxg_z6YL-LKG";let db=null;
-try{if(window.supabase?.createClient)db=window.supabase.createClient(URL,KEY)}catch(e){console.error(e)}
-let mode="register",pendingPhone="",pendingName="",map=null,pickCoords=null,destCoords=null,routeKm=null,routeGeo=null,currentRide=null,fareValue=null,rules={};
-function formatPhone(raw){let n=String(raw||"").trim().replace(/[^\d+]/g,"");if(n.startsWith("+"))return n;n=n.replace(/\D/g,"");if(n.startsWith("977"))return "+"+n;if(n.startsWith("0"))n=n.slice(1);return "+977"+n}
-function setMode(m){mode=m;$("nameWrap").classList.toggle("hidden",m!=="register");$("loginTab").classList.toggle("active",m==="login");$("registerTab").classList.toggle("active",m==="register");$("otpWrap").classList.add("hidden");$("otp").value="";msg(m==="login"?"Enter your registered phone number.":"Enter your name and phone number.")}
-$("loginTab").onclick=()=>setMode("login");$("registerTab").onclick=()=>setMode("register");
-async function sendOtp(){msg("");if(!db)return msg("Supabase library failed to load. Check internet and reload this page.");pendingPhone=formatPhone($("phone").value);pendingName=$("fullName").value.trim();if(!/^\+\d{8,15}$/.test(pendingPhone))return msg("Enter a valid phone number, e.g. 98XXXXXXXX or +97798XXXXXXXX.");if(mode==="register"&&!pendingName)return msg("Enter your full name first.");busy("sendBtn",true);busy("resendBtn",true);try{const {error}=await db.auth.signInWithOtp({phone:pendingPhone,options:{shouldCreateUser:mode==="register",data:mode==="register"?{full_name:pendingName,role:"passenger"}:undefined}});if(error)throw error;$("otpWrap").classList.remove("hidden");$("otp").focus();msg("SMS code requested for "+pendingPhone+". Check your messages.");}catch(e){msg("Could not send SMS OTP: "+(e.message||e))}finally{busy("sendBtn",false);busy("resendBtn",false)}}
-$("sendBtn").onclick=sendOtp;$("resendBtn").onclick=sendOtp;
+"use strict";
+const $=id=>document.getElementById(id);
+function msg(s){$("message").textContent=s||""}
+function busy(id,v){if($(id))$(id).disabled=v}
+
+const SUPABASE_URL="https://kqtvuorasqyzjbnlkkxs.supabase.co";
+const SUPABASE_KEY="sb_publishable_0YO71GOwynEf3ithOtFfxg_z6YL-LKG";
+
+let db=null,mode="register",pendingPhone="",pendingName="";
+let map=null,pickCoords=null,destCoords=null,routeKm=null,routeGeo=null;
+let fareValue=null,currentRide=null,rules={};
+
+function loadScript(url){
+ return new Promise((resolve,reject)=>{
+  const s=document.createElement("script");
+  s.src=url;s.onload=resolve;
+  s.onerror=()=>{s.remove();reject(Error("Could not load "+url))};
+  document.head.appendChild(s);
+ });
+}
+async function loadLibrary(urls,check){
+ let last;
+ for(const url of urls){
+  try{await loadScript(url);if(check())return;last=Error("Library global missing: "+url)}
+  catch(e){last=e}
+ }
+ throw last||Error("Library unavailable");
+}
+
+function formatPhone(raw){
+ let n=String(raw||"").trim().replace(/[^\d+]/g,"");
+ if(n.startsWith("+"))return n;
+ n=n.replace(/\D/g,"");
+ if(n.startsWith("977"))return "+"+n;
+ if(n.startsWith("0"))n=n.slice(1);
+ return "+977"+n;
+}
+
+function setMode(m){
+ mode=m;
+ $("nameWrap").classList.toggle("hidden",m!=="register");
+ $("loginTab").classList.toggle("active",m==="login");
+ $("registerTab").classList.toggle("active",m==="register");
+ $("otpWrap").classList.add("hidden");$("otp").value="";
+ msg(m==="login"?"Enter your registered phone number.":"Enter your name and phone number.");
+}
+$("loginTab").onclick=()=>setMode("login");
+$("registerTab").onclick=()=>setMode("register");
+
+async function sendOtp(){
+ msg("");
+ if(!db)return msg("Supabase library is not loaded. Reload the page or try another network.");
+ pendingPhone=formatPhone($("phone").value);
+ pendingName=$("fullName").value.trim();
+ if(!/^\+\d{8,15}$/.test(pendingPhone))return msg("Enter a valid number, e.g. 98XXXXXXXX.");
+ if(mode==="register"&&!pendingName)return msg("Enter your full name.");
+ busy("sendBtn",true);busy("resendBtn",true);
+ try{
+  const {error}=await db.auth.signInWithOtp({
+   phone:pendingPhone,
+   options:{
+    shouldCreateUser:mode==="register",
+    data:mode==="register"?{full_name:pendingName,role:"passenger"}:undefined
+   }
+  });
+  if(error)throw error;
+  $("otpWrap").classList.remove("hidden");$("otp").focus();
+  msg("OTP requested for "+pendingPhone+". Check your SMS.");
+ }catch(e){msg("Could not send OTP: "+(e.message||e))}
+ finally{busy("sendBtn",false);busy("resendBtn",false)}
+}
+$("sendBtn").onclick=sendOtp;
+$("resendBtn").onclick=sendOtp;
+
+async function getProfile(user){
+ for(let i=0;i<4;i++){
+  const {data,error}=await db.from("profiles")
+   .select("id,full_name,role,is_verified")
+   .eq("id",user.id).maybeSingle();
+  if(error)throw Error("Profile lookup failed: "+error.message);
+  if(data)return data;
+  await new Promise(resolve=>setTimeout(resolve,500));
+ }
+ throw Error("OTP succeeded, but no profile was created. Check the handle_new_user trigger in Supabase.");
+}
+
+async function enterPassenger(user){
+ const p=await getProfile(user);
+ if(p.role!=="passenger")throw Error("This account is not a passenger account.");
+ // SMS OTP has verified the phone. Do not insert a duplicate profile.
+ $("auth").classList.add("hidden");
+ $("app").classList.remove("hidden");
+ $("welcome").textContent="Signed in as "+(p.full_name||user.phone||"Passenger");
+ await loadRules();
+ initMap();
+}
 
 async function verifyOtp(){
-  msg("");
-  if(!db)return msg("Supabase failed to load. Reload the page.");
-  if(!pendingPhone)return msg("Tap Send SMS OTP first.");
+ msg("");
+ if(!db)return msg("Supabase library is not loaded. Reload the page.");
+ if(!pendingPhone)return msg("Tap Send SMS OTP first.");
+ const token=$("otp").value.trim();
+ if(!token)return msg("Enter the SMS code.");
+ busy("verifyBtn",true);
+ try{
+  const {data,error}=await db.auth.verifyOtp({phone:pendingPhone,token,type:"sms"});
+  if(error)throw error;
+  if(!data.user)throw Error("No user session returned. Request a new code.");
+  await enterPassenger(data.user);
+  msg("Phone verification successful.");
+ }catch(e){msg("Login/profile error: "+(e.message||e))}
+ finally{busy("verifyBtn",false)}
+}
+$("verifyBtn").onclick=verifyOtp;
+$("otp").onkeydown=e=>{if(e.key==="Enter")verifyOtp()};
 
-  const token=$("otp").value.trim();
-  if(!token)return msg("Enter the SMS code.");
+function initMap(){
+ if(map||!window.maplibregl)return;
+ map=new maplibregl.Map({
+  container:"map",
+  style:"https://tiles.openfreemap.org/styles/liberty",
+  center:[85.324,27.7172],zoom:12
+ });
+ map.addControl(new maplibregl.NavigationControl(),"top-right");
+}
+function mark(c,color){
+ if(map&&c)new maplibregl.Marker({color}).setLngLat(c).addTo(map);
+}
+async function geocode(text){
+ if(!text.trim())throw Error("Enter a place name.");
+ const r=await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=np&q="+encodeURIComponent(text));
+ if(!r.ok)throw Error("Place search is unavailable. Try again.");
+ const d=await r.json();
+ if(!d.length)throw Error("No Nepal place found. Try a more specific name or address.");
+ return {coords:[+d[0].lon,+d[0].lat],label:d[0].display_name};
+}
+async function findPlace(which){
+ const field=which==="pickup"?"pickup":"destination";
+ const button=which==="pickup"?"pickupSearch":"destinationSearch";
+ busy(button,true);
+ try{
+  const p=await geocode($(field).value);
+  $(field).value=p.label;
+  if(which==="pickup")pickCoords=p.coords;else destCoords=p.coords;
+  initMap();
+  if(map){map.flyTo({center:p.coords,zoom:15});mark(p.coords,which==="pickup"?"#ff7417":"#168bff")}
+  msg(which==="pickup"?"Pickup found.":"Destination found.");
+ }catch(e){msg(e.message)}
+ finally{busy(button,false)}
+}
+$("pickupSearch").onclick=()=>findPlace("pickup");
+$("destinationSearch").onclick=()=>findPlace("destination");
 
-  busy("verifyBtn",true);
-
+$("gpsBtn").onclick=()=>{
+ if(!navigator.geolocation)return msg("GPS is not supported by this browser.");
+ msg("Getting GPS location...");
+ navigator.geolocation.getCurrentPosition(async pos=>{
+  pickCoords=[pos.coords.longitude,pos.coords.latitude];
   try{
-    const {data,error}=await db.auth.verifyOtp({
-      phone:pendingPhone,
-      token,
-      type:"sms"
-    });
+   const r=await fetch("https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat="+pickCoords[1]+"&lon="+pickCoords[0]);
+   const d=await r.json();$("pickup").value=d.display_name||"My current location";
+  }catch{$("pickup").value="My current location"}
+  initMap();
+  if(map){map.flyTo({center:pickCoords,zoom:16});mark(pickCoords,"#ff7417")}
+  msg("GPS pickup set. Check the location.");
+ },e=>msg("GPS error: "+e.message),{enableHighAccuracy:true,timeout:15000});
+};
 
-    if(error)throw error;
+async function loadRules(){
+ const {data,error}=await db.from("fare_rules")
+  .select("vehicle_type,base_fare,per_km_fare,is_active").eq("is_active",true);
+ if(error){msg("Fare rules error: "+error.message);return}
+ rules={};(data||[]).forEach(r=>rules[r.vehicle_type]=r);
+}
+function updateFare(){
+ if(routeKm===null)return;
+ const r=rules[$("vehicle").value];
+ fareValue=r?Math.round(Number(r.base_fare)+Number(r.per_km_fare)*routeKm):null;
+ $("fare").textContent=fareValue===null?"No active fare rule":"NPR "+fareValue;
+}
+$("vehicle").onchange=updateFare;
 
-    const user=data.user;
-    if(!user)throw Error("OTP verified but no user was returned.");
-
-    // The database trigger creates the profile.
-    // Fetch it; do not insert a duplicate.
-    let p=null;
-    let lastError=null;
-
-    for(let i=0;i<3;i++){
-      const result=await db.from("profiles")
-        .select("id,full_name,role,is_verified")
-        .eq("id",user.id)
-        .maybeSingle();
-
-      if(result.error){
-        lastError=result.error;
-        break;
-      }
-
-      if(result.data){
-        p=result.data;
-        break;
-      }
-
-      await new Promise(resolve=>setTimeout(resolve,500));
-    }
-
-    if(lastError){
-      throw Error("Profile lookup failed: "+lastError.message);
-    }
-
-    if(!p){
-      throw Error(
-        "OTP verified, but no profile exists for this account. "+
-        "Check the handle_new_user trigger and Supabase logs."
-      );
-    }
-
-    if(p.role!=="passenger"){
-      throw Error("This account is not registered as a passenger.");
-    }
-
-    if(p.is_verified!==true){
-      throw Error(
-        "Your passenger account is not verified in the profiles table. "+
-        "Please contact Rydo support."
-      );
-    }
-
-    showApp(p.full_name||user.phone||pendingPhone);
-    await loadRules();
-    initMap();
-    msg("Login successful.");
-
-  }catch(e){
-    msg("Login/profile error: "+(e.message||String(e)));
-  }finally{
-    busy("verifyBtn",false);
+async function calculate(){
+ msg("");
+ if(!pickCoords){await findPlace("pickup");if(!pickCoords)return}
+ if(!destCoords){await findPlace("destination");if(!destCoords)return}
+ busy("routeBtn",true);
+ try{
+  const url="https://router.project-osrm.org/route/v1/driving/"+
+   pickCoords.join(",")+";"+destCoords.join(",")+"?overview=full&geometries=geojson";
+  const r=await fetch(url);
+  if(!r.ok)throw Error("Route service unavailable.");
+  const d=await r.json();
+  if(!d.routes?.length)throw Error("No road route found.");
+  routeKm=d.routes[0].distance/1000;routeGeo=d.routes[0].geometry;
+  $("distance").textContent=routeKm.toFixed(1)+" km";
+  $("eta").textContent=Math.max(1,Math.round(d.routes[0].duration/60))+" min estimate";
+  updateFare();initMap();
+  if(map){
+   if(map.getLayer("route-line"))map.removeLayer("route-line");
+   if(map.getSource("route"))map.removeSource("route");
+   map.addSource("route",{type:"geojson",data:{type:"Feature",properties:{},geometry:routeGeo}});
+   map.addLayer({id:"route-line",type:"line",source:"route",paint:{"line-color":"#ff7417","line-width":5}});
+   const bounds=new maplibregl.LngLatBounds();
+   routeGeo.coordinates.forEach(c=>bounds.extend(c));
+   map.fitBounds(bounds,{padding:35});
   }
-  }
-  
-$("verifyBtn").onclick=verifyOtp;$("otp").onkeydown=e=>{if(e.key==="Enter")verifyOtp()};
-function showApp(name){$("auth").classList.add("hidden");$("app").classList.remove("hidden");$("welcome").textContent="Signed in as "+name}
-function initMap(){if(map)return;if(!window.maplibregl)return msg("Map library failed to load. Check your internet.");map=new maplibregl.Map({container:"map",style:"https://tiles.openfreemap.org/styles/liberty",center:[85.324,27.7172],zoom:12});map.addControl(new maplibregl.NavigationControl(),"top-right")}
-function mark(c,color){if(map&&c)new maplibregl.Marker({color}).setLngLat(c).addTo(map)}
-async function geocode(t){if(!t.trim())throw Error("Enter a place name first.");const r=await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=np&q="+encodeURIComponent(t));if(!r.ok)throw Error("Place search temporarily unavailable.");const d=await r.json();if(!d.length)throw Error("No matching Nepal place found. Try a specific address.");return {coords:[+d[0].lon,+d[0].lat],label:d[0].display_name}}
-async function findPlace(w){const field=w==="pickup"?"pickup":"destination",button=w==="pickup"?"pickupSearch":"destinationSearch";busy(button,true);try{const p=await geocode($(field).value);$(field).value=p.label;if(w==="pickup")pickCoords=p.coords;else destCoords=p.coords;initMap();if(map){map.flyTo({center:p.coords,zoom:15});mark(p.coords,w==="pickup"?"#ff7417":"#168bff")}msg(w==="pickup"?"Pickup found.":"Destination found.")}catch(e){msg(e.message)}finally{busy(button,false)}}
-$("pickupSearch").onclick=()=>findPlace("pickup");$("destinationSearch").onclick=()=>findPlace("destination");
-$("gpsBtn").onclick=()=>{if(!navigator.geolocation)return msg("GPS is not available.");msg("Getting your location...");navigator.geolocation.getCurrentPosition(async pos=>{pickCoords=[pos.coords.longitude,pos.coords.latitude];try{const r=await fetch("https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat="+pickCoords[1]+"&lon="+pickCoords[0]);const d=await r.json();$("pickup").value=d.display_name||"My current location"}catch{$("pickup").value="My current location"}initMap();if(map){map.flyTo({center:pickCoords,zoom:16});mark(pickCoords,"#ff7417")}msg("GPS pickup set. Check the location before requesting.")},e=>msg("Could not get GPS: "+e.message),{enableHighAccuracy:true,timeout:15000})};
-async function loadRules(){if(!db)return;const {data,error}=await db.from("fare_rules").select("vehicle_type,base_fare,per_km_fare,is_active").eq("is_active",true);if(error)return msg("Could not load fare rules: "+error.message);rules={};(data||[]).forEach(x=>rules[x.vehicle_type]=x)}
-async function calculate(){msg("");if(!pickCoords){await findPlace("pickup");if(!pickCoords)return}if(!destCoords){await findPlace("destination");if(!destCoords)return}busy("routeBtn",true);try{const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${pickCoords[0]},${pickCoords[1]};${destCoords[0]},${destCoords[1]}?overview=full&geometries=geojson`);if(!r.ok)throw Error("Route service unavailable.");const d=await r.json();if(!d.routes?.length)throw Error("No driving route found.");routeKm=d.routes[0].distance/1000;routeGeo=d.routes[0].geometry;$("distance").textContent=routeKm.toFixed(1)+" km";$("eta").textContent=Math.max(1,Math.round(d.routes[0].duration/60))+" min (estimate)";const rule=rules[$("vehicle").value];if(!rule)throw Error("No active fare rule for this vehicle in Supabase.");fareValue=Math.round(+rule.base_fare+(+rule.per_km_fare)*routeKm);$("fare").textContent="NPR "+fareValue;initMap();if(map){if(map.getLayer("route-line"))map.removeLayer("route-line");if(map.getSource("route"))map.removeSource("route");map.addSource("route",{type:"geojson",data:{type:"Feature",properties:{},geometry:routeGeo}});map.addLayer({id:"route-line",type:"line",source:"route",paint:{"line-color":"#ff7417","line-width":5}});const b=new maplibregl.LngLatBounds();routeGeo.coordinates.forEach(c=>b.extend(c));map.fitBounds(b,{padding:35})}msg("Route calculated. Fare is an estimate based on mapped distance and active fare rules.")}catch(e){msg("Route/fare error: "+e.message)}finally{busy("routeBtn",false)}}
-$("routeBtn").onclick=calculate;$("vehicle").onchange=()=>{if(routeKm===null)return;const r=rules[$("vehicle").value];fareValue=r?Math.round(+r.base_fare+(+r.per_km_fare)*routeKm):null;$("fare").textContent=fareValue===null?"No fare rule":"NPR "+fareValue};
-$("requestBtn").onclick=async()=>{msg("");if(!db)return msg("Supabase failed to load.");const {data:{user}}=await db.auth.getUser();if(!user)return msg("Please log in again.");if(!pickCoords||!destCoords||routeKm===null||fareValue===null)return msg("Find both places and calculate route/fare first.");busy("requestBtn",true);try{const {data,error}=await db.from("rides").insert({passenger_id:user.id,pickup:$("pickup").value,destination:$("destination").value,vehicle_type:$("vehicle").value,distance_km:+routeKm.toFixed(2),fare:fareValue,payment_method:$("payment").value,status:"requested",pickup_lat:pickCoords[1],pickup_lon:pickCoords[0],destination_lat:destCoords[1],destination_lon:destCoords[0]}).select("id,status,fare").single();if(error)throw error;currentRide=data;$("rideInfo").textContent="Ride requested. Status: "+data.status+" | Fare: NPR "+data.fare;msg("Ride request submitted. A driver must accept it.")}catch(e){msg("Ride request failed: "+e.message)}finally{busy("requestBtn",false)}};
-$("cancelBtn").onclick=async()=>{if(!db)return msg("Supabase failed to load.");if(!currentRide)return msg("No ride request from this session to cancel.");if(!confirm("Cancel this ride request?"))return;try{const {data:{user}}=await db.auth.getUser();const {error}=await db.from("rides").update({status:"cancelled"}).eq("id",currentRide.id).eq("passenger_id",user.id).eq("status","requested");if(error)throw error;currentRide=null;$("rideInfo").textContent="Ride cancelled or no longer cancellable.";msg("Cancellation submitted.")}catch(e){msg("Could not cancel ride: "+e.message)}};
-$("logoutBtn").onclick=async()=>{if(!db)return msg("Supabase failed to load.");const {error}=await db.auth.signOut();if(error)return msg(error.message);location.reload()};
-$("deleteBtn").onclick=async()=>{if(!db)return msg("Supabase failed to load.");if(!confirm("Permanently delete your Rydo account? This cannot be undone.")||!confirm("Confirm permanent account deletion?"))return;try{const {data:{user}}=await db.auth.getUser();if(!user)throw Error("Please log in again.");const {error}=await db.rpc("delete_own_account");if(error)throw error;await db.auth.signOut();alert("Account deletion completed.");location.reload()}catch(e){msg("Account deletion failed: "+e.message)}};
-(async()=>{if(!db){msg("Supabase library failed to load. Check your connection and reload.");return}try{const {data:{session},error}=await db.auth.getSession();if(error)throw error;if(session?.user){const {data:p,error:pe}=await db.from("profiles").select("id,full_name,role").eq("id",session.user.id).maybeSingle();if(pe)throw pe;if(p?.role==="passenger"){showApp(p.full_name||session.user.phone||"Passenger");await loadRules();initMap()}}}catch(e){msg("Could not restore session: "+e.message)}})();
-</script></body></html>
+  msg("Route calculated. Fare is estimated using mapped distance.");
+ }catch(e){msg("Route/fare error: "+e.message)}
+ finally{busy("routeBtn",false)}
+}
+$("routeBtn").onclick=calculate;
+
+$("requestBtn").onclick=async()=>{
+ msg("");
+ if(!db)return msg("Supabase is unavailable.");
+ const {data:{user},error:ae}=await db.auth.getUser();
+ if(ae)return msg(ae.message);
+ if(!user)return msg("Log in again.");
+ if(!pickCoords||!destCoords||routeKm===null||fareValue===null)
+  return msg("Find both places and calculate the fare first.");
+ busy("requestBtn",true);
+ try{
+  const {data,error}=await db.from("rides").insert({
+   passenger_id:user.id,pickup:$("pickup").value,destination:$("destination").value,
+   vehicle_type:$("vehicle").value,distance_km:Number(routeKm.toFixed(2)),
+   fare:fareValue,payment_method:$("payment").value,status:"requested",
+   pickup_lat:pickCoords[1],pickup_lon:pickCoords[0],
+   destination_lat:destCoords[1],destination_lon:destCoords[0]
+  }).select("id,status,fare").single();
+  if(error)throw error;
+  currentRide=data;
+  $("rideInfo").textContent="Requested | Status: "+data.status+" | Fare: NPR "+data.fare;
+  msg("Ride request submitted. Waiting for a driver.");
+ }catch(e){msg("Ride request failed: "+e.message)}
+ finally{busy("requestBtn",false)}
+};
+
+$("cancelBtn").onclick=async()=>{
+ if(!db)return msg("Supabase is unavailable.");
+ if(!currentRide)return msg("No ride from this session to cancel.");
+ if(!confirm("Cancel this ride request?"))return;
+ try{
+  const {data:{user}}=await db.auth.getUser();
+  if(!user)throw Error("Log in again.");
+  const {error}=await db.from("rides").update({status:"cancelled"})
+   .eq("id",currentRide.id).eq("passenger_id",user.id).eq("status","requested");
+  if(error)throw error;
+  currentRide=null;$("rideInfo").textContent="Ride cancelled or no longer cancellable.";
+  msg("Cancellation submitted.");
+ }catch(e){msg("Cancellation failed: "+e.message)}
+};
+
+$("logoutBtn").onclick=async()=>{
+ if(!db)return;
+ const {error}=await db.auth.signOut();
+ if(error)return msg(error.message);
+ location.reload();
+};
+$("deleteBtn").onclick=async()=>{
+ if(!db)return msg("Supabase is unavailable.");
+ if(!confirm("Permanently delete your account? This cannot be undone.")||
+    !confirm("Confirm permanent account deletion?"))return;
+ try{
+  const {data:{user}}=await db.auth.getUser();
+  if(!user)throw Error("Log in again.");
+  const {error}=await db.rpc("delete_own_account");
+  if(error)throw error;
+  await db.auth.signOut();alert("Account deletion completed.");location.reload();
+ }catch(e){msg("Account deletion failed: "+e.message)}
+};
+
+async function start(){
+ try{
+  await loadLibrary([
+   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js",
+   "https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js",
+   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+  ],()=>!!window.supabase?.createClient);
+  db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+ }catch(e){
+  msg("Supabase library failed to load. Check internet or CDN access, then reload. "+e.message);
+  return;
+ }
+ try{
+  await loadLibrary([
+   "https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js",
+   "https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js"
+  ],()=>!!window.maplibregl);
+ }catch(e){
+  msg("Supabase loaded, but the map library failed. Authentication may still work. "+e.message);
+ }
+ try{
+  const {data:{session},error}=await db.auth.getSession();
+  if(error)throw error;
+  if(session?.user)await enterPassenger(session.user);
+ }catch(e){msg("Session/profile error: "+e.message)}
+}
+start();
+</script>
+</body>
+  </html>
