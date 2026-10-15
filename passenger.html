@@ -1,399 +1,515 @@
 
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Rydo | Move your way</title>
-<link href="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.css" rel="stylesheet">
+<title>Rydo — Move your way</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <style>
-:root{color-scheme:dark;--bg:#08111b;--panel:#101d29;--card:#172838;--text:#f5f7fa;--muted:#aab8c7;--line:#304355;--accent:#ff791b;--field:#fff;--fieldtext:#152638}
-body.light{color-scheme:light;--bg:#f2f7fb;--panel:#fff;--card:#edf5fb;--text:#152638;--muted:#5e7182;--line:#d2dfeb;--accent:#168bd2;--field:#fff;--fieldtext:#152638}
+:root{
+ --bg:#08111b;--panel:#101d29;--card:#192b3c;--text:#f4f7fb;
+ --muted:#aab8c8;--line:#304456;--accent:#ff791b;
+ --field:#fff;--fieldtext:#142333
+}
+body.light{
+ --bg:#f2f6fa;--panel:#fff;--card:#e9f1f8;--text:#162a3b;
+ --muted:#617487;--line:#d0dce7;--accent:#168bd2
+}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,Arial,sans-serif}
-header{display:flex;justify-content:space-between;align-items:center;padding:15px max(16px,calc((100% - 900px)/2));background:var(--panel);border-bottom:1px solid var(--line)}
-.logo{font-size:25px;font-weight:900;color:var(--accent);letter-spacing:-1px}
-main{max-width:900px;margin:auto;padding:18px 14px 40px}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:17px;margin-bottom:15px}
-h1,h2,p{margin-top:0}h1{font-size:25px;margin-bottom:5px}h2{font-size:18px;margin-bottom:12px}
-.muted,.hint{color:var(--muted);font-size:13px}
-label{display:block;font-weight:650;margin:12px 0 5px}
-input,select{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--fieldtext);font:inherit;min-width:0}
-button{border:0;border-radius:10px;padding:11px 14px;background:var(--accent);color:white;font:inherit;font-weight:750;cursor:pointer}
-button.secondary{background:var(--card);color:var(--text);border:1px solid var(--line)}
+header{position:sticky;top:0;z-index:500;background:var(--panel);border-bottom:1px solid var(--line);padding:13px max(15px,calc((100% - 850px)/2));display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:27px;font-weight:900;color:var(--accent);letter-spacing:-1px}
+main{max-width:850px;margin:auto;padding:16px 13px 40px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:17px;padding:17px;margin-bottom:14px}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:19px;margin:0 0 12px}
+p{margin:6px 0}.muted,.hint{color:var(--muted);font-size:13px}
+label{display:block;margin:12px 0 5px;font-weight:700}
+input,select{width:100%;min-width:0;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--fieldtext);font:inherit}
+button{padding:12px 13px;border:0;border-radius:10px;background:var(--accent);color:white;font:inherit;font-weight:750;cursor:pointer}
 button:disabled{opacity:.5;cursor:not-allowed}
-.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.actions button{flex:1}
+.secondary{background:var(--card);color:var(--text);border:1px solid var(--line)}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.actions{display:flex;gap:8px;margin-top:9px}.actions button{flex:1}
 .tabs{display:flex;gap:8px;margin-bottom:12px}.tabs button{flex:1}
-#map{height:350px;border-radius:14px;overflow:hidden;background:var(--card);margin-top:12px}
-#status{white-space:pre-wrap;padding:10px 12px;border-radius:9px;background:var(--card);margin:12px 0}
-#status.error{border:1px solid #e65c5c;color:#ff8b8b}
-#status.ok{border:1px solid #27a879}
-#ridePanel[hidden],#authPanel[hidden],#appPanel[hidden]{display:none}
-.vehicle{display:flex;gap:8px}.vehicle button{flex:1}
-.vehicle button.selected{outline:3px solid var(--accent);outline-offset:1px}
-.price{font-size:25px;font-weight:850;color:var(--accent)}
-footer{text-align:center;color:var(--muted);font-size:12px;padding:10px}
-@media(max-width:560px){.row{grid-template-columns:1fr}#map{height:300px}header{padding:13px 16px}}
+.vehicle{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.vehicle button{background:var(--card);color:var(--text);border:1px solid var(--line);padding:15px 4px}
+.vehicle button.selected{background:var(--accent);color:white;border:2px solid var(--accent)}
+#map{height:360px;margin-top:12px;border-radius:13px;border:1px solid var(--line);z-index:1}
+#status{padding:11px 12px;border-radius:10px;background:var(--card);overflow-wrap:anywhere}
+#status.error{border:1px solid #d94f58;color:#ff8e95}
+#status.ok{border:1px solid #278b69}
+#results button{display:block;width:100%;text-align:left;margin-top:6px}
+#authPanel[hidden],#appPanel[hidden],#ridePanel[hidden]{display:none}
+.price{font-size:28px;font-weight:900;color:var(--accent)}
+.stat{background:var(--card);padding:12px;border-radius:10px}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:12px}
+@media(max-width:560px){.row{grid-template-columns:1fr}#map{height:320px}main{padding:12px 10px 30px}}
 </style>
 </head>
+
 <body>
-<header><div class="logo">RYDO<span style="color:var(--text)">.</span></div><button id="themeBtn" class="secondary" type="button">☀️ Light mode</button></header>
+<header>
+ <div class="logo">RYDO<span style="color:var(--text)">.</span></div>
+ <button id="themeBtn" class="secondary" type="button">☀️ Light</button>
+</header>
+
 <main>
 <section class="panel">
-<h1>Move your way.</h1>
-<p class="muted">Book a ride across Nepal.</p>
-<div id="status" role="status">Ready. Sign in to request a ride.</div>
+ <h1>Move your way.</h1>
+ <p class="muted">Book a ride. Travel your way.</p>
+ <p id="status" role="status">Loading Rydo…</p>
 </section>
 
-<section id="authPanel" class="panel">
-<h2 id="authTitle">Welcome back</h2>
-<div class="tabs">
-<button type="button" id="loginTab">Login</button>
-<button type="button" id="registerTab" class="secondary">Register</button>
-</div>
-<form id="authForm">
-<div id="nameWrap" hidden>
-<label for="fullName">Full name</label>
-<input id="fullName" autocomplete="name" maxlength="100">
-</div>
-<label for="email">Email</label>
-<input id="email" type="email" autocomplete="email" required>
-<label for="password">Password</label>
-<input id="password" type="password" autocomplete="current-password" minlength="6" required>
-<button id="authSubmit" type="submit" style="width:100%;margin-top:14px">Login</button>
-</form>
-<div class="actions"><button type="button" id="forgotBtn" class="secondary">Forgot password</button></div>
-<p class="hint" style="margin:12px 0 0">Registration may require email confirmation. Check your inbox before logging in.</p>
+<section class="panel" id="authPanel">
+ <h2 id="authTitle">Welcome back</h2>
+ <div class="tabs">
+  <button id="loginTab" type="button">Login</button>
+  <button id="registerTab" class="secondary" type="button">Create account</button>
+ </div>
+ <form id="authForm">
+  <div id="nameWrap" hidden>
+   <label for="fullName">Full name</label>
+   <input id="fullName" autocomplete="name" maxlength="100">
+  </div>
+  <label for="email">Email</label>
+  <input id="email" type="email" autocomplete="email" required>
+  <label for="password">Password</label>
+  <input id="password" type="password" minlength="6" autocomplete="current-password" required>
+  <button id="authSubmit" type="submit" style="width:100%;margin-top:14px">Login</button>
+ </form>
+ <button id="forgotBtn" class="secondary" type="button" style="width:100%;margin-top:9px">Forgot password</button>
+ <p class="hint">If email confirmation is enabled, confirm your email before logging in.</p>
 </section>
 
-<section id="appPanel" hidden>
-<section class="panel">
-<div class="row">
-<div>
-<label for="pickup">Pickup location</label>
-<input id="pickup" placeholder="Search pickup place in Nepal" autocomplete="off">
-<div class="actions"><button id="gpsBtn" type="button" class="secondary">My location</button><button id="pickupSearch" type="button" class="secondary">Find pickup</button></div>
-</div>
-<div>
-<label for="destination">Destination</label>
-<input id="destination" placeholder="Search destination in Nepal" autocomplete="off">
-<div class="actions"><button id="destSearch" type="button" class="secondary">Find destination</button></div>
-</div>
-</div>
-<p class="hint">Choose a search result to set each location. Or use your GPS for pickup.</p>
-<div id="results"></div>
-<div id="map" aria-label="Ride route map"></div>
-<div class="actions"><button id="routeBtn" type="button">Calculate route & fare</button></div>
-</section>
+<div id="appPanel" hidden>
+ <section class="panel">
+  <h2>Where are you going?</h2>
+  <label for="pickup">Pickup location</label>
+  <input id="pickup" placeholder="Search pickup in Nepal" autocomplete="off">
+  <div class="actions">
+   <button id="gpsBtn" type="button">◎ My location</button>
+   <button id="pickupSearch" type="button" class="secondary">Find pickup</button>
+  </div>
+  <p id="gpsInfo" class="hint">GPS accuracy will appear here.</p>
 
-<section class="panel">
-<h2>Choose your ride</h2>
-<div class="vehicle">
-<button type="button" data-vehicle="bike" class="selected">🏍 Bike</button>
-<button type="button" data-vehicle="car" class="secondary">🚗 Car</button>
-<button type="button" data-vehicle="tuk_tuk" class="secondary">🛺 Tuk Tuk</button>
-</div>
-<label for="payment">Payment method</label>
-<select id="payment"><option value="cash">Cash</option><option value="online">Online (not yet integrated)</option></select>
-<p class="muted">Estimated distance</p><div id="distance">— km</div>
-<p class="muted" style="margin:12px 0 0">Estimated fare</p><div id="fare" class="price">NPR —</div>
-<p class="hint">Estimate uses the active Supabase fare rule and the road route. The final fare may differ.</p>
-<button id="requestBtn" type="button" style="width:100%;margin-top:12px" disabled>Request ride</button>
-</section>
+  <label for="destination">Destination</label>
+  <input id="destination" placeholder="Search destination in Nepal" autocomplete="off">
+  <button id="destSearch" type="button" class="secondary" style="width:100%;margin-top:8px">Find destination</button>
 
-<section id="ridePanel" class="panel" hidden>
-<h2>Your ride</h2>
-<p id="rideInfo">Loading ride status…</p>
-<button id="cancelBtn" type="button" class="secondary">Cancel ride</button>
-</section>
-<section class="panel">
-<button id="logoutBtn" type="button" class="secondary">Log out</button>
-</section>
-</section>
+  <div id="results"></div>
+  <label for="pinTarget">Map tap sets</label>
+  <select id="pinTarget">
+   <option value="pickup">Pickup pin</option>
+   <option value="destination">Destination pin</option>
+  </select>
+  <p class="hint">Select a search result, or choose a pin above and tap the map to adjust that location.</p>
+  <div id="map"></div>
+  <div class="actions">
+   <button id="routeBtn" type="button">Calculate route & fare</button>
+  </div>
+ </section>
+
+ <section class="panel">
+  <h2>Choose your ride</h2>
+  <div class="vehicle">
+   <button type="button" data-vehicle="bike" class="selected">🏍️<br>Bike</button>
+   <button type="button" data-vehicle="car">🚗<br>Car</button>
+   <button type="button" data-vehicle="tuk_tuk">🛺<br>Tuk Tuk</button>
+  </div>
+  <label for="payment">Payment method</label>
+  <select id="payment">
+   <option value="cash">Cash</option>
+   <option value="online">Online payment</option>
+  </select>
+  <p class="hint">Online payment is not integrated yet.</p>
+  <div class="row">
+   <div class="stat"><div class="muted">Road distance</div><strong id="distance">— km</strong></div>
+   <div class="stat"><div class="muted">Estimated fare</div><div class="price" id="fare">NPR —</div></div>
+  </div>
+  <p id="fareNote" class="hint">Calculate a route to see your estimate.</p>
+  <button id="requestBtn" type="button" style="width:100%;margin-top:14px" disabled>Request ride</button>
+ </section>
+
+ <section class="panel" id="ridePanel" hidden>
+  <h2>Your ride</h2>
+  <p id="rideInfo">Loading status…</p>
+  <button id="cancelBtn" type="button" class="secondary" style="width:100%;margin-top:8px">Cancel ride</button>
+  <p class="hint">Ride status refreshes automatically while this page is open.</p>
+ </section>
+
+ <section class="panel">
+  <button id="logoutBtn" class="secondary" type="button">Log out</button>
+ </section>
+</div>
 <footer>Rydo · Move your way</footer>
 </main>
 
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-<script src="https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js"></script>
 <script>
 (() => {
 "use strict";
-const SUPABASE_URL = "https://kqtvuorasqyzjbnlkkxs.supabase.co";
-const SUPABASE_KEY = "sb_publishable_0YO71GOwynEf3ithOtFfxg_z6YL-LKG";
-const $ = id => document.getElementById(id);
-let db, user, map, pickupPoint, destPoint, routeKm = 0, fareAmount = 0;
-let vehicle = "bike", rules = {}, activeRide = null, markers = [];
-let authMode = "login", searchResults = [];
-const say = (message, error=false) => {
-  $("status").textContent = message;
-  $("status").className = error ? "error" : "ok";
-};
-const fail = (label, error) => {
-  console.error(label, error);
-  say(label + ": " + (error?.message || String(error)), true);
-};
-async function jsonFetch(url, options={}) {
-  const response = await fetch(url, options);
-  if (!response.ok) throw new Error("Service returned HTTP " + response.status);
-  return response.json();
+
+/* Existing Rydo Supabase project */
+const SUPABASE_URL="https://kqtvuorasqyzjbnlkkxs.supabase.co";
+const SUPABASE_KEY="sb_publishable_0YO71GOwynEf3ithOtFfxg_z6YL-LKG";
+
+const $=id=>document.getElementById(id);
+let db,user,map,routeLayer,pickupMarker,destMarker,gpsCircle;
+let pickupPoint=null,destPoint=null,vehicle="bike",fareRules={};
+let routeKm=0,fareAmount=0,activeRide=null,authMode="login";
+let searchBusy=false,routeBusy=false,rideBusy=false;
+let lastGpsAccuracy=null,lastSearchAt=0;
+
+function status(msg,error=false){
+ $("status").textContent=msg;
+ $("status").className=error?"error":"ok";
 }
-function setAuthMode(mode) {
-  authMode = mode;
-  $("nameWrap").hidden = mode !== "register";
-  $("fullName").required = mode === "register";
-  $("authTitle").textContent = mode === "register" ? "Create your account" : "Welcome back";
-  $("authSubmit").textContent = mode === "register" ? "Create account" : "Login";
-  $("loginTab").className = mode === "login" ? "" : "secondary";
-  $("registerTab").className = mode === "register" ? "" : "secondary";
+function report(label,e){
+ console.error(label,e);
+ status(label+": "+(e?.message||String(e)),true);
 }
-function showApp(show) {
-  $("authPanel").hidden = show;
-  $("appPanel").hidden = !show;
+async function fetchJSON(url,timeout=12000){
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),timeout);
+ try{
+  const res=await fetch(url,{signal:controller.signal});
+  if(!res.ok)throw new Error("Service returned HTTP "+res.status);
+  return await res.json();
+ }catch(e){
+  if(e.name==="AbortError")throw new Error("Request timed out. Try again or enter the place manually.");
+  throw e;
+ }finally{clearTimeout(timer);}
 }
-async function loadRules() {
-  const {data,error} = await db.from("fare_rules")
-    .select("vehicle_type,base_fare,per_km_fare,is_active")
-    .eq("is_active",true);
-  if (error) throw error;
-  rules = {};
-  (data || []).forEach(r => rules[String(r.vehicle_type).toLowerCase()] = r);
+function invalidateRoute(){
+ routeKm=0;fareAmount=0;
+ $("distance").textContent="— km";
+ $("fare").textContent="NPR —";
+ $("requestBtn").disabled=true;
+ if(routeLayer&&map){map.removeLayer(routeLayer);routeLayer=null;}
 }
-function initMap() {
-  if (!window.maplibregl) throw new Error("Map library did not load. Check internet/CDN access and refresh.");
-  map = new maplibregl.Map({
-    container:"map",
-    style:"https://tiles.openfreemap.org/styles/liberty",
-    center:[85.324,27.7172], zoom:12
+function setAuthMode(mode){
+ authMode=mode;
+ $("nameWrap").hidden=mode!=="register";
+ $("fullName").required=mode==="register";
+ $("authTitle").textContent=mode==="register"?"Create your Rydo account":"Welcome back";
+ $("authSubmit").textContent=mode==="register"?"Create account":"Login";
+ $("loginTab").className=mode==="login"?"":"secondary";
+ $("registerTab").className=mode==="register"?"":"secondary";
+}
+function showApp(on){
+ $("authPanel").hidden=on;
+ $("appPanel").hidden=!on;
+}
+function ensureMap(){
+ if(map)return;
+ if(!window.L)throw new Error("Leaflet did not load. Check your internet connection and refresh.");
+ map=L.map("map",{zoomControl:true}).setView([27.7172,85.3240],12);
+ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+  maxZoom:19,
+  attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+ }).addTo(map);
+ map.on("click",async e=>{
+  const p={lat:e.latlng.lat,lon:e.latlng.lng,name:"Map pin"};
+  const which=$("pinTarget").value;
+  if(which==="pickup"){pickupPoint=p;pickupMarker?.setLatLng([p.lat,p.lon]);}
+  else{destPoint=p;destMarker?.setLatLng([p.lat,p.lon]);}
+  if(which==="pickup"&&!pickupMarker)pickupMarker=L.marker([p.lat,p.lon],{draggable:true}).addTo(map);
+  if(which==="destination"&&!destMarker)destMarker=L.marker([p.lat,p.lon],{draggable:true}).addTo(map);
+  const marker=which==="pickup"?pickupMarker:destMarker;
+  marker?.bindPopup(which==="pickup"?"Pickup pin":"Destination pin");
+  marker?.on("dragend",()=>updateFromMarker(which,marker));
+  try{
+   const a=await fetchJSON("https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat="+p.lat+"&lon="+p.lon,9000);
+   p.name=a.display_name||p.name;
+  }catch{}
+  if(which==="pickup"){$("pickup").value=p.name;pickupPoint=p;}
+  else{$("destination").value=p.name;destPoint=p;}
+  invalidateRoute();
+  status(which==="pickup"?"Pickup pin updated.":"Destination pin updated.");
+ });
+}
+function updateFromMarker(which,marker){
+ const p=marker.getLatLng();
+ const point={lat:p.lat,lon:p.lng,name:"Map pin"};
+ if(which==="pickup"){pickupPoint=point;$("pickup").value="Map pin ("+p.lat.toFixed(5)+", "+p.lng.toFixed(5)+")";}
+ else{destPoint=point;$("destination").value="Map pin ("+p.lat.toFixed(5)+", "+p.lng.toFixed(5)+")";}
+ invalidateRoute();
+}
+function setPoint(which,p){
+ const point={lat:Number(p.lat),lon:Number(p.lon),name:p.name||"Selected place"};
+ if(!Number.isFinite(point.lat)||!Number.isFinite(point.lon))throw new Error("Invalid coordinates.");
+ if(which==="pickup"){
+  pickupPoint=point;$("pickup").value=point.name;
+  if(pickupMarker)pickupMarker.setLatLng([point.lat,point.lon]);
+  else pickupMarker=L.marker([point.lat,point.lon],{draggable:true}).addTo(map);
+  pickupMarker.off("dragend").on("dragend",()=>updateFromMarker("pickup",pickupMarker));
+ }else{
+  destPoint=point;$("destination").value=point.name;
+  if(destMarker)destMarker.setLatLng([point.lat,point.lon]);
+  else destMarker=L.marker([point.lat,point.lon],{draggable:true}).addTo(map);
+  destMarker.off("dragend").on("dragend",()=>updateFromMarker("destination",destMarker));
+ }
+ map.flyTo([point.lat,point.lon],15);
+ invalidateRoute();
+}
+async function searchPlace(which){
+ if(searchBusy)return;
+ const q=$(which==="pickup"?"pickup":"destination").value.trim();
+ if(!q)return status("Enter a place name first.",true);
+ const now=Date.now();
+ if(now-lastSearchAt<1000)return status("Please wait a moment before searching again.");
+ lastSearchAt=now;searchBusy=true;
+ $("results").replaceChildren();
+ status("Searching Nepal locations…");
+ try{
+  const data=await fetchJSON("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=np&q="+encodeURIComponent(q));
+  if(!data.length){status("No matching place found. Try a nearby landmark or use the map pin.",true);return;}
+  data.forEach(item=>{
+   const b=document.createElement("button");
+   b.type="button";b.className="secondary";
+   b.textContent=item.display_name;
+   b.style.cssText="display:block;width:100%;text-align:left;margin-top:7px";
+   b.onclick=()=>{
+    try{
+     setPoint(which,{lat:item.lat,lon:item.lon,name:item.display_name});
+     $("results").replaceChildren();
+     status((which==="pickup"?"Pickup":"Destination")+" selected.");
+    }catch(e){report("Could not select place",e);}
+   };
+   $("results").appendChild(b);
   });
-  map.addControl(new maplibregl.NavigationControl(),"top-right");
-  map.on("error", e => console.warn("Map tile/style error:", e.error || e));
+  status("Choose the correct result. Check its pin on the map.");
+ }catch(e){report("Place search failed",e);}
+ finally{searchBusy=false;}
 }
-function clearMarkers() {
-  markers.forEach(m => m.remove()); markers=[];
+async function gps(){
+ if(!navigator.geolocation)return status("GPS is unavailable. Search for a place or set a map pin.",true);
+ status("Getting your GPS location…");
+ navigator.geolocation.getCurrentPosition(async pos=>{
+  const c=pos.coords;
+  lastGpsAccuracy=c.accuracy;
+  const p={lat:c.latitude,lon:c.longitude,name:"My current location"};
+  try{
+   setPoint("pickup",p);
+   $("gpsInfo").textContent="GPS accuracy reported by phone: ±"+Math.round(c.accuracy)+" metres.";
+   if(gpsCircle)gpsCircle.remove();
+   gpsCircle=L.circle([p.lat,p.lon],{radius:c.accuracy,color:"#ff791b",fillOpacity:.12}).addTo(map);
+   status("GPS pin set. Check the accuracy and position on the map.");
+   try{
+    const a=await fetchJSON("https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat="+p.lat+"&lon="+p.lon,9000);
+    if(a.display_name){pickupPoint.name=a.display_name;$("pickup").value=a.display_name;}
+   }catch{}
+  }catch(e){report("Could not set GPS location",e);}
+ },err=>{
+  const messages={1:"Location permission denied.",2:"Phone could not determine location.",3:"GPS request timed out."};
+  status((messages[err.code]||"GPS failed")+ " Enable precise browser location or select a place manually.",true);
+ },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
 }
-function mark(point, color) {
-  if (!map || !point) return;
-  const el = document.createElement("div");
-  el.style.cssText = `width:16px;height:16px;border:3px solid white;border-radius:50%;background:${color};box-shadow:0 1px 5px #000`;
-  markers.push(new maplibregl.Marker({element:el}).setLngLat([point.lon,point.lat]).addTo(map));
+function straightDistance(a,b){
+ const rad=x=>x*Math.PI/180,R=6371;
+ const dLat=rad(b.lat-a.lat),dLon=rad(b.lon-a.lon);
+ const v=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)**2;
+ return 2*R*Math.asin(Math.sqrt(v));
 }
-function showPoints() {
-  if (!map) return;
-  clearMarkers();
-  if (pickupPoint) mark(pickupPoint,"#ff791b");
-  if (destPoint) mark(destPoint,"#168bd2");
-  const pts=[pickupPoint,destPoint].filter(Boolean);
-  if (pts.length===2) {
-    map.fitBounds([[Math.min(pts[0].lon,pts[1].lon),Math.min(pts[0].lat,pts[1].lat)],
-      [Math.max(pts[0].lon,pts[1].lon),Math.max(pts[0].lat,pts[1].lat)]],{padding:55,maxZoom:15});
-  } else if (pts.length===1) map.flyTo({center:[pts[0].lon,pts[0].lat],zoom:15});
+async function loadFareRules(){
+ const {data,error}=await db.from("fare_rules")
+  .select("vehicle_type,base_fare,per_km_fare,is_active")
+  .eq("is_active",true);
+ if(error)throw error;
+ fareRules={};
+ (data||[]).forEach(r=>fareRules[String(r.vehicle_type).toLowerCase()]=r);
 }
-async function searchPlace(which) {
-  const field = which==="pickup" ? "pickup" : "destination";
-  const q = $(field).value.trim();
-  if (!q) return say("Enter a " + field + " place first.",true);
-  try {
-    say("Searching places…");
-    const data = await jsonFetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=np&q="+encodeURIComponent(q));
-    const box=$("results"); box.replaceChildren();
-    if (!data.length) return say("No Nepal results found. Try a nearby landmark or a more specific place.",true);
-    searchResults = data;
-    data.forEach((item,i)=>{
-      const b=document.createElement("button");
-      b.type="button"; b.className="secondary";
-      b.style.cssText="display:block;width:100%;text-align:left;margin:6px 0";
-      b.textContent=item.display_name;
-      b.onclick=()=>{
-        const p={lat:Number(item.lat),lon:Number(item.lon),name:item.display_name};
-        if (which==="pickup") {pickupPoint=p;$("pickup").value=p.name;}
-        else {destPoint=p;$("destination").value=p.name;}
-        box.replaceChildren(); routeKm=0; fareAmount=0;
-        $("distance").textContent="— km"; $("fare").textContent="NPR —"; $("requestBtn").disabled=true;
-        showPoints(); say(which==="pickup"?"Pickup location selected.":"Destination selected.");
-      };
-      box.appendChild(b);
-    });
-    say("Select a matching place from the results.");
-  } catch(e) {fail("Place search failed",e);}
+function updateFare(){
+ const r=fareRules[vehicle];
+ if(!r)throw new Error("No active fare rule for "+vehicle+". Check fare_rules in Supabase.");
+ fareAmount=Math.round(Number(r.base_fare)+routeKm*Number(r.per_km_fare));
+ if(!Number.isFinite(fareAmount))throw new Error("Invalid fare rule values.");
+ $("fare").textContent="NPR "+fareAmount.toLocaleString("en-NP");
+ $("fareNote").textContent="Estimate = base fare + road distance × rate per km. Actual fare may differ.";
+ $("requestBtn").disabled=false;
 }
-async function getGps() {
-  if (!navigator.geolocation) return say("GPS is not available in this browser.",true);
-  say("Getting your location…");
-  navigator.geolocation.getCurrentPosition(async pos=>{
-    pickupPoint={lat:pos.coords.latitude,lon:pos.coords.longitude,name:"My current location"};
-    try {
-      const arr=await jsonFetch("https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat="+pickupPoint.lat+"&lon="+pickupPoint.lon);
-      $("pickup").value=arr.display_name || pickupPoint.name;
-      pickupPoint.name=$("pickup").value;
-    } catch { $("pickup").value=pickupPoint.name; }
-    showPoints(); say("Pickup GPS location selected. Check it on the map.");
-  },err=>say("Could not get GPS: "+err.message+". Allow location access or search manually.",true),
-  {enableHighAccuracy:true,timeout:15000,maximumAge:10000});
-}
-async function calculateRoute() {
-  if (!pickupPoint || !destPoint) return say("Choose both pickup and destination from search results first.",true);
-  if (pickupPoint.lat===destPoint.lat && pickupPoint.lon===destPoint.lon) return say("Pickup and destination must be different.",true);
-  $("requestBtn").disabled=true; say("Calculating road route and fare…");
-  try {
-    const data=await jsonFetch(`https://router.project-osrm.org/route/v1/driving/${pickupPoint.lon},${pickupPoint.lat};${destPoint.lon},${destPoint.lat}?overview=full&geometries=geojson`);
-    if (!data.routes?.length) throw new Error("No driving route found. Try different locations.");
-    routeKm=data.routes[0].distance/1000;
-    const rule=rules[vehicle];
-    if (!rule) throw new Error("No active fare rule found for "+vehicle+". Check fare_rules in Supabase.");
-    fareAmount=Math.round(Number(rule.base_fare)+routeKm*Number(rule.per_km_fare));
-    $("distance").textContent=routeKm.toFixed(2)+" km";
-    $("fare").textContent="NPR "+fareAmount.toLocaleString("en-NP");
-    if (map) {
-      if (map.getLayer("rydo-route")) map.removeLayer("rydo-route");
-      if (map.getSource("rydo-route")) map.removeSource("rydo-route");
-      map.addSource("rydo-route",{type:"geojson",data:{type:"Feature",properties:{},geometry:data.routes[0].geometry}});
-      map.addLayer({id:"rydo-route",type:"line",source:"rydo-route",layout:{"line-join":"round","line-cap":"round"},paint:{"line-color":"#168bd2","line-width":5}});
-      showPoints();
-    }
-    $("requestBtn").disabled=false;
-    say("Route calculated. Review the locations and fare before requesting.");
-  } catch(e) {fail("Route/fare calculation failed",e);}
-}
-async function requestRide() {
-  if (!user) return say("Please log in again before requesting a ride.",true);
-  if (!pickupPoint || !destPoint || !routeKm || !fareAmount) return say("Choose locations and calculate the route first.",true);
-  if ($("payment").value==="online") return say("Online payment is not integrated yet. Select Cash to request this ride.",true);
-  $("requestBtn").disabled=true;
-  try {
-    const {data,error}=await db.from("rides").insert({
-      passenger_id:user.id,
-      pickup_location:$("pickup").value.trim(),
-      destination:$("destination").value.trim(),
-      vehicle_type:vehicle,
-      distance_km:Number(routeKm.toFixed(2)),
-      estimated_distance_km:Number(routeKm.toFixed(2)),
-      fare:fareAmount, estimated_fare:fareAmount,
-      payment_method:"cash",payment_status:"pending",status:"requested",
-      pickup_latitude:pickupPoint.lat,pickup_longitude:pickupPoint.lon,
-      destination_latitude:destPoint.lat,destination_longitude:destPoint.lon
-    }).select("id,status,created_at").single();
-    if (error) throw error;
-    activeRide=data;
-    $("ridePanel").hidden=false;
-    $("rideInfo").textContent=`Ride #${data.id} · Status: ${data.status}`;
-    say("Ride request submitted. Waiting for a driver.");
-    $("ridePanel").scrollIntoView({behavior:"smooth",block:"center"});
-  } catch(e) {fail("Ride request failed (check rides table columns and RLS policies)",e);$("requestBtn").disabled=false;}
-}
-async function refreshRide() {
-  if (!activeRide || !user) return;
-  try {
-    const {data,error}=await db.from("rides").select("id,status,driver_id,final_fare")
-      .eq("id",activeRide.id).eq("passenger_id",user.id).single();
-    if (error) throw error;
-    $("rideInfo").textContent=`Ride #${data.id} · Status: ${data.status}`+
-      (data.final_fare!=null?` · Final fare: NPR ${data.final_fare}`:"");
-    if (["completed","cancelled"].includes(data.status)) {
-      $("cancelBtn").disabled=true;
-      say("Ride status updated: "+data.status);
-    }
-  } catch(e) {fail("Could not refresh ride status",e);}
-}
-async function cancelRide() {
-  if (!activeRide || !user) return say("No active ride to cancel.",true);
-  if (!confirm("Cancel this ride request?")) return;
-  $("cancelBtn").disabled=true;
-  try {
-    const {data,error}=await db.from("rides").update({status:"cancelled",cancelled_at:new Date().toISOString()})
-      .eq("id",activeRide.id).eq("passenger_id",user.id).in("status",["requested","pending","accepted"]).select("id,status").maybeSingle();
-    if (error) throw error;
-    if (!data) throw new Error("Ride was not cancelled. It may already be in progress or your RLS policy blocked the update.");
-    activeRide.status="cancelled"; $("rideInfo").textContent=`Ride #${data.id} · Status: cancelled`;
-    $("cancelBtn").disabled=true; say("Ride cancelled.");
-  } catch(e) {fail("Cancel failed",e);$("cancelBtn").disabled=false;}
-}
-async function enterApp(session) {
-  user=session.user; showApp(true);
-  $("ridePanel").hidden=true; activeRide=null;
-  try { await loadRules(); say("Logged in. Choose pickup and destination."); }
-  catch(e) {fail("Logged in, but fare rules could not load",e);}
-}
-async function init() {
-  $("themeBtn").onclick=()=>{
-    document.body.classList.toggle("light");
-    const light=document.body.classList.contains("light");
-    $("themeBtn").textContent=light?"🌙 Dark mode":"☀️ Light mode";
-    try {localStorage.setItem("rydo-theme",light?"light":"dark");} catch {}
-  };
-  try {if(localStorage.getItem("rydo-theme")==="light") {document.body.classList.add("light");$("themeBtn").textContent="🌙 Dark mode";}} catch {}
-  $("loginTab").onclick=()=>setAuthMode("login");
-  $("registerTab").onclick=()=>setAuthMode("register");
-  $("authForm").onsubmit=async e=>{
-    e.preventDefault(); $("authSubmit").disabled=true;
-    try {
-      if (!db) throw new Error("Supabase library did not load. Refresh and try again.");
-      const email=$("email").value.trim(), password=$("password").value;
-      if (authMode==="register") {
-        const name=$("fullName").value.trim();
-        if (!name) throw new Error("Enter your full name.");
-        const {data,error}=await db.auth.signUp({
-          email,password,
-          options:{data:{full_name:name,role:"passenger"},emailRedirectTo:location.href.split("#")[0]}
-        });
-        if (error) throw error;
-        if (!data.session) {say("Registration received. Check your email to confirm, then log in.");return;}
-        await enterApp(data.session);
-      } else {
-        const {data,error}=await db.auth.signInWithPassword({email,password});
-        if (error) throw error;
-        await enterApp(data.session);
-      }
-    } catch(e) {fail(authMode==="register"?"Registration failed":"Login failed",e);}
-    finally {$("authSubmit").disabled=false;}
-  };
-  $("forgotBtn").onclick=async()=>{
-    const email=$("email").value.trim();
-    if (!email) return say("Enter your email first, then tap Forgot password.",true);
-    try {
-      const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:location.href.split("#")[0]});
-      if (error) throw error;
-      say("If password reset is enabled, check your email for the reset link.");
-    } catch(e) {fail("Password reset failed",e);}
-  };
-  $("gpsBtn").onclick=getGps;
-  $("pickupSearch").onclick=()=>searchPlace("pickup");
-  $("destSearch").onclick=()=>searchPlace("destination");
-  $("routeBtn").onclick=calculateRoute;
-  $("requestBtn").onclick=requestRide;
-  $("cancelBtn").onclick=cancelRide;
-  $("logoutBtn").onclick=async()=>{
-    try {const {error}=await db.auth.signOut();if(error)throw error;
-      user=null;showApp(false);say("You have logged out.");}
-    catch(e){fail("Logout failed",e);}
-  };
-  document.querySelectorAll("[data-vehicle]").forEach(b=>b.onclick=()=>{
-    vehicle=b.dataset.vehicle;
-    document.querySelectorAll("[data-vehicle]").forEach(x=>{
-      x.className=x===b?"selected":"secondary";
-    });
-    $("requestBtn").disabled=true; routeKm=0;fareAmount=0;
-    $("distance").textContent="— km";$("fare").textContent="NPR —";
-    say("Vehicle changed. Recalculate the route and fare.");
-  });
-  if (!window.supabase?.createClient) {
-    say("Supabase library did not load. Check internet access and refresh.",true); return;
+async function calculateRoute(){
+ if(routeBusy)return;
+ if(!pickupPoint||!destPoint)return status("Select both pickup and destination first.",true);
+ if(straightDistance(pickupPoint,destPoint)<0.05)return status("Pickup and destination are too close or identical. Check the pins.",true);
+ routeBusy=true;$("routeBtn").disabled=true;$("requestBtn").disabled=true;
+ status("Calculating road route…");
+ try{
+  const straight=straightDistance(pickupPoint,destPoint);
+  const url="https://router.project-osrm.org/route/v1/driving/"+
+   pickupPoint.lon+","+pickupPoint.lat+";"+destPoint.lon+","+destPoint.lat+
+   "?overview=full&geometries=geojson";
+  const data=await fetchJSON(url,20000);
+  if(!data.routes?.length)throw new Error("No road route found. Check both pins.");
+  const route=data.routes[0];
+  const km=route.distance/1000;
+  if(!Number.isFinite(km)||km<=0)throw new Error("Routing service returned an invalid distance.");
+  if(km>Math.max(straight*4,straight+15)){
+   $("fareNote").textContent="Warning: road route is much longer than the straight-line distance. Check both map pins before booking.";
+   status("The road route looks unusually long. Verify pickup and destination pins before using this fare.",true);
+   // Do not silently accept an implausibly long route.
+   throw new Error("Route distance "+km.toFixed(2)+" km versus straight-line distance "+straight.toFixed(2)+" km. Correct the pins or verify the route.");
   }
-  try {
-    db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-    initMap();
-    const {data,error}=await db.auth.getSession();
-    if (error) throw error;
-    if (data.session) await enterApp(data.session);
-    db.auth.onAuthStateChange((_event,session)=>{
-      if (!session) {user=null;showApp(false);}
+  routeKm=km;
+  $("distance").textContent=routeKm.toFixed(2)+" km";
+  if(routeLayer)map.removeLayer(routeLayer);
+  routeLayer=L.geoJSON(route.geometry,{style:{color:"#168bd2",weight:6,opacity:.9}}).addTo(map);
+  map.fitBounds(routeLayer.getBounds(),{padding:[35,35]});
+  updateFare();
+  status("Road route calculated. Check the pins and estimated fare.");
+ }catch(e){report("Route calculation failed",e);invalidateRoute();}
+ finally{routeBusy=false;$("routeBtn").disabled=false;}
+}
+async function requestRide(){
+ if(rideBusy)return;
+ if(!user)return status("Log in before requesting a ride.",true);
+ if(!pickupPoint||!destPoint||!routeKm||!fareAmount)return status("Choose both places and calculate the route first.",true);
+ if($("payment").value!=="cash")return status("Online payment is not connected yet. Choose Cash.",true);
+ rideBusy=true;$("requestBtn").disabled=true;
+ try{
+  const {data,error}=await db.from("rides").insert({
+   passenger_id:user.id,
+   pickup_location:$("pickup").value.trim(),
+   destination:$("destination").value.trim(),
+   vehicle_type:vehicle,
+   distance_km:Number(routeKm.toFixed(2)),
+   estimated_distance_km:Number(routeKm.toFixed(2)),
+   fare:fareAmount,estimated_fare:fareAmount,
+   payment_method:"cash",payment_status:"pending",status:"requested",
+   pickup_latitude:pickupPoint.lat,pickup_longitude:pickupPoint.lon,
+   destination_latitude:destPoint.lat,destination_longitude:destPoint.lon
+  }).select("id,status,created_at").single();
+  if(error)throw error;
+  activeRide=data;
+  $("ridePanel").hidden=false;
+  $("rideInfo").textContent="Ride #"+data.id+" · Status: "+data.status;
+  $("cancelBtn").disabled=false;
+  status("Ride request saved. Waiting for a driver.");
+  $("ridePanel").scrollIntoView({behavior:"smooth",block:"center"});
+ }catch(e){report("Ride request failed. Check rides columns and RLS policies",e);$("requestBtn").disabled=false;}
+ finally{rideBusy=false;}
+}
+async function refreshRide(){
+ if(!activeRide||!user)return;
+ try{
+  const {data,error}=await db.from("rides").select("id,status,driver_id,final_fare")
+   .eq("id",activeRide.id).eq("passenger_id",user.id).single();
+  if(error)throw error;
+  activeRide.status=data.status;
+  $("rideInfo").textContent="Ride #"+data.id+" · Status: "+data.status+
+   (data.final_fare!=null?" · Final fare: NPR "+data.final_fare:"");
+  $("cancelBtn").disabled=!["requested","pending","accepted"].includes(data.status);
+ }catch(e){console.warn("Ride refresh failed:",e.message);}
+}
+async function cancelRide(){
+ if(!activeRide||!user)return status("No active ride to cancel.",true);
+ if(!confirm("Cancel this ride?"))return;
+ $("cancelBtn").disabled=true;
+ try{
+  const {data,error}=await db.from("rides").update({
+   status:"cancelled",cancelled_at:new Date().toISOString()
+  }).eq("id",activeRide.id).eq("passenger_id",user.id)
+   .in("status",["requested","pending","accepted"])
+   .select("id,status").maybeSingle();
+  if(error)throw error;
+  if(!data)throw new Error("Ride was not cancelled. It may already be in progress or RLS blocked the update.");
+  activeRide.status="cancelled";
+  $("rideInfo").textContent="Ride #"+data.id+" · Status: cancelled";
+  status("Ride cancelled.");
+ }catch(e){report("Cancellation failed",e);$("cancelBtn").disabled=false;}
+}
+async function enterApp(session){
+ user=session.user;showApp(true);
+ try{
+  await loadFareRules();
+  status("Logged in. Set your pickup and destination.");
+ }catch(e){report("Logged in, but fare rules could not load",e);}
+ setTimeout(()=>{if(map)map.invalidateSize();},250);
+}
+async function init(){
+ try{
+  const saved=localStorage.getItem("rydo-theme");
+  if(saved==="light")document.body.classList.add("light");
+ }catch{}
+ $("themeBtn").textContent=document.body.classList.contains("light")?"🌙 Dark":"☀️ Light";
+ $("themeBtn").onclick=()=>{
+  document.body.classList.toggle("light");
+  const light=document.body.classList.contains("light");
+  $("themeBtn").textContent=light?"🌙 Dark":"☀️ Light";
+  try{localStorage.setItem("rydo-theme",light?"light":"dark");}catch{}
+ };
+ $("loginTab").onclick=()=>setAuthMode("login");
+ $("registerTab").onclick=()=>setAuthMode("register");
+ $("pickupSearch").onclick=()=>searchPlace("pickup");
+ $("destSearch").onclick=()=>searchPlace("destination");
+ $("gpsBtn").onclick=gps;
+ $("routeBtn").onclick=calculateRoute;
+ $("requestBtn").onclick=requestRide;
+ $("cancelBtn").onclick=cancelRide;
+ $("authForm").onsubmit=async e=>{
+  e.preventDefault();$("authSubmit").disabled=true;
+  try{
+   const email=$("email").value.trim(),password=$("password").value;
+   if(authMode==="register"){
+    const name=$("fullName").value.trim();
+    if(!name)throw new Error("Enter your full name.");
+    const {data,error}=await db.auth.signUp({
+     email,password,
+     options:{data:{full_name:name,role:"passenger"},emailRedirectTo:location.href.split("#")[0]}
     });
-    setInterval(refreshRide,10000);
-  } catch(e) {fail("Startup failed",e);}
+    if(error)throw error;
+    if(!data.session){status("Registration received. Confirm your email, then log in.");return;}
+    await enterApp(data.session);
+   }else{
+    const {data,error}=await db.auth.signInWithPassword({email,password});
+    if(error)throw error;
+    await enterApp(data.session);
+   }
+  }catch(e){report(authMode==="register"?"Registration failed":"Login failed",e);}
+  finally{$("authSubmit").disabled=false;}
+ };
+ $("forgotBtn").onclick=async()=>{
+  const email=$("email").value.trim();
+  if(!email)return status("Enter your email first.",true);
+  try{
+   const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:location.href.split("#")[0]});
+   if(error)throw error;
+   status("If password reset is enabled, check your email for the reset link.");
+  }catch(e){report("Password reset failed",e);}
+ };
+ $("logoutBtn").onclick=async()=>{
+  try{
+   const {error}=await db.auth.signOut();if(error)throw error;
+   user=null;activeRide=null;showApp(false);status("Logged out.");
+  }catch(e){report("Logout failed",e);}
+ };
+ document.querySelectorAll("[data-vehicle]").forEach(b=>b.onclick=()=>{
+  vehicle=b.dataset.vehicle;
+  document.querySelectorAll("[data-vehicle]").forEach(x=>x.classList.toggle("selected",x===b));
+  if(routeKm>0){
+   try{updateFare();status("Fare recalculated for "+vehicle+".");}
+   catch(e){invalidateRoute();report("Fare unavailable",e);}
+  }else status("Vehicle selected. Calculate the route to see its fare.");
+ });
+ if(!window.supabase?.createClient)return status("Supabase library failed to load. Refresh the page.",true);
+ try{
+  db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  ensureMap();
+  const {data,error}=await db.auth.getSession();if(error)throw error;
+  if(data.session)await enterApp(data.session);else{showApp(false);status("Log in or create an account to book a ride.");}
+  db.auth.onAuthStateChange((_event,session)=>{
+   if(!session){user=null;showApp(false);}
+  });
+  setInterval(refreshRide,10000);
+ }catch(e){report("Startup failed",e);}
 }
 setAuthMode("login");
-window.addEventListener("DOMContentLoaded",init);
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);
+else init();
 })();
 </script>
 </body>
