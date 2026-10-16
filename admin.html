@@ -121,8 +121,8 @@ td button{margin:3px}
 
 <script>
 "use strict";
-const URL="https://kqtvuorasqyzjbnlkkxs.supabase.co";
-const KEY="sb_publishable_zZFJiy0YWZgOXFesVuAQcA_wd7rleMb";
+const SUPABASE_URL="https://kqtvuorasqyzjbnlkkxs.supabase.co";
+const sb=window.supabase?.createClient(SUPABASE_URL,KEY,{
 const RESET_URL="https://bishowkarmasagar21-afk.github.io/Rydo-/admin.html";
 const $=id=>document.getElementById(id);
 const sb=window.supabase?.createClient(URL,KEY,{
