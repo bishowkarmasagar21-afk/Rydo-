@@ -1,122 +1,426 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RYDO Admin</title>
-<link rel="stylesheet" href="admin.css">
+<title>Rydo Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{color-scheme:dark;--bg:#08111b;--panel:#101d29;--card:#142638;--orange:#ff7417;--text:#f4f7fb;--muted:#9aafc2;--line:#293d50}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px Arial,sans-serif}
+button,input,select{font:inherit}button{cursor:pointer;border:0;border-radius:9px;padding:11px 14px;background:var(--orange);color:#171717;font-weight:bold}
+button:disabled{opacity:.5;cursor:not-allowed}.secondary{background:#25394b;color:white}.danger{background:#9e3541;color:white}
+input,select{background:#fff;color:#183044;border:1px solid var(--orange);border-radius:8px;padding:11px;max-width:100%}
+header{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-size:23px;font-weight:900;color:var(--orange)}small,.muted{color:var(--muted)}
+#login{max-width:420px;margin:9vh auto;padding:25px;background:var(--panel);border:1px solid var(--line);border-radius:18px}
+#login input{width:100%;margin:8px 0 14px}#app{display:none}
+.layout{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:calc(100vh - 68px)}
+nav{padding:15px;background:var(--panel);border-right:1px solid var(--line)}
+nav button{display:block;width:100%;text-align:left;margin:5px 0;background:transparent;color:var(--text)}
+nav button.active,nav button:hover{background:var(--card);color:var(--orange)}
+main{padding:22px;min-width:0}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:16px;min-width:0}
+.metric{font-size:25px;font-weight:bold;margin-top:10px;overflow-wrap:anywhere}
+.toolbar{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}.toolbar input{flex:1;min-width:160px}
+.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:10px}
+table{width:100%;border-collapse:collapse;min-width:650px}td,th{padding:12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--orange);background:var(--panel)}td{overflow-wrap:anywhere}
+section.page{display:none}section.page.active{display:block}
+.actions{display:flex;gap:6px;flex-wrap:wrap}.actions button{padding:8px;font-size:12px}
+#notice{padding:12px;margin:10px 0;border-radius:8px;display:none;white-space:pre-wrap}
+#notice.error{display:block;background:#54252c;color:#fff}
+#notice.ok{display:block;background:#173e32;color:#fff}
+.formgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.formgrid label{display:grid;gap:7px}.formgrid input,.formgrid select{width:100%}
+@media(max-width:720px){.layout{grid-template-columns:1fr}nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-right:0;border-bottom:1px solid var(--line)}main{padding:12px}header{padding:13px}}
+</style>
 </head>
-
 <body>
+<header><div class="brand">RYDO <small>ADMIN</small></div><div id="who" class="muted">Secure management</div><button id="logout" class="secondary" hidden>Log out</button></header>
 
-<div id="adminLogin" class="auth">
-  <div class="box">
-    <div class="logo"><b>R</b>YDO</div>
-    <h1>Admin Panel</h1>
-    <p>Secure administrator login</p>
-
-    <form id="adminLoginForm">
-      <input id="adminEmail" type="email"
-             placeholder="Admin email" required>
-
-      <input id="adminPassword" type="password"
-             placeholder="Password" required>
-
-      <button id="adminLoginBtn" type="submit">Login</button>
-
-      <div id="adminMessage"></div>
-    </form>
-  </div>
+<div id="login">
+<h2>Admin sign in</h2>
+<p class="muted">Sign in with your authorised Rydo administrator account.</p>
+<form id="loginForm">
+<label>Email</label><input id="email" type="email" autocomplete="username" required>
+<label>Password</label><input id="password" type="password" autocomplete="current-password" required>
+<button style="width:100%">Sign in</button>
+</form>
+<p><button class="secondary" id="forgot">Forgot password?</button></p>
+<p id="loginMsg" class="muted"></p>
 </div>
 
-<div id="adminApp" style="display:none">
+<div id="app">
+<div class="layout">
+<nav id="nav">
+<button class="active" data-page="dashboard">Dashboard</button>
+<button data-page="drivers">Drivers & vehicles</button>
+<button data-page="passengers">Passengers</button>
+<button data-page="rides">All rides</button>
+<button data-page="fares">Fare & commission</button>
+<button data-page="payments">Payments & earnings</button>
+<button data-page="safety">Safety & reviews</button>
+<button data-page="reports">Reports & exports</button>
+<button data-page="notifications">Notifications</button>
+<button data-page="settings">Settings & logs</button>
+</nav>
+<main>
+<div id="notice"></div>
 
-  <header class="top">
-    <div class="logo"><b>R</b>YDO</div>
-    <button id="logoutBtn">Logout</button>
-  </header>
+<section id="dashboard" class="page active">
+<h2>Business overview</h2>
+<div class="stats" id="stats"></div>
+<div class="card" style="margin-top:14px"><h3>Recent rides</h3><div id="recent"></div></div>
+<button id="refresh" style="margin-top:12px">Refresh dashboard</button>
+</section>
 
-  <main>
+<section id="drivers" class="page">
+<h2>Drivers & vehicles</h2>
+<p class="muted">Review driver profiles and registered vehicles. Approval fields must match your database schema.</p>
+<div class="toolbar"><input id="driverSearch" placeholder="Search drivers"><button id="loadDrivers">Load drivers</button></div>
+<div id="driverTable"></div>
+<h3>Vehicles</h3><div id="vehicleTable"></div>
+</section>
 
-    <section class="welcome">
-      <h1>RYDO Admin Dashboard</h1>
-      <p>Manage your Rydo platform.</p>
-    </section>
+<section id="passengers" class="page">
+<h2>Passenger accounts</h2><div class="toolbar"><input id="passengerSearch" placeholder="Search passengers"><button id="loadPassengers">Load passengers</button></div><div id="passengerTable"></div>
+</section>
 
-    <section class="stats">
-      <div><b id="totalPassengers">0</b><span>Passengers</span></div>
-      <div><b id="totalDrivers">0</b><span>Drivers</span></div>
-      <div><b id="totalRides">0</b><span>Rides</span></div>
-      <div><b id="totalRevenue">Rs 0</b><span>Revenue</span></div>
-    </section>
+<section id="rides" class="page">
+<h2>Ride management</h2><div class="toolbar"><input id="rideSearch" placeholder="Search ride, pickup, destination or status"><button id="loadRides">Load rides</button><button id="ridesCsv" class="secondary">Export CSV</button></div><div id="rideTable"></div>
+</section>
 
-    <nav class="nav">
-      <button data-panel="drivers">Drivers</button>
-      <button data-panel="passengers">Passengers</button>
-      <button data-panel="rides">Rides</button>
-      <button data-panel="fares">Fares</button>
-      <button data-panel="payments">Payments</button>
-      <button data-panel="settings">Settings</button>
-    </nav>
+<section id="fares" class="page">
+<h2>Fare rules & commission</h2><p class="muted">Changes affect future fare calculations that read these active rules.</p><div id="fareTable"></div>
+<h3>Add or update a fare rule</h3>
+<form id="fareForm" class="formgrid">
+<label>Vehicle type<select id="fType"><option value="bike">Bike</option><option value="car">Car</option><option value="tuk_tuk">Tuk Tuk</option></select></label>
+<label>Base fare (NPR)<input id="fBase" type="number" min="0" step=".01" required></label>
+<label>Per kilometre (NPR)<input id="fKm" type="number" min="0" step=".01" required></label>
+<label>Commission (%)<input id="fCommission" type="number" min="0" max="100" step=".01" required></label>
+<label>Active<select id="fActive"><option value="true">Yes</option><option value="false">No</option></select></label>
+<button>Save fare rule</button>
+</form>
+</section>
 
-    <section id="drivers" class="panel">
-      <h2>Driver Verification</h2>
-      <div id="driverList">Loading...</div>
-    </section>
+<section id="payments" class="page">
+<h2>Payments & earnings</h2><p class="muted">Summaries below use ride records. They are not proof of bank settlement or online payment success.</p><div id="paymentSummary" class="stats"></div><div id="paymentTable"></div>
+</section>
 
-    <section id="passengers" class="panel">
-      <h2>Passengers</h2>
-      <div id="passengerList">Loading...</div>
-    </section>
+<section id="safety" class="page">
+<h2>Safety & reviews</h2><p class="muted">Review rides, cancellations and ratings from available ride fields. A live SOS/complaint workflow needs a dedicated case table and trusted backend.</p><div class="toolbar"><button id="loadSafety">Load reviewed rides</button></div><div id="safetyTable"></div>
+</section>
 
-    <section id="rides" class="panel">
-      <h2>Rides</h2>
-      <div id="rideList">Loading...</div>
-    </section>
+<section id="reports" class="page">
+<h2>Reports</h2><p>Export the ride records currently loaded from Supabase.</p><button id="reportCsv">Download rides CSV</button><button id="reportRefresh" class="secondary">Reload rides</button><div id="reportInfo" class="muted" style="margin-top:12px"></div>
+</section>
 
-    <section id="fares" class="panel">
-      <h2>Fare Rules</h2>
-      <div id="fareList">Loading...</div>
-    </section>
+<section id="notifications" class="page">
+<h2>Notifications</h2><p class="muted">Notifications are not sent by this static admin page. Connect an authenticated Edge Function and a notification provider before enabling this feature.</p>
+<div class="card"><h3>Suggested next integration</h3><p>Store notification requests, check administrator authorization server-side, and send email or push notifications through a trusted service.</p></div>
+</section>
 
-    <section id="payments" class="panel">
-      <h2>Payments</h2>
-      <div id="paymentList">Loading...</div>
-    </section>
-
-    <section id="settings" class="panel">
-      <h2>Admin Settings</h2>
-      <button id="changePasswordBtn">Change Password</button>
-    </section>
-
-  </main>
+<section id="settings" class="page">
+<h2>Settings & audit history</h2><div class="card"><p id="adminIdentity"></p><p class="muted">Administrative actions should be recorded and reviewed. This page only records the actions it can successfully insert.</p><button id="loadLogs">Load audit history</button><div id="logTable"></div></div>
+</section>
+</main>
 </div>
-
-<script src="./admin-auth.js"></script>
-<script src="./admin-dashboard.js"></script>
-<script src="./admin-drivers.js"></script>
-<script src="./admin-passengers.js"></script>
-<script src="./admin-rides.js"></script>
-<script src="./admin-fares.js"></script>
-<script src="./admin-payments.js"></script>
-<script src="./admin-settings.js"></script>
+</div>
 
 <script>
-document.querySelectorAll("[data-panel]").forEach(btn=>{
-  btn.onclick=()=>{
-    document.querySelectorAll(".panel").forEach(p=>p.style.display="none");
-    document.getElementById(btn.dataset.panel).style.display="block";
-  };
-});
+(() => {
+const URL = "https://kqtvuorasqyzjbnlkkxs.supabase.co";
+const KEY = "sb_publishable_0YO71GOwynEf3ithOtFfxg_z6YL-LKG";
+const db = window.supabase.createClient(URL, KEY);
+const $ = id => document.getElementById(id);
+let rides = [], profiles = [], vehicles = [], fares = [];
+let admin = null;
 
-document.getElementById("logoutBtn")?.addEventListener("click",async()=>{
-  if(window.supabaseClient){
-    await window.supabaseClient.auth.signOut();
+function notice(message, error=false) {
+  const el=$("notice"); el.textContent=message;
+  el.className=error?"error":"ok"; el.style.display="block";
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function clearNotice(){ $("notice").style.display="none"; }
+function esc(v) {
+  return String(v ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function money(n){return "NPR "+Number(n||0).toLocaleString("en-NP",{maximumFractionDigits:2});}
+function date(v){return v?new Date(v).toLocaleString():"—";}
+function table(rows, cols, actions) {
+  if(!rows?.length) return "<p class='muted'>No records found, or your account has no permission to read them.</p>";
+  return `<div class="tablewrap"><table><thead><tr>${cols.map(c=>`<th>${esc(c.label)}</th>`).join("")}${actions?"<th>Actions</th>":""}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(c.value(r))}</td>`).join("")}${actions?`<td><div class="actions">${actions(r).join("")}</div></td>`:""}</tr>`).join("")}</tbody></table></div>`;
+}
+function btn(label, action, id, cls="") {
+  return `<button class="${cls}" data-action="${action}" data-id="${esc(id)}">${esc(label)}</button>`;
+}
+async function logAction(action, tableName="", id="", details={}) {
+  if(!admin) return;
+  const {error}=await db.from("rydo_admin_audit_logs").insert({
+    admin_id:admin.id,action,target_table:tableName||null,
+    target_id:id?String(id):null,details
+  });
+  if(error) console.warn("Audit log insert failed:",error.message);
+}
+async function adminCheck() {
+  const {data,error}=await db.auth.getUser();
+  if(error || !data.user) throw new Error("Please sign in again.");
+  const {data:allowed,error:e}=await db.rpc("rydo_is_admin");
+  if(e) throw new Error("Admin verification failed: "+e.message);
+  if(allowed!==true) throw new Error("This account is not authorised for Rydo admin access.");
+  admin=data.user;
+}
+function showApp() {
+  $("login").style.display="none"; $("app").style.display="block";
+  $("logout").hidden=false;$("who").textContent=admin.email||"Authorised admin";
+  $("adminIdentity").textContent="Signed in as "+(admin.email||admin.id);
+}
+async function signIn(e) {
+  e.preventDefault();$("loginMsg").textContent="Signing in…";
+  const {error}=await db.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});
+  if(error){$("loginMsg").textContent=error.message;return;}
+  try { await adminCheck();showApp();await refreshDashboard();$("loginMsg").textContent=""; }
+  catch(err){await db.auth.signOut();$("loginMsg").textContent=err.message;}
+}
+$("loginForm").addEventListener("submit",signIn);
+$("forgot").onclick=async()=>{
+ const email=$("email").value.trim();
+ if(!email){$("loginMsg").textContent="Enter your email first.";return;}
+ const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+ $("loginMsg").textContent=error?error.message:"If the account is registered, a password reset email will be sent.";
+};
+$("logout").onclick=async()=>{await db.auth.signOut();location.reload();};
+$("nav").addEventListener("click",async e=>{
+ const b=e.target.closest("button[data-page]");if(!b)return;
+ document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("active",x===b));
+ document.querySelectorAll("section.page").forEach(x=>x.classList.toggle("active",x.id===b.dataset.page));
+ clearNotice();
+ try {
+  const p=b.dataset.page;
+  if(p==="dashboard") await refreshDashboard();
+  if(p==="drivers") await loadDrivers();
+  if(p==="passengers") await loadPassengers();
+  if(p==="rides") await loadRides();
+  if(p==="fares") await loadFares();
+  if(p==="payments") await loadPayments();
+  if(p==="safety") await loadSafety();
+  if(p==="reports") $("reportInfo").textContent=`${rides.length} ride records currently loaded.`;
+  if(p==="settings") await loadLogs();
+ } catch(err){notice(err.message,true);}
+});
+async function fetchRows(tableName, target, order="created_at") {
+ let q=db.from(tableName).select("*").order(order,{ascending:false}).limit(500);
+ const {data,error}=await q;
+ if(error) throw new Error(tableName+": "+error.message);
+ return data||[];
+}
+async function refreshDashboard(){
+ clearNotice();
+ try {
+  profiles=await fetchRows("profiles",null);
+  rides=await fetchRows("rides",null);
+  vehicles=await fetchRows("vehicles",null);
+  fares=await fetchRows("fare_rules",null);
+  const drivers=profiles.filter(p=>p.role==="driver");
+  const passengers=profiles.filter(p=>p.role==="passenger");
+  const online=drivers.filter(p=>p.is_online===true);
+  const completed=rides.filter(r=>r.status==="completed");
+  const active=rides.filter(r=>["requested","accepted","started","in_progress"].includes(r.status));
+  const cancelled=rides.filter(r=>r.status==="cancelled");
+  const revenue=completed.reduce((s,r)=>s+Number(r.final_fare??r.fare??r.estimated_fare??0),0);
+  const commission=completed.reduce((s,r)=>s+Number(r.admin_earnings??0),0);
+  const metrics=[
+   ["Passengers",passengers.length],["Drivers",drivers.length],
+   ["Drivers online",online.length],["Pending driver verification",drivers.filter(p=>!p.is_verified).length],
+   ["Total rides",rides.length],["Active rides",active.length],
+   ["Completed rides",completed.length],["Cancelled rides",cancelled.length],
+   ["Recorded completed fares",money(revenue)],["Recorded Rydo commission",money(commission)]
+  ];
+  $("stats").innerHTML=metrics.map(m=>`<div class="card"><div class="muted">${esc(m[0])}</div><div class="metric">${esc(m[1])}</div></div>`).join("");
+  $("recent").innerHTML=table(rides.slice(0,8),[
+   {label:"Ride",value:r=>r.id},{label:"Status",value:r=>r.status},
+   {label:"Pickup",value:r=>r.pickup_location??r.pickup??"—"},
+   {label:"Destination",value:r=>r.destination??"—"},
+   {label:"Fare",value:r=>money(r.final_fare??r.fare??r.estimated_fare)},
+   {label:"Created",value:r=>date(r.created_at)}
+  ]);
+  notice("Dashboard refreshed from Supabase.");
+ }catch(e){notice(e.message,true);}
+}
+$("refresh").onclick=refreshDashboard;
+async function loadDrivers(){
+ profiles=await fetchRows("profiles",null);
+ const q=$("driverSearch").value.toLowerCase();
+ const ds=profiles.filter(p=>p.role==="driver"&&JSON.stringify(p).toLowerCase().includes(q));
+ $("driverTable").innerHTML=table(ds,[
+  {label:"Name",value:r=>r.full_name},{label:"Phone",value:r=>r.phone},
+  {label:"Verified",value:r=>r.is_verified?"Yes":"No"},
+  {label:"Online",value:r=>r.is_online?"Yes":"No"},
+  {label:"User ID",value:r=>r.id}
+ ],r=>[
+  btn(r.is_verified?"Unverify":"Approve","verify",r.id,r.is_verified?"secondary":""),
+  btn("Suspend","suspend",r.id,"danger")
+ ]);
+ vehicles=await fetchRows("vehicles",null);
+ $("vehicleTable").innerHTML=table(vehicles,[
+  {label:"Driver ID",value:r=>r.driver_id},{label:"Type",value:r=>r.vehicle_type??r.type},
+  {label:"Number",value:r=>r.vehicle_number},{label:"Model",value:r=>r.model},
+  {label:"Approved",value:r=>String(r.is_approved??r.verified??false)}
+ ],r=>[btn(r.is_approved?"Unapprove":"Approve","vehicle",r.id,r.is_approved?"secondary":"")]);
+}
+$("loadDrivers").onclick=()=>loadDrivers().catch(e=>notice(e.message,true));
+$("driverSearch").oninput=()=>{clearTimeout(window.dt);window.dt=setTimeout(()=>loadDrivers().catch(e=>notice(e.message,true)),300);};
+async function loadPassengers(){
+ profiles=await fetchRows("profiles",null);
+ const q=$("passengerSearch").value.toLowerCase();
+ $("passengerTable").innerHTML=table(profiles.filter(p=>p.role==="passenger"&&JSON.stringify(p).toLowerCase().includes(q)),[
+ {label:"Name",value:r=>r.full_name},{label:"Phone",value:r=>r.phone},
+ {label:"Verified",value:r=>String(r.is_verified)},{label:"User ID",value:r=>r.id},
+ {label:"Created",value:r=>date(r.created_at)}
+ ]);
+}
+$("loadPassengers").onclick=()=>loadPassengers().catch(e=>notice(e.message,true));
+$("passengerSearch").oninput=()=>{clearTimeout(window.pt);window.pt=setTimeout(()=>loadPassengers().catch(e=>notice(e.message,true)),300);};
+async function loadRides(){
+ rides=await fetchRows("rides",null);
+ const q=$("rideSearch").value.toLowerCase();
+ $("rideTable").innerHTML=table(rides.filter(r=>JSON.stringify(r).toLowerCase().includes(q)),[
+ {label:"Ride ID",value:r=>r.id},{label:"Status",value:r=>r.status},
+ {label:"Pickup",value:r=>r.pickup_location??r.pickup},
+ {label:"Destination",value:r=>r.destination},
+ {label:"Vehicle",value:r=>r.vehicle_type},
+ {label:"Fare",value:r=>money(r.final_fare??r.fare??r.estimated_fare)},
+ {label:"Payment",value:r=>r.payment_method+" / "+r.payment_status},
+ {label:"Created",value:r=>date(r.created_at)}
+ ],r=>r.status==="requested"?[btn("Cancel ride","cancelRide",r.id,"danger")]:[]);
+}
+$("loadRides").onclick=()=>loadRides().catch(e=>notice(e.message,true));
+$("rideSearch").oninput=()=>{clearTimeout(window.rt);window.rt=setTimeout(()=>loadRides().catch(e=>notice(e.message,true)),300);};
+async function loadFares(){
+ fares=await fetchRows("fare_rules",null);
+ $("fareTable").innerHTML=table(fares,[
+ {label:"Vehicle",value:r=>r.vehicle_type},{label:"Base fare",value:r=>money(r.base_fare)},
+ {label:"Per km",value:r=>money(r.per_km_fare)},
+ {label:"Commission",value:r=>(r.platform_commission_percent??0)+"%"},
+ {label:"Active",value:r=>String(r.is_active)}
+ ],r=>[btn("Edit","editFare",r.id)]);
+}
+$("fareForm").onsubmit=async e=>{
+ e.preventDefault();
+ try{
+  await adminCheck();
+  const v={vehicle_type:$("fType").value,base_fare:Number($("fBase").value),per_km_fare:Number($("fKm").value),platform_commission_percent:Number($("fCommission").value),is_active:$("fActive").value==="true"};
+  const existing=fares.find(f=>f.vehicle_type===v.vehicle_type);
+  const result=existing
+   ?await db.from("fare_rules").update(v).eq("id",existing.id).select()
+   :await db.from("fare_rules").insert(v).select();
+  if(result.error)throw result.error;
+  await logAction("save_fare_rule","fare_rules",existing?.id??"",v);
+  await loadFares();notice("Fare rule saved.");
+ }catch(e){notice(e.message,true);}
+};
+async function loadPayments(){
+ rides=await fetchRows("rides",null);
+ const done=rides.filter(r=>r.status==="completed");
+ const total=done.reduce((s,r)=>s+Number(r.final_fare??r.fare??0),0);
+ const com=done.reduce((s,r)=>s+Number(r.admin_earnings??0),0);
+ const driver=done.reduce((s,r)=>s+Number(r.driver_earnings??0),0);
+ $("paymentSummary").innerHTML=[["Completed fare records",money(total)],["Recorded commission",money(com)],["Recorded driver earnings",money(driver)],["Pending payment status",rides.filter(r=>r.payment_status==="pending").length]].map(m=>`<div class="card"><div class="muted">${esc(m[0])}</div><div class="metric">${esc(m[1])}</div></div>`).join("");
+ $("paymentTable").innerHTML=table(rides,[
+ {label:"Ride",value:r=>r.id},{label:"Status",value:r=>r.status},
+ {label:"Method",value:r=>r.payment_method},{label:"Payment status",value:r=>r.payment_status},
+ {label:"Fare",value:r=>money(r.final_fare??r.fare)},
+ {label:"Driver earnings",value:r=>money(r.driver_earnings)},
+ {label:"Rydo commission",value:r=>money(r.admin_earnings)}
+ ]);
+}
+async function loadSafety(){
+ rides=await fetchRows("rides",null);
+ $("safetyTable").innerHTML=table(rides.filter(r=>r.passenger_rating!=null||r.passenger_review||r.status==="cancelled"),[
+ {label:"Ride",value:r=>r.id},{label:"Status",value:r=>r.status},
+ {label:"Rating",value:r=>r.passenger_rating??"—"},
+ {label:"Review",value:r=>r.passenger_review??"—"},
+ {label:"Cancelled",value:r=>date(r.cancelled_at)}
+ ]);
+}
+$("loadSafety").onclick=()=>loadSafety().catch(e=>notice(e.message,true));
+async function loadLogs(){
+ const {data,error}=await db.from("rydo_admin_audit_logs").select("*").order("created_at",{ascending:false}).limit(200);
+ if(error)throw error;
+ $("logTable").innerHTML=table(data,[
+ {label:"Date",value:r=>date(r.created_at)},{label:"Admin ID",value:r=>r.admin_id},
+ {label:"Action",value:r=>r.action},{label:"Table",value:r=>r.target_table},
+ {label:"Target",value:r=>r.target_id},{label:"Details",value:r=>JSON.stringify(r.details)}
+ ]);
+}
+$("loadLogs").onclick=()=>loadLogs().catch(e=>notice(e.message,true));
+document.addEventListener("click",async e=>{
+ const b=e.target.closest("button[data-action]");if(!b)return;
+ const id=b.dataset.id, action=b.dataset.action;
+ try{
+  await adminCheck();
+  if(action==="editFare"){
+   const r=fares.find(x=>String(x.id)===id);if(!r)return;
+   $("fType").value=r.vehicle_type;$("fBase").value=r.base_fare;
+   $("fKm").value=r.per_km_fare;$("fCommission").value=r.platform_commission_percent;
+   $("fActive").value=String(r.is_active);return;
   }
-  location.reload();
+  if(action==="verify"){
+   const r=profiles.find(x=>String(x.id)===id);if(!r)return;
+   const {error}=await db.from("profiles").update({is_verified:!r.is_verified}).eq("id",id);
+   if(error)throw error;
+   await logAction("change_driver_verification","profiles",id,{is_verified:!r.is_verified});
+   await loadDrivers();notice("Driver verification updated.");
+  }
+  if(action==="suspend"){
+   notice("Suspension is not enabled because your profiles schema has no confirmed suspension column. Add a secure suspension workflow before using this action.",true);
+  }
+  if(action==="vehicle"){
+   const r=vehicles.find(x=>String(x.id)===id);if(!r)return;
+   const column=Object.hasOwn(r,"is_approved")?"is_approved":Object.hasOwn(r,"verified")?"verified":null;
+   if(!column)throw new Error("No recognised vehicle approval column.");
+   const {error}=await db.from("vehicles").update({[column]:!r[column]}).eq("id",id);
+   if(error)throw error;
+   await logAction("change_vehicle_approval","vehicles",id,{[column]:!r[column]});
+   await loadDrivers();notice("Vehicle approval updated.");
+  }
+  if(action==="cancelRide"){
+   if(!confirm("Cancel this requested ride?"))return;
+   const {error}=await db.from("rides").update({status:"cancelled",cancelled_at:new Date().toISOString()}).eq("id",id).eq("status","requested");
+   if(error)throw error;
+   await logAction("cancel_requested_ride","rides",id);
+   await loadRides();notice("Ride cancellation request processed.");
+  }
+ }catch(err){notice(err.message,true);}
 });
+function csv(rows){
+ if(!rows?.length){notice("No rows to export.",true);return;}
+ const keys=[...new Set(rows.flatMap(r=>Object.keys(r)))];
+ const cell=v=>'"'+String(typeof v==="object"&&v!==null?JSON.stringify(v):v??"").replace(/"/g,'""')+'"';
+ const content=[keys.map(cell).join(","),...rows.map(r=>keys.map(k=>cell(r[k])).join(","))].join("\r\n");
+ const url=URL.createObjectURL(new Blob(["\ufeff"+content],{type:"text/csv;charset=utf-8"}));
+ const a=document.createElement("a");a.href=url;a.download="rydo-report.csv";a.click();URL.revokeObjectURL(url);
+}
+$("ridesCsv").onclick=()=>csv(rides);
+$("reportCsv").onclick=()=>csv(rides);
+$("reportRefresh").onclick=async()=>{try{rides=await fetchRows("rides",null);$("reportInfo").textContent=`Loaded ${rides.length} rides.`;}catch(e){notice(e.message,true);}};
+db.auth.onAuthStateChange(async(event,session)=>{
+ if(event==="SIGNED_OUT"){admin=null;$("app").style.display="none";$("login").style.display="block";$("logout").hidden=true;return;}
+ if(session && !$("app").style.display.includes("block")){
+  try{await adminCheck();showApp();await refreshDashboard();}
+  catch(e){$("loginMsg").textContent=e.message;}
+ }
+});
+(async()=>{
+ const {data}=await db.auth.getSession();
+ if(data.session){
+  try{await adminCheck();showApp();await refreshDashboard();}
+  catch(e){$("loginMsg").textContent=e.message;}
+ }
+})();
+})();
 </script>
-
 </body>
 </html>
