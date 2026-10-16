@@ -3,194 +3,296 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rydo Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#08111b;color:#f5f7fa;font:16px Arial}
-header{padding:20px;background:#111e2c;border-bottom:2px solid #ff781f}
-h1 span{color:#ff781f}.wrap{max-width:900px;margin:30px auto;padding:15px}
-.card{background:#111e2c;border:1px solid #29394a;border-radius:12px;padding:22px;margin-bottom:18px}
-.login{max-width:430px;margin:35px auto}label{display:block;margin:14px 0 7px}
-input{width:100%;padding:12px;border-radius:7px;border:1px solid #ff781f;background:white;color:#111;font-size:16px}
-button{padding:11px 15px;border:0;border-radius:7px;background:#ff781f;color:#151515;font-weight:bold;cursor:pointer;margin:8px 5px 0 0}
-.secondary{background:#29394a;color:white}.msg{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:14px;color:#ffb6a5}
-.hidden{display:none!important}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
-.stat{background:#08111b;padding:17px;border-radius:9px}.stat b{font-size:25px;display:block;margin-bottom:6px}
-.item{border-top:1px solid #29394a;padding:14px 0;overflow-wrap:anywhere}.muted{color:#a8b5c5;font-size:13px}
+:root{color-scheme:dark;--bg:#08111b;--panel:#142638;--orange:#ff7417;--text:#f4f7fb;--muted:#aab8c7}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px Arial,sans-serif}
+main{max-width:900px;margin:35px auto;padding:18px}h1{color:var(--orange)}
+.card{background:var(--panel);padding:22px;border-radius:14px;margin:15px 0}
+input,button,select{width:100%;padding:13px;margin:7px 0;border-radius:8px;border:1px solid #43566b;font-size:16px}
+input,select{background:#fff;color:#111}button{background:var(--orange);color:#111;font-weight:bold;border:0;cursor:pointer}
+button.secondary{background:#294258;color:white}button:disabled{opacity:.6}
+.small{color:var(--muted);font-size:14px;line-height:1.5}
+.hidden{display:none!important}.status{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stat{background:#0b1927;border-radius:10px;padding:16px}
+.stat strong{display:block;font-size:25px;color:var(--orange);margin-top:8px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:10px;border-bottom:1px solid #43566b;overflow-wrap:anywhere}
+.tablewrap{overflow:auto}h2{font-size:19px}
 </style>
 </head>
 <body>
-<header><h1><span>Ry</span>do Admin</h1></header>
-<div class="wrap">
-<section id="login" class="card login">
-<h2>Administrator login</h2>
+<main>
+<h1>🟠 Rydo Admin</h1>
+<p class="small">Administration portal · Move your way.</p>
+
+<section id="login" class="card">
+<h2>Admin login</h2>
 <form id="loginForm">
-<label>Email</label><input id="email" type="email" autocomplete="username" required>
-<label>Password</label><input id="password" type="password" autocomplete="current-password" required>
-<button id="loginBtn" type="submit">Log in</button>
-<button id="forgotBtn" class="secondary" type="button">Forgot password</button>
+<input id="email" type="email" placeholder="Admin email" autocomplete="username" required>
+<input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
+<label><input id="showPass" type="checkbox" style="width:auto"> Show password</label>
+<button id="loginBtn">Login</button>
 </form>
-<div id="loginMsg" class="msg" role="status"></div>
+<button class="secondary" id="forgotBtn">Forgot Password</button>
+<p class="small">Password reset emails requested here return to the Rydo admin page.</p>
+<div id="loginMsg" class="status"></div>
+</section>
+
+<section id="reset" class="card hidden">
+<h2>Set a new admin password</h2>
+<p class="small">Enter your new password after opening the reset link from your email.</p>
+<form id="resetForm">
+<input id="newPass" type="password" placeholder="New password (at least 8 characters)" minlength="8" required>
+<input id="confirmPass" type="password" placeholder="Confirm new password" minlength="8" required>
+<label><input id="showNewPass" type="checkbox" style="width:auto"> Show passwords</label>
+<button id="savePassBtn">Save new password</button>
+</form>
+<div id="resetMsg" class="status"></div>
 </section>
 
 <section id="dashboard" class="hidden">
 <div class="card">
-<button id="refreshBtn">Refresh data</button>
+<h2>Admin dashboard</h2>
+<p id="welcome" class="small"></p>
+<button id="refreshBtn">Refresh dashboard</button>
 <button id="logoutBtn" class="secondary">Log out</button>
-<div id="dashMsg" class="msg"></div>
-<h2>Dashboard</h2>
-<div class="stats">
-<div class="stat"><b id="ridesCount">—</b>Rides loaded</div>
-<div class="stat"><b id="driversCount">—</b>Drivers loaded</div>
-<div class="stat"><b id="passengersCount">—</b>Passengers loaded</div>
-<div class="stat"><b id="revenue">—</b>Completed fares</div>
+<div id="dashMsg" class="status"></div>
 </div>
+<div id="stats" class="grid"></div>
+<div class="card">
+<h2>Manage data — view</h2>
+<label for="tableSelect">Choose table</label>
+<select id="tableSelect">
+<option value="rides">Rides</option>
+<option value="profiles">Profiles</option>
+<option value="vehicles">Vehicles</option>
+<option value="fare_rules">Fare rules</option>
+</select>
+<button id="loadTableBtn">Load selected table</button>
+<div id="tableMsg" class="status"></div>
+<div id="tableArea" class="tablewrap"></div>
+<p class="small">This page provides read-only table viewing. Changes to fares, driver approvals and records should use properly secured actions and policies.</p>
 </div>
-<div class="card"><h2>Drivers</h2><div id="drivers">Not loaded.</div></div>
-<div class="card"><h2>Passengers</h2><div id="passengers">Not loaded.</div></div>
-<div class="card"><h2>Rides</h2><div id="rides">Not loaded.</div></div>
-<div class="card"><h2>Fare rules</h2><div id="fares">Not loaded.</div></div>
 </section>
-</div>
-
+</main>
 <script>
-"use strict";
-const SUPABASE_URL="https://kqtvuorasqyzjbnlkkxs.supabase.co";
-const SUPABASE_KEY="sb_publishable_zZFJiy0YWZgOXFesVuAQcA_wd7rleMb";
-const $=id=>document.getElementById(id);
-let db=null,admin=null,loading=false;
+(() => {
+'use strict';
 
-function msg(id,text){$(id).textContent=text||""}
-function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function showLogin(text=""){ $("login").classList.remove("hidden");$("dashboard").classList.add("hidden");msg("loginMsg",text)}
-function money(v){return "Rs. "+(Number(v)||0).toLocaleString("en-IN")}
-function errorText(e){return e?.message||String(e)}
-function hideLogin(){ $("login").classList.add("hidden");$("dashboard").classList.remove("hidden")}
+const PROJECT_URL = 'https://kqtvuorasqyzjbnlkkxs.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_0YO71GOwynEf3ithOtFfxg_z6YL-LKG';
+const ADMIN_URL = 'https://bishowkarmasagar21-afk.github.io/Rydo-/admin.html';
 
-if(window.supabase?.createClient){
-  db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-}else{
-  showLogin("Supabase library did not load. Check your internet and reload.");
-}
-
-async function verifyAdmin(user){
-  const {data,error}=await db.from("profiles")
-    .select("id,full_name,role").eq("id",user.id).maybeSingle();
-  if(error)throw Error("Could not check profiles: "+error.message);
-  if(!data)throw Error("No profiles row exists for this account.");
-  if(String(data.role).toLowerCase()!=="admin")
-    throw Error("Login succeeded, but this account is not an admin (profiles.role must be admin).");
-  return data;
-}
-
-$("loginForm").addEventListener("submit",async e=>{
-  e.preventDefault();
-  if(!db)return showLogin("Supabase library is unavailable.");
-  if(loading)return;
-  loading=true;$("loginBtn").disabled=true;$("loginBtn").textContent="Signing in…";
-  msg("loginMsg","Checking login…");
-  try{
-    const email=$("email").value.trim(),password=$("password").value;
-    const {data,error}=await db.auth.signInWithPassword({email,password});
-    if(error)throw error;
-    if(!data.user)throw Error("Supabase did not return a user.");
-    admin=await verifyAdmin(data.user);
-    hideLogin();
-    await loadDashboard();
-  }catch(e){
-    if(db)await db.auth.signOut().catch(()=>{});
-    admin=null;showLogin(errorText(e));
-  }finally{
-    loading=false;$("loginBtn").disabled=false;$("loginBtn").textContent="Log in";
+const $ = id => document.getElementById(id);
+const client = window.supabase.createClient(PROJECT_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
   }
 });
 
-$("forgotBtn").addEventListener("click",async()=>{
-  const email=$("email").value.trim();
-  if(!email)return msg("loginMsg","Enter your email address first.");
-  $("forgotBtn").disabled=true;
-  try{
-    const redirectTo=location.origin+location.pathname;
-    const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo});
-    if(error)throw error;
-    msg("loginMsg","If the account exists, a reset email has been requested. Check your inbox and spam folder.");
-  }catch(e){msg("loginMsg",errorText(e))}
-  finally{$("forgotBtn").disabled=false}
-});
+let recoveryMode = new URLSearchParams(location.search).get('mode') === 'reset'
+  || new URLSearchParams(location.hash.slice(1)).get('type') === 'recovery';
 
-async function loadDashboard(){
-  if(!admin)return;
-  msg("dashMsg","Loading data…");
-  const errors=[];
-  const r=await db.from("rides").select("*").order("created_at",{ascending:false}).limit(300);
-  const p=await db.from("profiles").select("id,full_name,phone,role,is_verified,is_online,created_at").order("created_at",{ascending:false}).limit(300);
-  const f=await db.from("fare_rules").select("vehicle_type,base_fare,per_km_fare,platform_commission_percent,is_active").order("vehicle_type");
-  if(r.error)errors.push("Rides: "+r.error.message);
-  if(p.error)errors.push("Profiles: "+p.error.message);
-  if(f.error)errors.push("Fare rules: "+f.error.message);
-  const rides=r.data||[],profiles=p.data||[],fares=f.data||[];
-  $("ridesCount").textContent=r.error?"Error":rides.length;
-  $("driversCount").textContent=p.error?"Error":profiles.filter(x=>x.role==="driver").length;
-  $("passengersCount").textContent=p.error?"Error":profiles.filter(x=>x.role==="passenger").length;
-  $("revenue").textContent=r.error?"Error":money(rides.filter(x=>x.status==="completed").reduce((s,x)=>s+Number(x.fare||0),0));
+function message(id, text) { $(id).textContent = text; }
+function show(id, visible) { $(id).classList.toggle('hidden', !visible); }
 
-  $("drivers").innerHTML=p.error?escapeHtml(p.error.message):profiles.filter(x=>x.role==="driver").map(d=>
-    `<div class="item"><b>${escapeHtml(d.full_name||"Driver")}</b>
-    <p>${escapeHtml(d.phone||"No phone")} · ${d.is_verified?"Verified":"Pending"} · ${d.is_online?"Online":"Offline"}</p>
-    ${d.is_verified?"":`<button data-approve="${escapeHtml(d.id)}">Approve</button>`}</div>`
-  ).join("")||"No driver records returned.";
-
-  $("passengers").innerHTML=p.error?escapeHtml(p.error.message):profiles.filter(x=>x.role==="passenger").map(d=>
-    `<div class="item"><b>${escapeHtml(d.full_name||"Passenger")}</b><p>${escapeHtml(d.phone||"No phone")}</p></div>`
-  ).join("")||"No passenger records returned.";
-
-  $("rides").innerHTML=r.error?escapeHtml(r.error.message):rides.map(x=>
-    `<div class="item"><b>${escapeHtml(x.status||"Unknown")} · ${money(x.fare)}</b>
-    <p>${escapeHtml(x.pickup||x.pickup_location||"Pickup not recorded")} → ${escapeHtml(x.destination||x.destination_location||"Destination not recorded")}</p>
-    <div class="muted">${escapeHtml(x.vehicle_type||"")} · ${escapeHtml(x.payment_method||"")}</div></div>`
-  ).join("")||"No ride records returned.";
-
-  $("fares").innerHTML=f.error?escapeHtml(f.error.message):fares.map(x=>
-    `<div class="item"><b>${escapeHtml(x.vehicle_type)}</b>
-    <p>Base: ${money(x.base_fare)} · Per km: ${money(x.per_km_fare)} · Commission: ${Number(x.platform_commission_percent)||0}% · ${x.is_active?"Active":"Inactive"}</p></div>`
-  ).join("")||"No fare rules returned.";
-
-  $("drivers").querySelectorAll("[data-approve]").forEach(b=>b.addEventListener("click",async()=>{
-    if(!confirm("Approve this driver after checking their documents?"))return;
-    b.disabled=true;
-    const {error}=await db.from("profiles").update({is_verified:true})
-      .eq("id",b.dataset.approve).eq("role","driver");
-    if(error)msg("dashMsg","Approval failed: "+error.message);
-    else msg("dashMsg","Driver approval saved.");
-    await loadDashboard();
-  }));
-  msg("dashMsg",errors.length?errors.join("\n"):"Dashboard data loaded.");
+function safeCell(value) {
+  const td = document.createElement('td');
+  td.textContent = value == null ? '' :
+    (typeof value === 'object' ? JSON.stringify(value) : String(value));
+  return td;
 }
 
-$("refreshBtn").addEventListener("click",()=>loadDashboard().catch(e=>msg("dashMsg",errorText(e))));
-$("logoutBtn").addEventListener("click",async()=>{
-  const {error}=await db.auth.signOut();
-  admin=null;
-  showLogin(error?"Logout error: "+error.message:"Logged out.");
-});
-
-async function init(){
-  if(!db)return;
-  try{
-    const {data,error}=await db.auth.getSession();
-    if(error)throw error;
-    if(data.session?.user){
-      admin=await verifyAdmin(data.session.user);
-      hideLogin();
-      await loadDashboard();
-    }
-  }catch(e){
-    admin=null;
-    showLogin("Session/admin check: "+errorText(e));
+function renderTable(rows) {
+  const area = $('tableArea');
+  area.replaceChildren();
+  if (!rows || rows.length === 0) {
+    area.textContent = 'No rows found, or the table is empty.';
+    return;
   }
+  const columns = [...new Set(rows.flatMap(row => Object.keys(row)))];
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  columns.forEach(col => headRow.appendChild(safeCell(col)));
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  rows.forEach(row => {
+    const tr = document.createElement('tr');
+    columns.forEach(col => tr.appendChild(safeCell(row[col])));
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  area.appendChild(table);
 }
-init();
+
+async function checkAdmin(session) {
+  show('login', false);
+  show('reset', false);
+  show('dashboard', false);
+  message('loginMsg', '');
+  if (!session) {
+    show('login', true);
+    return;
+  }
+
+  const { data, error } = await client.rpc('rydo_is_admin');
+  if (error || data !== true) {
+    await client.auth.signOut();
+    show('login', true);
+    message('loginMsg', 'Admin access check failed. Confirm public.rydo_is_admin() and admin registration in the correct Supabase project. ' + (error?.message || 'This account is not authorized.'));
+    return;
+  }
+
+  show('dashboard', true);
+  $('welcome').textContent = 'Signed in as ' + (session.user.email || 'admin');
+  await loadStats();
+}
+
+async function loadStats() {
+  const area = $('stats');
+  area.replaceChildren();
+  message('dashMsg', 'Loading dashboard…');
+  const tables = ['profiles', 'rides', 'vehicles', 'fare_rules'];
+  for (const name of tables) {
+    const { count, error } = await client.from(name).select('*', {count:'exact', head:true});
+    const box = document.createElement('div');
+    box.className = 'stat';
+    const label = document.createElement('span');
+    label.textContent = name;
+    const number = document.createElement('strong');
+    number.textContent = error ? '—' : String(count ?? 0);
+    box.append(label, number);
+    area.appendChild(box);
+    if (error) message('dashMsg', name + ': ' + error.message);
+  }
+  if (!area.children.length) message('dashMsg', 'Could not load dashboard counts.');
+  else if (!$('dashMsg').textContent.includes(':')) message('dashMsg', 'Dashboard refreshed.');
+}
+
+async function loadSelectedTable() {
+  message('tableMsg', 'Loading…');
+  $('tableArea').replaceChildren();
+  const name = $('tableSelect').value;
+  const { data, error } = await client.from(name).select('*').limit(50);
+  if (error) {
+    message('tableMsg', 'Could not load ' + name + ': ' + error.message);
+    return;
+  }
+  message('tableMsg', 'Showing up to 50 rows from ' + name + '.');
+  renderTable(data);
+}
+
+$('showPass').addEventListener('change', () => {
+  $('password').type = $('showPass').checked ? 'text' : 'password';
+});
+$('showNewPass').addEventListener('change', () => {
+  $('newPass').type = $('confirmPass').type =
+    $('showNewPass').checked ? 'text' : 'password';
+});
+
+$('loginForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const btn = $('loginBtn');
+  btn.disabled = true;
+  message('loginMsg', 'Signing in…');
+  try {
+    const { data, error } = await client.auth.signInWithPassword({
+      email: $('email').value.trim(),
+      password: $('password').value
+    });
+    if (error) throw error;
+    await checkAdmin(data.session);
+  } catch (err) {
+    message('loginMsg', 'Login failed: ' + (err.message || 'Unknown error'));
+  } finally { btn.disabled = false; }
+});
+
+$('forgotBtn').addEventListener('click', async () => {
+  const email = $('email').value.trim();
+  if (!email) {
+    message('loginMsg', 'Enter your admin email first, then tap Forgot Password.');
+    $('email').focus();
+    return;
+  }
+  const btn = $('forgotBtn');
+  btn.disabled = true;
+  message('loginMsg', 'Requesting password reset…');
+  try {
+    const { error } = await client.auth.resetPasswordForEmail(email, {
+      redirectTo: ADMIN_URL + '?mode=reset'
+    });
+    if (error) throw error;
+    message('loginMsg', 'If this email belongs to an account, a reset email will be sent. Open the link to return to this Rydo admin page. Check spam too.');
+  } catch (err) {
+    message('loginMsg', 'Reset request failed: ' + (err.message || 'Unknown error'));
+  } finally { btn.disabled = false; }
+});
+
+$('resetForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const a = $('newPass').value;
+  const b = $('confirmPass').value;
+  if (a.length < 8) return message('resetMsg', 'Use at least 8 characters.');
+  if (a !== b) return message('resetMsg', 'Passwords do not match.');
+  const btn = $('savePassBtn');
+  btn.disabled = true;
+  message('resetMsg', 'Updating password…');
+  try {
+    const { error } = await client.auth.updateUser({ password: a });
+    if (error) throw error;
+    message('resetMsg', 'Password updated. Please sign in with your new password.');
+    await client.auth.signOut();
+    history.replaceState(null, '', ADMIN_URL);
+    recoveryMode = false;
+    show('reset', false);
+    show('login', true);
+    $('password').value = '';
+  } catch (err) {
+    message('resetMsg', 'Password update failed: ' + (err.message || 'Open the newest reset email link again.'));
+  } finally { btn.disabled = false; }
+});
+
+$('refreshBtn').addEventListener('click', loadStats);
+$('loadTableBtn').addEventListener('click', loadSelectedTable);
+$('logoutBtn').addEventListener('click', async () => {
+  await client.auth.signOut();
+  show('dashboard', false);
+  show('reset', false);
+  show('login', true);
+  message('loginMsg', 'You have logged out.');
+});
+
+client.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    recoveryMode = true;
+    show('login', false);
+    show('dashboard', false);
+    show('reset', true);
+    message('resetMsg', 'Enter and save your new password here.');
+  }
+});
+
+(async function init() {
+  if (recoveryMode) {
+    show('login', false);
+    show('dashboard', false);
+    show('reset', true);
+    message('resetMsg', 'If the reset link is valid, enter your new password below.');
+    return;
+  }
+  const { data } = await client.auth.getSession();
+  await checkAdmin(data.session);
+})();
+})();
 </script>
 </body>
-</html>
+  </html>
+  
