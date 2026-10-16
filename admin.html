@@ -1,446 +1,196 @@
 
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Rydo | Admin Control Center</title>
+<title>Rydo Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{--bg:#08111b;--panel:#142638;--panel2:#1b3044;--orange:#ff7417;--text:#f3f6fa;--muted:#9db0c2;--line:#2b4054;--red:#ff5366;--green:#36d399}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:15px Arial,sans-serif}
-button,input,select,textarea{font:inherit}
-button{cursor:pointer;border:0;border-radius:9px;padding:11px 15px;background:var(--orange);color:#fff;font-weight:700}
-button:disabled{opacity:.5;cursor:not-allowed}
-input,select,textarea{width:100%;padding:12px;background:#091622;border:1px solid var(--line);border-radius:9px;color:var(--text);margin:6px 0 12px}
-label{display:block;color:var(--muted);font-size:13px}
-h1,h2,h3,p{margin-top:0}
-h2{font-size:21px}
-small,.muted{color:var(--muted)}
-a{color:var(--orange)}
-.hidden{display:none!important}
-#auth,#recovery{width:min(430px,92%);margin:8vh auto;background:var(--panel);padding:28px;border:1px solid var(--line);border-radius:18px}
-.logo{font-size:30px;font-weight:900;margin-bottom:7px}
-.logo span{color:var(--orange)}
-.note{line-height:1.5;color:var(--muted);font-size:13px}
-.msg{margin-top:12px;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--orange);line-height:1.5}
-.layout{display:grid;grid-template-columns:235px minmax(0,1fr);min-height:100vh}
-aside{background:#0c1926;border-right:1px solid var(--line);padding:20px 13px}
-.brand{font-size:25px;font-weight:900;padding:9px 12px 22px}
-.brand span{color:var(--orange)}
-.nav{display:grid;gap:5px}
-.nav button{background:transparent;text-align:left;color:var(--muted);font-weight:500}
-.nav button.active,.nav button:hover{background:var(--panel2);color:var(--text);border-left:3px solid var(--orange)}
-main{padding:25px;min-width:0}
-.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:23px}
-.top h1{font-size:26px;margin:0 0 5px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:19px;margin-bottom:17px;min-width:0}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}
-.stat{background:var(--panel2);border-radius:12px;padding:17px;min-width:0}
-.stat small{display:block;margin-bottom:12px}
-.stat b{font-size:25px;overflow-wrap:anywhere}
-.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
-.tablewrap{overflow:auto}
-table{border-collapse:collapse;width:100%;min-width:570px}
-th,td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-th{font-size:12px;color:var(--muted)}
-td{overflow-wrap:anywhere}
-td button{margin:3px}
-.tag{display:inline-block;border-radius:20px;padding:5px 9px;background:#263b4f;font-size:12px}
-.good{color:var(--green)}.bad{color:var(--red)}
-.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:13px}
-.toolbar input{max-width:340px;margin:0}
-.secondary{background:#30465a}
-.danger{background:#a82f43}
-.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.empty{padding:18px;color:var(--muted)}
-@media(max-width:850px){.layout{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line)}.nav{grid-template-columns:repeat(2,minmax(0,1fr))}main{padding:15px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}}
-@media(max-width:430px){.fields{grid-template-columns:1fr}.stat b{font-size:21px}}
+*{box-sizing:border-box}body{margin:0;background:#08111b;color:#f5f7fa;font:16px Arial}
+header{padding:20px;background:#111e2c;border-bottom:2px solid #ff781f}
+h1 span{color:#ff781f}.wrap{max-width:900px;margin:30px auto;padding:15px}
+.card{background:#111e2c;border:1px solid #29394a;border-radius:12px;padding:22px;margin-bottom:18px}
+.login{max-width:430px;margin:35px auto}label{display:block;margin:14px 0 7px}
+input{width:100%;padding:12px;border-radius:7px;border:1px solid #ff781f;background:white;color:#111;font-size:16px}
+button{padding:11px 15px;border:0;border-radius:7px;background:#ff781f;color:#151515;font-weight:bold;cursor:pointer;margin:8px 5px 0 0}
+.secondary{background:#29394a;color:white}.msg{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:14px;color:#ffb6a5}
+.hidden{display:none!important}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stat{background:#08111b;padding:17px;border-radius:9px}.stat b{font-size:25px;display:block;margin-bottom:6px}
+.item{border-top:1px solid #29394a;padding:14px 0;overflow-wrap:anywhere}.muted{color:#a8b5c5;font-size:13px}
 </style>
 </head>
 <body>
-
-<section id="auth">
-  <div class="logo">RYD<span>O</span></div>
-  <h2>Admin Control Center</h2>
-  <p class="note">Private access for authorized Rydo administrators.</p>
-  <form id="loginForm">
-    <label for="email">Admin email</label>
-    <input id="email" type="email" autocomplete="username" required>
-    <label for="password">Password</label>
-    <input id="password" type="password" autocomplete="current-password" required>
-    <button id="loginBtn" type="submit" style="width:100%">Sign in</button>
-  </form>
-  <button id="forgotBtn" class="secondary" style="width:100%;margin-top:10px">Forgot password?</button>
-  <div id="authMsg" class="msg" role="status"></div>
+<header><h1><span>Ry</span>do Admin</h1></header>
+<div class="wrap">
+<section id="login" class="card login">
+<h2>Administrator login</h2>
+<form id="loginForm">
+<label>Email</label><input id="email" type="email" autocomplete="username" required>
+<label>Password</label><input id="password" type="password" autocomplete="current-password" required>
+<button id="loginBtn" type="submit">Log in</button>
+<button id="forgotBtn" class="secondary" type="button">Forgot password</button>
+</form>
+<div id="loginMsg" class="msg" role="status"></div>
 </section>
 
-<section id="recovery" class="hidden">
-  <div class="logo">RYD<span>O</span></div>
-  <h2>Set a new password</h2>
-  <p class="note">Choose a new password for your account.</p>
-  <form id="resetForm">
-    <label for="newPassword">New password (minimum 8 characters)</label>
-    <input id="newPassword" type="password" minlength="8" autocomplete="new-password" required>
-    <label for="confirmPassword">Confirm new password</label>
-    <input id="confirmPassword" type="password" minlength="8" autocomplete="new-password" required>
-    <button type="submit" style="width:100%">Save new password</button>
-  </form>
-  <div id="resetMsg" class="msg" role="status"></div>
+<section id="dashboard" class="hidden">
+<div class="card">
+<button id="refreshBtn">Refresh data</button>
+<button id="logoutBtn" class="secondary">Log out</button>
+<div id="dashMsg" class="msg"></div>
+<h2>Dashboard</h2>
+<div class="stats">
+<div class="stat"><b id="ridesCount">—</b>Rides loaded</div>
+<div class="stat"><b id="driversCount">—</b>Drivers loaded</div>
+<div class="stat"><b id="passengersCount">—</b>Passengers loaded</div>
+<div class="stat"><b id="revenue">—</b>Completed fares</div>
+</div>
+</div>
+<div class="card"><h2>Drivers</h2><div id="drivers">Not loaded.</div></div>
+<div class="card"><h2>Passengers</h2><div id="passengers">Not loaded.</div></div>
+<div class="card"><h2>Rides</h2><div id="rides">Not loaded.</div></div>
+<div class="card"><h2>Fare rules</h2><div id="fares">Not loaded.</div></div>
 </section>
-
-<div id="workspace" class="layout hidden">
-<aside>
-  <div class="brand">RYD<span>O</span></div>
-  <p class="note" style="padding:0 12px">ADMIN CONTROL CENTER</p>
-  <nav class="nav" id="nav">
-    <button class="active" data-page="dashboard">▦ Dashboard</button>
-    <button data-page="drivers">♙ Driver approvals</button>
-    <button data-page="passengers">♧ Passengers</button>
-    <button data-page="rides">⇄ All rides</button>
-    <button data-page="fares">₹ Fares & commission</button>
-    <button data-page="finance">▤ Payments & earnings</button>
-    <button data-page="reports">▥ Reports</button>
-    <button data-page="safety">♡ Complaints & safety</button>
-    <button data-page="notifications">♧ Notifications</button>
-    <button data-page="audit">◷ Audit logs</button>
-    <button data-page="settings">⚙ Settings</button>
-  </nav>
-</aside>
-
-<main>
-  <div class="top">
-    <div><h1 id="pageTitle">Dashboard</h1><small id="who">Verifying administrator…</small></div>
-    <button id="logout" class="secondary">Sign out</button>
-  </div>
-  <div id="pageContent"><div class="card">Loading Rydo data…</div></div>
-  <div id="pageMsg" class="msg" role="status"></div>
-</main>
 </div>
 
 <script>
 "use strict";
 const SUPABASE_URL="https://kqtvuorasqyzjbnlkkxs.supabase.co";
-const sb=window.supabase?.createClient(SUPABASE_URL,KEY,{
-const RESET_URL="https://bishowkarmasagar21-afk.github.io/Rydo-/admin.html";
+const SUPABASE_KEY="sb_publishable_zZFJiy0YWZgOXFesVuAQcA_wd7rleMb";
 const $=id=>document.getElementById(id);
-const sb=window.supabase?.createClient(URL,KEY,{
-  auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
-});
-let currentUser=null,currentPage="dashboard",cache={profiles:[],rides:[],fares:[]};
-let recoveryMode=false,busy=false;
+let db=null,admin=null,loading=false;
 
-function message(id,text,ok=false){
-  $(id).textContent=text;
-  $(id).style.color=ok?"var(--green)":"var(--orange)";
-}
-function safe(v){
-  return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-}
-function money(v){return "NPR "+Number(v||0).toLocaleString("en-IN",{maximumFractionDigits:2});}
-function date(v){if(!v)return "—";const d=new Date(v);return isNaN(d)?"—":d.toLocaleString();}
-function showOnly(id){
-  ["auth","recovery","workspace"].forEach(x=>$(x).classList.toggle("hidden",x!==id));
-}
-function pageMessage(t){message("pageMsg",t,true);}
-function errorMessage(t){message("pageMsg",t,false);}
-function clearMessage(){message("pageMsg","",true);}
+function msg(id,text){$(id).textContent=text||""}
+function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function showLogin(text=""){ $("login").classList.remove("hidden");$("dashboard").classList.add("hidden");msg("loginMsg",text)}
+function money(v){return "Rs. "+(Number(v)||0).toLocaleString("en-IN")}
+function errorText(e){return e?.message||String(e)}
+function hideLogin(){ $("login").classList.add("hidden");$("dashboard").classList.remove("hidden")}
 
-async function checkAdmin(user){
-  const {data,error}=await sb.from("profiles").select("id,full_name,role").eq("id",user.id).maybeSingle();
-  if(error)throw new Error("Could not verify admin role. Check profiles SELECT RLS policy: "+error.message);
-  if(!data||data.role!=="admin")throw new Error("This account is not an authorized admin. Ask the project owner to verify its profiles.role is admin.");
+if(window.supabase?.createClient){
+  db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+}else{
+  showLogin("Supabase library did not load. Check your internet and reload.");
+}
+
+async function verifyAdmin(user){
+  const {data,error}=await db.from("profiles")
+    .select("id,full_name,role").eq("id",user.id).maybeSingle();
+  if(error)throw Error("Could not check profiles: "+error.message);
+  if(!data)throw Error("No profiles row exists for this account.");
+  if(String(data.role).toLowerCase()!=="admin")
+    throw Error("Login succeeded, but this account is not an admin (profiles.role must be admin).");
   return data;
 }
-async function enter(user){
-  if(!user)throw new Error("Please sign in again.");
-  currentUser=user;
-  const p=await checkAdmin(user);
-  $("who").textContent=(p.full_name||user.email)+" · Administrator";
-  showOnly("workspace");
-  await renderPage(currentPage);
-}
-async function logout(){
-  await sb.auth.signOut();
-  currentUser=null;showOnly("auth");$("password").value="";
-}
-$("logout").onclick=()=>logout().catch(e=>message("pageMsg",e.message));
 
 $("loginForm").addEventListener("submit",async e=>{
-  e.preventDefault();if(busy)return;busy=true;
-  $("loginBtn").disabled=true;message("authMsg","Signing in…",true);
+  e.preventDefault();
+  if(!db)return showLogin("Supabase library is unavailable.");
+  if(loading)return;
+  loading=true;$("loginBtn").disabled=true;$("loginBtn").textContent="Signing in…";
+  msg("loginMsg","Checking login…");
   try{
-    const {data,error}=await sb.auth.signInWithPassword({
-      email:$("email").value.trim(),password:$("password").value
-    });
+    const email=$("email").value.trim(),password=$("password").value;
+    const {data,error}=await db.auth.signInWithPassword({email,password});
     if(error)throw error;
-    await enter(data.user);
-    message("authMsg","",true);
-  }catch(err){
-    if(currentUser)await sb.auth.signOut().catch(()=>{});
-    currentUser=null;showOnly("auth");
-    message("authMsg",err.message||"Sign in failed.");
-  }finally{busy=false;$("loginBtn").disabled=false;}
+    if(!data.user)throw Error("Supabase did not return a user.");
+    admin=await verifyAdmin(data.user);
+    hideLogin();
+    await loadDashboard();
+  }catch(e){
+    if(db)await db.auth.signOut().catch(()=>{});
+    admin=null;showLogin(errorText(e));
+  }finally{
+    loading=false;$("loginBtn").disabled=false;$("loginBtn").textContent="Log in";
+  }
 });
 
-$("forgotBtn").onclick=async()=>{
+$("forgotBtn").addEventListener("click",async()=>{
   const email=$("email").value.trim();
-  if(!email){message("authMsg","Enter your admin email first.");$("email").focus();return;}
-  message("authMsg","Sending password reset email…",true);
+  if(!email)return msg("loginMsg","Enter your email address first.");
   $("forgotBtn").disabled=true;
   try{
-    const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:RESET_URL});
+    const redirectTo=location.origin+location.pathname;
+    const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo});
     if(error)throw error;
-    message("authMsg","If the email belongs to an account, a reset link has been sent. Check your inbox and spam folder. Open the link on this deployed admin page.");
-  }catch(err){message("authMsg","Could not send reset email: "+err.message);}
-  finally{$("forgotBtn").disabled=false;}
-};
-
-$("resetForm").addEventListener("submit",async e=>{
-  e.preventDefault();
-  const a=$("newPassword").value,b=$("confirmPassword").value;
-  if(a.length<8){message("resetMsg","Password must be at least 8 characters.");return;}
-  if(a!==b){message("resetMsg","Passwords do not match.");return;}
-  message("resetMsg","Updating password…",true);
-  try{
-    const {data,error}=await sb.auth.updateUser({password:a});
-    if(error)throw error;
-    if(!data.user)throw new Error("No authenticated recovery session. Request a new reset email.");
-    recoveryMode=false;
-    await sb.auth.signOut();
-    $("resetForm").reset();
-    showOnly("auth");
-    message("authMsg","Password updated successfully. Sign in using your new password.",true);
-  }catch(err){message("resetMsg","Password update failed: "+err.message);}
+    msg("loginMsg","If the account exists, a reset email has been requested. Check your inbox and spam folder.");
+  }catch(e){msg("loginMsg",errorText(e))}
+  finally{$("forgotBtn").disabled=false}
 });
 
-sb.auth.onAuthStateChange(async(event,session)=>{
-  if(event==="PASSWORD_RECOVERY"){
-    recoveryMode=true;showOnly("recovery");
-    message("resetMsg","Recovery link verified. Enter your new password.",true);
-    return;
-  }
-  if(event==="SIGNED_OUT"){
-    if(!recoveryMode){currentUser=null;showOnly("auth");}
-    return;
-  }
-  if(event==="SIGNED_IN"&&session?.user&&!recoveryMode){
-    try{await enter(session.user);}
-    catch(err){await sb.auth.signOut();showOnly("auth");message("authMsg",err.message);}
-  }
+async function loadDashboard(){
+  if(!admin)return;
+  msg("dashMsg","Loading data…");
+  const errors=[];
+  const r=await db.from("rides").select("*").order("created_at",{ascending:false}).limit(300);
+  const p=await db.from("profiles").select("id,full_name,phone,role,is_verified,is_online,created_at").order("created_at",{ascending:false}).limit(300);
+  const f=await db.from("fare_rules").select("vehicle_type,base_fare,per_km_fare,platform_commission_percent,is_active").order("vehicle_type");
+  if(r.error)errors.push("Rides: "+r.error.message);
+  if(p.error)errors.push("Profiles: "+p.error.message);
+  if(f.error)errors.push("Fare rules: "+f.error.message);
+  const rides=r.data||[],profiles=p.data||[],fares=f.data||[];
+  $("ridesCount").textContent=r.error?"Error":rides.length;
+  $("driversCount").textContent=p.error?"Error":profiles.filter(x=>x.role==="driver").length;
+  $("passengersCount").textContent=p.error?"Error":profiles.filter(x=>x.role==="passenger").length;
+  $("revenue").textContent=r.error?"Error":money(rides.filter(x=>x.status==="completed").reduce((s,x)=>s+Number(x.fare||0),0));
+
+  $("drivers").innerHTML=p.error?escapeHtml(p.error.message):profiles.filter(x=>x.role==="driver").map(d=>
+    `<div class="item"><b>${escapeHtml(d.full_name||"Driver")}</b>
+    <p>${escapeHtml(d.phone||"No phone")} · ${d.is_verified?"Verified":"Pending"} · ${d.is_online?"Online":"Offline"}</p>
+    ${d.is_verified?"":`<button data-approve="${escapeHtml(d.id)}">Approve</button>`}</div>`
+  ).join("")||"No driver records returned.";
+
+  $("passengers").innerHTML=p.error?escapeHtml(p.error.message):profiles.filter(x=>x.role==="passenger").map(d=>
+    `<div class="item"><b>${escapeHtml(d.full_name||"Passenger")}</b><p>${escapeHtml(d.phone||"No phone")}</p></div>`
+  ).join("")||"No passenger records returned.";
+
+  $("rides").innerHTML=r.error?escapeHtml(r.error.message):rides.map(x=>
+    `<div class="item"><b>${escapeHtml(x.status||"Unknown")} · ${money(x.fare)}</b>
+    <p>${escapeHtml(x.pickup||x.pickup_location||"Pickup not recorded")} → ${escapeHtml(x.destination||x.destination_location||"Destination not recorded")}</p>
+    <div class="muted">${escapeHtml(x.vehicle_type||"")} · ${escapeHtml(x.payment_method||"")}</div></div>`
+  ).join("")||"No ride records returned.";
+
+  $("fares").innerHTML=f.error?escapeHtml(f.error.message):fares.map(x=>
+    `<div class="item"><b>${escapeHtml(x.vehicle_type)}</b>
+    <p>Base: ${money(x.base_fare)} · Per km: ${money(x.per_km_fare)} · Commission: ${Number(x.platform_commission_percent)||0}% · ${x.is_active?"Active":"Inactive"}</p></div>`
+  ).join("")||"No fare rules returned.";
+
+  $("drivers").querySelectorAll("[data-approve]").forEach(b=>b.addEventListener("click",async()=>{
+    if(!confirm("Approve this driver after checking their documents?"))return;
+    b.disabled=true;
+    const {error}=await db.from("profiles").update({is_verified:true})
+      .eq("id",b.dataset.approve).eq("role","driver");
+    if(error)msg("dashMsg","Approval failed: "+error.message);
+    else msg("dashMsg","Driver approval saved.");
+    await loadDashboard();
+  }));
+  msg("dashMsg",errors.length?errors.join("\n"):"Dashboard data loaded.");
+}
+
+$("refreshBtn").addEventListener("click",()=>loadDashboard().catch(e=>msg("dashMsg",errorText(e))));
+$("logoutBtn").addEventListener("click",async()=>{
+  const {error}=await db.auth.signOut();
+  admin=null;
+  showLogin(error?"Logout error: "+error.message:"Logged out.");
 });
 
-async function queryTable(table,columns="*"){
-  const {data,error}=await sb.from(table).select(columns);
-  if(error)throw new Error(table+": "+error.message);
-  return data||[];
-}
-async function loadBase(){
-  const out=await Promise.allSettled([
-    sb.from("profiles").select("*").order("created_at",{ascending:false}),
-    sb.from("rides").select("*").order("created_at",{ascending:false}),
-    sb.from("fare_rules").select("*")
-  ]);
-  if(out[0].status==="fulfilled"&&!out[0].value.error)cache.profiles=out[0].value.data||[];
-  else cache.profiles=[];
-  if(out[1].status==="fulfilled"&&!out[1].value.error)cache.rides=out[1].value.data||[];
-  else cache.rides=[];
-  if(out[2].status==="fulfilled"&&!out[2].value.error)cache.fares=out[2].value.data||[];
-  else cache.fares=[];
-}
-function table(headers,rows){
-  if(!rows.length)return '<div class="empty">No records found.</div>';
-  return '<div class="tablewrap"><table><thead><tr>'+headers.map(x=>'<th>'+safe(x)+'</th>').join("")+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(x=>'<td>'+x+'</td>').join("")+'</tr>').join("")+'</tbody></table></div>';
-}
-function card(title,body){
-  return '<section class="card"><h2>'+safe(title)+'</h2>'+body+'</section>';
-}
-function stat(label,value){
-  return '<div class="stat"><small>'+safe(label)+'</small><b>'+safe(value)+'</b></div>';
-}
-function noData(tableName,err){
-  return '<div class="empty">Could not load <b>'+safe(tableName)+'</b>.<br>'+safe(err)+'<br><br>This section needs the correct table and SELECT RLS permissions. No sample data is shown.</div>';
-}
-function profileRows(role){
-  return cache.profiles.filter(p=>!role||p.role===role);
-}
-function statusTag(s){
-  const v=String(s||"unknown");
-  return '<span class="tag">'+safe(v.replaceAll("_"," "))+'</span>';
-}
-async function renderPage(page){
-  if(!currentUser)return;
-  currentPage=page;clearMessage();
-  document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===page));
-  $("pageTitle").textContent=({
-    dashboard:"Dashboard",drivers:"Driver approvals",passengers:"Passengers",rides:"All rides",
-    fares:"Fares & commission",finance:"Payments & earnings",reports:"Reports & analytics",
-    safety:"Complaints & safety",notifications:"Notifications",audit:"Audit logs",settings:"Settings"
-  })[page]||"Dashboard";
-  $("pageContent").innerHTML='<div class="card">Loading live Supabase data…</div>';
-  try{await loadBase();}catch(e){errorMessage(e.message);}
-  const ps=cache.profiles,ds=profileRows("driver"),users=profileRows("passenger"),rs=cache.rides;
-  const completed=rs.filter(r=>r.status==="completed");
-  const gross=completed.reduce((s,r)=>s+Number(r.fare||0),0);
-  const cancelled=rs.filter(r=>r.status==="cancelled").length;
-  const commissionRate=15;
-  let html="";
-
-  if(page==="dashboard"){
-    html='<div class="stats">'+
-      stat("Passengers",users.length)+stat("Drivers",ds.length)+
-      stat("Drivers online",ds.filter(d=>d.is_online).length)+
-      stat("Total rides",rs.length)+stat("Active rides",rs.filter(r=>["requested","accepted","in_progress"].includes(r.status)).length)+
-      stat("Completed rides",completed.length)+stat("Cancelled rides",cancelled)+stat("Completed ride value",money(gross))+'</div>';
-    html+=card("Recent rides",table(["Status","Vehicle","Fare","Pickup","Destination","Created"],rs.slice(0,8).map(r=>[
-      statusTag(r.status),safe(r.vehicle_type||"—"),money(r.fare),
-      safe(r.pickup_location||r.pickup||"—"),safe(r.destination||"—"),safe(date(r.created_at))
-    ])));
-    html+=card("Operational notes",'<p class="note">Statistics use the records currently visible to this admin account under Supabase RLS. If counts appear incomplete, review the admin SELECT policies.</p>');
-  }
-
-  if(page==="drivers"){
-    const pending=ds.filter(d=>!d.is_verified);
-    html+=card("Pending driver approvals",pending.length?table(["Driver","Phone","License","Vehicle","Action"],pending.map(d=>[
-      safe(d.full_name||"—"),safe(d.phone||"—"),safe(d.driver_license||"Not recorded"),
-      safe(d.vehicle_type||"Check Vehicles table"),
-      '<button onclick="approveDriver(\''+safe(d.id)+'\')">Approve</button>'
-    ])):'<div class="empty">No pending drivers found.</div>');
-    html+=card("All drivers",table(["Name","Phone","Verified","Online","Joined"],ds.map(d=>[
-      safe(d.full_name||"—"),safe(d.phone||"—"),statusTag(d.is_verified?"Approved":"Pending"),
-      statusTag(d.is_online?"Online":"Offline"),safe(date(d.created_at))
-    ])));
-    html+=card("Vehicle records",'<p class="note">Vehicle details are stored separately in the vehicles table. Check its SELECT permissions and schema before enabling vehicle verification actions.</p>');
-  }
-
-  if(page==="passengers"){
-    html+=card("Passenger accounts",table(["Name","Email","Phone","Joined"],users.map(p=>[
-      safe(p.full_name||"—"),safe(p.email||"Not stored in profiles"),
-      safe(p.phone||"—"),safe(date(p.created_at))
-    ])));
-    html+=card("Account controls",'<p class="note">This view does not suspend or delete accounts. Those actions need a secured server-side function and explicit audit logging.</p>');
-  }
-
-  if(page==="rides"){
-    html+=card("Ride records",table(["ID","Status","Passenger","Driver","Vehicle","Fare","Payment","Pickup","Destination","Date"],rs.map(r=>[
-      safe(r.id),statusTag(r.status),safe(r.passenger_id||"—"),safe(r.driver_id||"—"),
-      safe(r.vehicle_type||"—"),money(r.fare),safe(r.payment_method||"—"),
-      safe(r.pickup_location||r.pickup||"—"),safe(r.destination||"—"),safe(date(r.created_at))
-    ])));
-  }
-
-  if(page==="fares"){
-    const fr=cache.fares;
-    html+=card("Active fare rules",fr.length?table(
-      Object.keys(fr[0]).filter(k=>!["created_at","updated_at"].includes(k)).map(k=>k),
-      fr.map(f=>Object.keys(fr[0]).filter(k=>!["created_at","updated_at"].includes(k)).map(k=>safe(f[k]??"—")))
-    ):'<div class="empty">No fare_rules records are visible. Check the table name, columns and RLS.</div>');
-    html+=card("Fare editor",'<p class="note">To avoid corrupting your existing fare setup, this page shows the actual fare_rules columns first. Editing will be enabled after matching your exact column names and constraints.</p>');
-  }
-
-  if(page==="finance"){
-    const online=completed.filter(r=>String(r.payment_method||"").toLowerCase()!=="cash")
-      .reduce((s,r)=>s+Number(r.fare||0),0);
-    const cash=gross-online,commission=gross*commissionRate/100;
-    html+='<div class="stats">'+stat("Completed ride value",money(gross))+
-      stat("Estimated commission at 15%",money(commission))+
-      stat("Estimated driver share",money(gross-commission))+
-      stat("Non-cash payment value",money(online))+'</div>';
-    html+=card("Finance warning",'<p class="note">These are estimates calculated from completed rides, not verified bank receipts or driver settlements. The 15% figure is a display estimate; confirm your actual commission from the fare_rules configuration before using it for accounting.</p>');
-    html+=card("Completed ride records",table(["Ride","Fare","Payment method","Driver","Date"],completed.map(r=>[
-      safe(r.id),money(r.fare),safe(r.payment_method||"—"),safe(r.driver_id||"—"),safe(date(r.created_at))
-    ])));
-  }
-
-  if(page==="reports"){
-    const byStatus={};
-    rs.forEach(r=>byStatus[r.status||"unknown"]=(byStatus[r.status||"unknown"]||0)+1);
-    html+=card("Ride status report",table(["Status","Count"],Object.entries(byStatus).map(([s,n])=>[safe(s),n])));
-    html+=card("Export report",'<button onclick="exportRides()">Export rides CSV</button> <button class="secondary" onclick="exportProfiles()">Export visible profiles CSV</button><p class="note">Exports include only records the signed-in admin can read.</p>');
-  }
-
-  if(page==="safety"){
-    html+=card("Support & safety",'<p class="note">No complaints table has been confirmed in the current schema. This section will not create fake cases. Connect an existing support/complaints table or implement a secured ticket workflow before using this for safety incidents.</p>');
-    html+=card("Emergency handling",'<p>Use a documented process for urgent safety reports. Do not treat this dashboard as an emergency service.</p>');
-  }
-
-  if(page==="notifications"){
-    html+=card("Notifications",'<p class="note">No notifications table or delivery service has been confirmed. Sending email/SMS requires a configured provider or secured server-side function; this panel will not pretend messages were sent.</p>');
-  }
-
-  if(page==="audit"){
-    try{
-      const logs=await queryTable("audit_logs_table");
-      html+=card("Audit history",table(Object.keys(logs[0]||{info:"No audit events"}),logs.slice(0,100).map(x=>Object.values(x).map(v=>safe(typeof v==="object"?JSON.stringify(v):v??"—")))));
-    }catch(e){html+=card("Audit history",noData("audit_logs_table",e.message));}
-    try{
-      const admins=await queryTable("admin_users_table");
-      html+=card("Admin registry",table(Object.keys(admins[0]||{info:"No records"}),admins.map(x=>Object.values(x).map(v=>safe(typeof v==="object"?JSON.stringify(v):v??"—")))));
-    }catch(e){html+=card("Admin registry",noData("admin_users_table",e.message));}
-  }
-
-  if(page==="settings"){
-    html+=card("Administrator account",'<p>'+safe(currentUser.email)+'</p><button onclick="sendResetFromSettings()">Email password reset link</button>');
-    html+=card("Platform",'<p class="note">Rydo uses Supabase authentication. Password reset redirects to the deployed admin page. Fare, access and service changes must be protected by database policies, not just by this interface.</p>');
-    html+=card("Session",'<button class="danger" onclick="logout()">Sign out securely</button>');
-  }
-  $("pageContent").innerHTML=html;
-}
-$("nav").addEventListener("click",e=>{
-  const b=e.target.closest("button[data-page]");
-  if(b)renderPage(b.dataset.page).catch(err=>errorMessage(err.message));
-});
-window.approveDriver=async id=>{
-  if(!confirm("Approve this driver?"))return;
+async function init(){
+  if(!db)return;
   try{
-    const {error}=await sb.from("profiles").update({is_verified:true}).eq("id",id).eq("role","driver");
+    const {data,error}=await db.auth.getSession();
     if(error)throw error;
-    await renderPage("drivers");pageMessage("Driver approved.");
-  }catch(e){errorMessage("Could not approve driver: "+e.message+" Check admin UPDATE RLS policy.");}
-};
-window.sendResetFromSettings=async()=>{
-  if(!currentUser?.email){errorMessage("No admin email available.");return;}
-  try{
-    const {error}=await sb.auth.resetPasswordForEmail(currentUser.email,{redirectTo:RESET_URL});
-    if(error)throw error;
-    pageMessage("Password reset email requested. Check your inbox.");
-  }catch(e){errorMessage(e.message);}
-};
-function downloadCSV(name,rows){
-  if(!rows.length){errorMessage("No records to export.");return;}
-  const csv=rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
-  const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8;"});
-  const url=URL.createObjectURL(blob),a=document.createElement("a");
-  a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);
+    if(data.session?.user){
+      admin=await verifyAdmin(data.session.user);
+      hideLogin();
+      await loadDashboard();
+    }
+  }catch(e){
+    admin=null;
+    showLogin("Session/admin check: "+errorText(e));
+  }
 }
-window.exportRides=()=>downloadCSV("rydo-rides.csv",[
-  Object.keys(cache.rides[0]||{status:""}),
-  ...cache.rides.map(r=>Object.values(r))
-]);
-window.exportProfiles=()=>downloadCSV("rydo-visible-profiles.csv",[
-  Object.keys(cache.profiles[0]||{role:""}),
-  ...cache.profiles.map(r=>Object.values(r))
-]);
-
-if(!sb){
-  showOnly("auth");message("authMsg","Supabase library failed to load. Check your internet connection and reload.");
-}else{
-  (async()=>{
-    try{
-      const {data,error}=await sb.auth.getSession();
-      if(error)throw error;
-      const hash=new URLSearchParams(location.hash.slice(1));
-      if(hash.get("type")==="recovery"){
-        recoveryMode=true;showOnly("recovery");
-        message("resetMsg","Verifying your password recovery link…",true);
-      }else if(data.session&&!recoveryMode){
-        try{await enter(data.session.user);}
-        catch(e){await sb.auth.signOut();showOnly("auth");message("authMsg",e.message);}
-      }
-    }catch(e){message("authMsg","Could not restore session: "+e.message);}
-  })();
-}
+init();
 </script>
 </body>
 </html>
