@@ -343,21 +343,49 @@ async function loadProfile(){
     :"Your driver account is awaiting admin approval. You can update your vehicle details, but cannot go online or accept rides.");
 }
 
+
 async function loadVehicle(){
-  const {data,error}=await db.from("vehicles").select("*").eq("driver_id",user.id).limit(1);
-  if(error){message("vehicleStatus","Could not load vehicle: "+error.message);return;}
-  vehicle=data?.[0]||null;
-  if(vehicle){
-    $("vehicleType").value=vehicle.vehicle_type || "bike";
-    $("vehicleNumber").value=vehicle.vehicle_number || "";
-    $("vehicleModel").value=vehicle.model || "";
-    const approved=vehicle.is_approved===true || vehicle.verified===true;
-    message("vehicleStatus","Vehicle: "+(vehicle.vehicle_number||"Not numbered")+
-      "\nType: "+(vehicle.vehicle_type||"Unknown")+
-      "\nVehicle approval: "+(approved?"Approved":"Pending or not approved"));
-  }else message("vehicleStatus","No vehicle saved yet. Enter your vehicle details below.");
+  const { data, error } = await db
+    .from("vehicles")
+    .select("*")
+    .eq("driver_id", user.id)
+    .limit(1);
+
+  if (error) {
+    vehicle = null;
+    message(
+      "vehicleStatus",
+      "Could not load vehicle: " + error.message
+    );
+    updateControls();
+    return;
+  }
+
+  vehicle = data && data.length ? data[0] : null;
+
+  if (!vehicle) {
+    message(
+      "vehicleStatus",
+      "No vehicle record found. Please register your vehicle below."
+    );
+  } else {
+    const approved = vehicle.is_approved === true;
+
+    $("vehicleType").value = vehicle.vehicle_type || "bike";
+    $("vehicleNumber").value = vehicle.vehicle_number || "";
+    $("vehicleModel").value = vehicle.model || "";
+
+    message(
+      "vehicleStatus",
+      "Vehicle: " + (vehicle.vehicle_number || "Not provided") +
+      "\nType: " + (vehicle.vehicle_type || "Unknown") +
+      "\nApproval: " + (approved ? "Approved" : "Pending admin approval")
+    );
+  }
+
   updateControls();
 }
+
 
 function updateControls(){
   if(!profile)return;
