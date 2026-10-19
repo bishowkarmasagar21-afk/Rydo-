@@ -874,19 +874,13 @@ async function requestRide() {
   setBusy(button,true,"Requesting ride…");
   try {
     const payload = {
-      passenger_id:user.id,
-      pickup:pickup.name,
-      destination:destination.name,
-      vehicle_type:selectedVehicle,
-      distance_km:Number(routeDistanceKm.toFixed(2)),
-      fare:Number(fare.toFixed(2)),
-      status:"requested",
-      payment_method:$("paymentMethod").value,
-      pickup_latitude:pickup.lat,
-      pickup_longitude:pickup.lon,
-      destination_latitude:destination.lat,
-      destination_longitude:destination.lon
-    };
+  passenger_id: user.id,
+  pickup_location: pickup,
+  destination: destination,
+  vehicle_type: vehicleType,
+  distance_km: distance,
+  fare: fare
+}
     const {data,error} = await db.from("rides").insert(payload).select("*").single();
     if (error) throw new Error("Ride request failed: "+error.message);
     activeRide = data;
