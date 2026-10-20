@@ -669,9 +669,44 @@ document.querySelectorAll("[data-vehicle]").forEach(btn=>{
 });
 
 /* Driver/vehicle availability uses the actual columns supplied by the user */
-async function checkAvailability(showErrors=true) {
-  $("availabilityMessage").textContent="Checking approved online drivers and vehicles…";
+async function checkAvailability(showErrors = true) {
+  const message = $("availabilityMessage");
+  message.textContent = "Checking approved online drivers and vehicles…";
+
   try {
+    const { data, error } = await db.rpc(
+      "rryd_check_vehicle_availability",
+      { p_vehicle_type: selectedVehicle }
+    );
+
+    if (error) {
+      throw new Error(
+        "Could not check driver availability: " + error.message
+      );
+    }
+
+    const count = Number(data || 0);
+
+    if (count < 1) {
+      message.textContent =
+        `No approved, verified and online ${selectedVehicle.replace("_", " ")} drivers are available right now.`;
+
+      return { ok: false, unknown: false, count: 0 };
+    }
+
+    message.textContent =
+      `${count} eligible driver(s) currently online.`;
+
+    return { ok: true, unknown: false, count: count };
+
+  } catch (error) {
+    message.textContent = showErrors
+      ? error.message
+      : "Driver availability could not be checked.";
+
+    return { ok: false, unknown: true, count: 0 };
+  }
+    } {
     const {data:vehicles,error:vErr}=await db.from("vehicles")
       .select("driver_id,vehicle_type,vehicle_number,model")
       .eq("is_approved",true)
