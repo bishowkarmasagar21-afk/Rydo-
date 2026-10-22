@@ -3,11 +3,21 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#08111b">
+<meta name="description" content="RRYD — Book a ride or become a driver in Nepal. Move your way.">
 <title>RRYD — Move Your Way</title>
 
 <style>
+:root {
+  --bg: #08111b;
+  --panel: #122334;
+  --orange: #ff7417;
+  --white: #ffffff;
+  --muted: #c2ced9;
+  --border: rgba(255,255,255,.14);
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -16,164 +26,413 @@
 
 html {
   min-height: 100%;
-  background: #08111b;
+  scroll-behavior: smooth;
 }
 
 body {
   min-height: 100vh;
-  background: #08111b;
-  color: white;
+  overflow-x: hidden;
+  color: var(--white);
+  background: var(--bg);
   font-family: Arial, Helvetica, sans-serif;
 }
 
-.poster {
-  position: relative;
-  width: 100%;
-  max-width: 1648px;
-  margin: 0 auto;
-  line-height: 0;
-  overflow: hidden;
-  background: #08111b;
-}
-
-.poster img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-/* Real clickable areas positioned over the buttons in the image */
-.role-link {
-  position: absolute;
-  top: 59.2%;
-  height: 9.5%;
-  display: block;
-  border-radius: 100px;
+a {
+  color: inherit;
   text-decoration: none;
-  line-height: normal;
-  background: transparent;
-  transition: background .2s, box-shadow .2s;
 }
 
-.passenger-link {
-  left: 27.6%;
-  width: 21.9%;
+button, a {
+  -webkit-tap-highlight-color: transparent;
 }
 
-.driver-link {
-  left: 50.9%;
-  width: 21.5%;
+.site-header {
+  position: relative;
+  z-index: 5;
+  min-height: 78px;
+  padding: 16px clamp(18px, 5vw, 72px);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  border-bottom: 1px solid rgba(255,255,255,.1);
+  background: #08111bf0;
 }
 
-.role-link:hover {
-  background: rgba(255,255,255,.09);
-  box-shadow: 0 0 0 2px rgba(255,116,23,.8);
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.role-link:focus-visible {
-  outline: 4px solid white;
-  outline-offset: 3px;
+.brand-icon {
+  width: 45px;
+  height: 45px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: var(--orange);
+  color: #111923;
+  box-shadow: 0 5px 24px #ff741733;
 }
 
-/* Small accessible help button */
-.settings-button {
-  position: fixed;
-  z-index: 10;
-  top: 14px;
-  right: 14px;
-  width: 42px;
-  height: 42px;
-  border: 1px solid rgba(255,255,255,.35);
-  border-radius: 50%;
-  background: rgba(8,17,27,.8);
-  color: white;
-  font-size: 21px;
-  cursor: pointer;
+.brand-icon svg {
+  width: 31px;
+  height: 31px;
+}
+
+.brand-name {
+  font-size: 27px;
+  font-weight: 900;
+  letter-spacing: 3px;
+}
+
+.brand-name span {
+  color: var(--orange);
+}
+
+.brand-tagline {
+  margin-top: 3px;
+  color: #b9c5d0;
+  font-size: 11px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+}
+
+.header-label {
+  color: #d9e3ec;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+
+.hero {
+  position: relative;
+  isolation: isolate;
+  min-height: 640px;
+  padding: 65px 20px 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 15%, #244d69 0%, transparent 48%),
+    linear-gradient(180deg, #122d42 0%, #315a70 46%, #f0a66b 75%, #243e42 100%);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 3;
+  width: min(880px, 100%);
+  margin: 0 auto;
+  text-align: center;
+}
+
+.location-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 1px solid #ffffff38;
+  border-radius: 100px;
+  color: #fff;
+  background: #07131b70;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.location-label span {
+  color: #ffb17b;
+}
+
+.hero h1 {
+  margin-top: 23px;
+  font-size: clamp(44px, 7.5vw, 83px);
+  line-height: .99;
+  font-weight: 900;
+  letter-spacing: -3px;
+  text-shadow: 0 4px 22px #07131b65;
+}
+
+.hero h1 span {
+  color: #ff994d;
+}
+
+.hero-description {
+  max-width: 590px;
+  margin: 21px auto 0;
+  color: #f2f5f8;
+  font-size: clamp(15px, 2vw, 18px);
+  line-height: 1.7;
+  text-shadow: 0 2px 10px #08111b80;
+}
+
+.action-area {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 30px;
+}
+
+.action-btn {
+  min-width: 220px;
+  min-height: 57px;
+  padding: 15px 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 800;
+  transition: transform .2s, box-shadow .2s, background .2s;
+}
+
+.action-btn:hover {
+  transform: translateY(-3px);
+}
+
+.action-btn:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 4px;
+}
+
+.book {
+  color: #151b22;
+  background: var(--orange);
+  box-shadow: 0 9px 28px #ff74174d;
+}
+
+.book:hover {
+  background: #ff8b3d;
+  box-shadow: 0 12px 32px #ff741766;
+}
+
+.driver {
+  color: #fff;
+  border-color: #ffffffa6;
+  background: #08111b8c;
   backdrop-filter: blur(8px);
 }
 
-.settings-button:hover {
-  background: #ff7417;
-  color: #08111b;
+.driver:hover {
+  background: #ffffff20;
 }
 
-.modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 20;
+.action-icon {
+  font-size: 23px;
+}
+
+.hero-note {
+  margin-top: 17px;
+  color: #fff;
+  font-size: 12px;
+  text-shadow: 0 2px 8px #08111b;
+}
+
+/* Self-contained mountain landscape — no image required */
+.landscape {
+  position: absolute;
+  z-index: 1;
+  inset: auto 0 0;
+  width: 100%;
+  height: 52%;
+  min-height: 270px;
+  pointer-events: none;
+}
+
+.landscape svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.landscape-caption {
+  position: absolute;
+  z-index: 2;
+  bottom: 19px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #ffffffc9;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.benefits {
+  position: relative;
+  z-index: 3;
+  padding: 42px clamp(18px, 5vw, 72px) 52px;
+  background:
+    radial-gradient(ellipse at 50% 0%, #182f42 0%, transparent 65%),
+    #08111b;
+}
+
+.benefits-heading {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.benefits-heading p {
+  color: var(--orange);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+}
+
+.benefits-heading h2 {
+  margin-top: 9px;
+  font-size: clamp(24px, 4vw, 34px);
+  letter-spacing: -.6px;
+}
+
+.benefit-grid {
+  width: min(1000px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.benefit-card {
+  min-height: 145px;
+  padding: 24px 21px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: linear-gradient(145deg, #152a3c, #0e1b29);
+}
+
+.benefit-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #ff74171b;
+  font-size: 21px;
+}
+
+.benefit-card h3 {
+  margin-top: 16px;
+  font-size: 16px;
+}
+
+.benefit-card p {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.site-footer {
+  padding: 21px 18px;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  padding: 20px;
-  background: rgba(0,0,0,.75);
-}
-
-.modal.show {
-  display: flex;
-}
-
-.dialog {
-  width: 100%;
-  max-width: 360px;
-  padding: 25px;
-  border: 1px solid rgba(255,116,23,.5);
-  border-radius: 18px;
-  background: #101d29;
-  line-height: 1.5;
-}
-
-.dialog h2 {
-  margin-bottom: 10px;
-}
-
-.dialog p {
-  color: #c1ccd7;
-  font-size: 14px;
-  margin-bottom: 20px;
-}
-
-.close-button {
-  width: 100%;
-  padding: 13px;
-  border: 0;
-  border-radius: 10px;
-  background: #ff7417;
-  color: #08111b;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-footer {
-  padding: 16px;
-  text-align: center;
-  color: #aab8c8;
+  gap: 8px 16px;
+  border-top: 1px solid var(--border);
+  color: #aebbc8;
+  background: #060d14;
   font-size: 12px;
-  line-height: 1.5;
-  background: #08111b;
+  text-align: center;
 }
 
-@media (max-width: 600px) {
-  .settings-button {
-    width: 36px;
-    height: 36px;
-    top: 8px;
-    right: 8px;
-    font-size: 18px;
+.site-footer strong {
+  color: #ff8a3b;
+  letter-spacing: 1px;
+}
+
+@media (max-width: 700px) {
+  .site-header {
+    min-height: 70px;
+    padding: 12px 17px;
   }
 
-  .role-link {
-    top: 59.2%;
-    height: 9.5%;
+  .brand-icon {
+    width: 40px;
+    height: 40px;
   }
 
-  footer {
-    font-size: 11px;
+  .brand-name {
+    font-size: 23px;
+  }
+
+  .brand-tagline {
+    font-size: 9px;
+    letter-spacing: 1.1px;
+  }
+
+  .header-label {
+    max-width: 100px;
+    font-size: 10px;
+    text-align: right;
+    line-height: 1.5;
+  }
+
+  .hero {
+    min-height: 670px;
+    padding: 54px 18px 0;
+  }
+
+  .hero h1 {
+    letter-spacing: -1.8px;
+  }
+
+  .hero-description {
+    max-width: 430px;
+  }
+
+  .action-area {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    margin-top: 25px;
+  }
+
+  .action-btn {
+    width: min(100%, 330px);
+    min-height: 55px;
+  }
+
+  .landscape {
+    height: 36%;
+    min-height: 240px;
+  }
+
+  .landscape-caption {
+    bottom: 12px;
+    font-size: 8px;
+    letter-spacing: 2px;
+  }
+
+  .benefits {
+    padding: 34px 18px 40px;
+  }
+
+  .benefit-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    max-width: 440px;
+  }
+
+  .benefit-card {
+    min-height: 0;
+    padding: 19px;
+  }
+
+  .benefit-card h3 {
+    margin-top: 12px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .role-link {
-    transition: none;
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
   }
 }
 </style>
@@ -181,93 +440,135 @@ footer {
 
 <body>
 
+<header class="site-header">
+  <a class="brand" href="index.html" aria-label="RRYD home">
+    <span class="brand-icon" aria-hidden="true">
+      <svg viewBox="0 0 48 48" fill="none">
+        <circle cx="13" cy="34" r="7" stroke="#101923" stroke-width="3"/>
+        <circle cx="36" cy="34" r="7" stroke="#101923" stroke-width="3"/>
+        <path d="M13 34L21 20H29L36 34M18 27H31M24 20L21 15H16" stroke="#101923" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M25 13H36L32 19H25" stroke="#101923" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>
+    <span>
+      <span class="brand-name">RR<span>Y</span>D</span>
+      <span class="brand-tagline">Move your way.</span>
+    </span>
+  </a>
+  <div class="header-label">MADE FOR THE ROADS OF NEPAL</div>
+</header>
+
 <main>
-  <section class="poster" aria-label="RRYD Nepal ride platform">
-    <img
-      src="nepal-hero.png"
-      alt="RRYD Nepal: Mount Everest and the Himalayas, green hills, and the Terai plains at sunset."
-      fetchpriority="high"
-    >
+  <section class="hero">
+    <div class="hero-content">
+      <div class="location-label">
+        <span>●</span> YOUR JOURNEY STARTS HERE
+      </div>
 
-    <a
-      class="role-link passenger-link"
-      href="passenger.html"
-      aria-label="Book a ride as a passenger"
-      title="Book a Ride"
-    ></a>
+      <h1>Move your way<span>.</span></h1>
 
-    <a
-      class="role-link driver-link"
-      href="driver.html"
-      aria-label="Become a driver"
-      title="Become a Driver"
-    ></a>
+      <p class="hero-description">
+        From the Himalayas to the hills and the Terai,
+        choose your ride and get moving with RRYD.
+      </p>
+
+      <div class="action-area">
+        <a class="action-btn book" href="passenger.html">
+          <span class="action-icon" aria-hidden="true">🛵</span>
+          Book a Ride
+          <span aria-hidden="true">→</span>
+        </a>
+
+        <a class="action-btn driver" href="driver.html">
+          <span class="action-icon" aria-hidden="true">🚗</span>
+          Become a Driver
+          <span aria-hidden="true">→</span>
+        </a>
+      </div>
+
+      <p class="hero-note">Choose your journey. RRYD is ready when you are.</p>
+    </div>
+
+    <div class="landscape" aria-hidden="true">
+      <svg viewBox="0 0 1440 480" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="snow" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#ffffff"/>
+            <stop offset="1" stop-color="#c7dce8"/>
+          </linearGradient>
+          <linearGradient id="mountain" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#456b7c"/>
+            <stop offset="1" stop-color="#142f3e"/>
+          </linearGradient>
+          <linearGradient id="hill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#345e55"/>
+            <stop offset="1" stop-color="#122d2b"/>
+          </linearGradient>
+        </defs>
+
+        <circle cx="1130" cy="120" r="48" fill="#ffd8a5" opacity=".72"/>
+        <path d="M0 335L140 190L225 275L370 95L490 260L635 70L810 280L935 155L1070 285L1210 165L1440 335V480H0Z" fill="#5d8290" opacity=".62"/>
+        <path d="M245 330L370 95L490 260L445 235L405 253L370 168L335 244L302 228Z" fill="url(#snow)"/>
+        <path d="M510 345L635 70L810 280L760 250L715 268L650 151L619 231L580 218Z" fill="url(#snow)"/>
+        <path d="M840 335L935 155L1070 285L1020 265L984 277L938 207L910 264L881 250Z" fill="#d8e5e9"/>
+        <path d="M0 375L175 270L305 365L455 250L605 380L765 265L925 385L1080 260L1260 385L1440 285V480H0Z" fill="url(#mountain)"/>
+        <path d="M0 408L155 332L275 400L430 320L600 420L790 315L970 416L1125 325L1300 420L1440 355V480H0Z" fill="#294d4b"/>
+        <path d="M0 440Q180 360 350 430T700 415T1050 425T1440 405V480H0Z" fill="url(#hill)"/>
+
+        <g fill="#0d2726">
+          <path d="M85 445l19-54 19 54zM102 458l23-68 23 68zM134 448l17-48 17 48z"/>
+          <path d="M1190 450l22-62 22 62zM1220 460l24-72 24 72zM1260 451l18-52 18 52z"/>
+          <path d="M300 463l18-50 18 50zM330 470l21-61 21 61z"/>
+          <path d="M1000 465l20-57 20 57zM1030 468l22-64 22 64z"/>
+        </g>
+
+        <path d="M0 466Q220 443 430 463T850 460T1200 450T1440 462V480H0Z" fill="#0b211e"/>
+        <path d="M0 474Q350 465 660 476T1440 470" stroke="#ffb16d" stroke-width="2" opacity=".4" fill="none"/>
+      </svg>
+    </div>
+
+    <div class="landscape-caption" aria-hidden="true">
+      HIMALAYAS · HILLS · TERAI
+    </div>
+  </section>
+
+  <section class="benefits">
+    <div class="benefits-heading">
+      <p>YOUR RIDE, YOUR CHOICE</p>
+      <h2>A simpler way to get around</h2>
+    </div>
+
+    <div class="benefit-grid">
+      <article class="benefit-card">
+        <div class="benefit-icon" aria-hidden="true">📍</div>
+        <h3>Choose your destination</h3>
+        <p>Set your pickup and destination to start planning your journey.</p>
+      </article>
+
+      <article class="benefit-card">
+        <div class="benefit-icon" aria-hidden="true">🛵</div>
+        <h3>Pick your ride</h3>
+        <p>Choose a bike, car or tuk-tuk when the option is available.</p>
+      </article>
+
+      <article class="benefit-card">
+        <div class="benefit-icon" aria-hidden="true">🤝</div>
+        <h3>Ride with RRYD</h3>
+        <p>Passengers can book rides, and drivers can sign in to their portal.</p>
+      </article>
+    </div>
   </section>
 </main>
 
-<footer>
-  © 2026 RRYD · Move your way.
+<footer class="site-footer">
+  <strong>RRYD</strong>
+  <span>Move your way.</span>
+  <span>© <span id="year"></span> RRYD. All rights reserved.</span>
 </footer>
 
-<button
-  class="settings-button"
-  id="settingsButton"
-  type="button"
-  aria-label="Open website settings"
-  title="Settings"
->⚙</button>
-
-<div
-  class="modal"
-  id="settingsModal"
-  role="dialog"
-  aria-modal="true"
-  aria-labelledby="settingsTitle"
->
-  <div class="dialog">
-    <h2 id="settingsTitle">RRYD Settings</h2>
-    <p>
-      Nepal's ride platform.<br>
-      Choose Book a Ride to continue as a passenger,
-      or Become a Driver to open the driver portal.
-    </p>
-    <button class="close-button" id="closeSettings" type="button">
-      Close
-    </button>
-  </div>
-</div>
-
 <script>
-const settingsButton = document.getElementById("settingsButton");
-const settingsModal = document.getElementById("settingsModal");
-const closeSettings = document.getElementById("closeSettings");
-
-function openSettings() {
-  settingsModal.classList.add("show");
-  closeSettings.focus();
-}
-
-function hideSettings() {
-  settingsModal.classList.remove("show");
-  settingsButton.focus();
-}
-
-settingsButton.addEventListener("click", openSettings);
-closeSettings.addEventListener("click", hideSettings);
-
-settingsModal.addEventListener("click", function(event) {
-  if (event.target === settingsModal) {
-    hideSettings();
-  }
-});
-
-document.addEventListener("keydown", function(event) {
-  if (event.key === "Escape" && settingsModal.classList.contains("show")) {
-    hideSettings();
-  }
-});
+document.getElementById("year").textContent = new Date().getFullYear();
 </script>
 
 </body>
 </html>
-```
