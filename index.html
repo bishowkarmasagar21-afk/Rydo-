@@ -1,178 +1,410 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#08111b">
-<title>RRYD — Move Your Way</title>
+<meta name="description" content="RRYD — Move your way across Nepal.">
+<title>RRYD | Move Your Way</title>
 
 <style>
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+:root {
+  --bg: #08111b;
+  --panel: #101e2b;
+  --orange: #ff7b2c;
+  --text: #f8f7f3;
+  --muted: #aebbc8;
+  --line: rgba(255,255,255,.12);
 }
 
-html {
-  min-height: 100%;
-  background: #08111b;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
 
 body {
-  min-height: 100vh;
-  background: #08111b;
-  color: white;
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-.poster {
+a { color: inherit; text-decoration: none; }
+
+.topbar {
+  height: 82px;
+  padding: 0 7%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  background: #08111b;
+}
+
+.brand {
+  font-size: 29px;
+  font-weight: 900;
+  letter-spacing: 4px;
+}
+
+.brand span { color: var(--orange); }
+
+.brand-sub {
+  margin-top: 4px;
+  font-size: 10px;
+  letter-spacing: 2.4px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.top-note {
+  color: #c5cdd5;
+  font-size: 11px;
+  letter-spacing: 2px;
+}
+
+.hero {
+  min-height: 590px;
+  padding: 85px 22px 78px;
   position: relative;
-  width: 100%;
-  max-width: 1648px;
-  margin: 0 auto;
-  line-height: 0;
   overflow: hidden;
-  background: #08111b;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  background:
+    linear-gradient(180deg, rgba(5,13,22,.36), rgba(5,13,22,.72)),
+    url("https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=2000&q=85")
+    center 47% / cover no-repeat;
 }
 
-.poster img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-/* Real clickable areas positioned over the buttons in the image */
-.role-link {
+.hero::before {
+  content: "";
   position: absolute;
-  top: 59.2%;
-  height: 9.5%;
-  display: block;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 0%, rgba(5,12,20,.25) 80%);
+  pointer-events: none;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 800px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border: 1px solid #ffffff45;
   border-radius: 100px;
-  text-decoration: none;
-  line-height: normal;
-  background: transparent;
-  transition: background .2s, box-shadow .2s;
+  background: #07111b80;
+  backdrop-filter: blur(10px);
+  color: #f5e5d8;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
 }
 
-.passenger-link {
-  left: 27.6%;
-  width: 21.9%;
-}
-
-.driver-link {
-  left: 50.9%;
-  width: 21.5%;
-}
-
-.role-link:hover {
-  background: rgba(255,255,255,.09);
-  box-shadow: 0 0 0 2px rgba(255,116,23,.8);
-}
-
-.role-link:focus-visible {
-  outline: 4px solid white;
-  outline-offset: 3px;
-}
-
-/* Small accessible help button */
-.settings-button {
-  position: fixed;
-  z-index: 10;
-  top: 14px;
-  right: 14px;
-  width: 42px;
-  height: 42px;
-  border: 1px solid rgba(255,255,255,.35);
+.eyebrow::before {
+  content: "";
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: rgba(8,17,27,.8);
-  color: white;
-  font-size: 21px;
-  cursor: pointer;
+  background: var(--orange);
+  box-shadow: 0 0 12px var(--orange);
+}
+
+h1 {
+  margin-top: 28px;
+  font-size: clamp(47px, 8vw, 88px);
+  line-height: 1.02;
+  letter-spacing: -4px;
+  font-weight: 850;
+  text-shadow: 0 5px 28px #0008;
+}
+
+h1 span { color: var(--orange); }
+
+.hero p {
+  max-width: 590px;
+  margin: 24px auto 0;
+  color: #f0f1f2;
+  font-size: clamp(15px, 2vw, 18px);
+  line-height: 1.85;
+}
+
+.buttons {
+  margin-top: 34px;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.btn {
+  min-width: 218px;
+  min-height: 57px;
+  padding: 17px 25px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: .2px;
+  transition: transform .22s ease, box-shadow .22s ease, background .22s ease;
+}
+
+.btn:hover { transform: translateY(-3px); }
+
+.btn-primary {
+  color: #19140f;
+  background: linear-gradient(135deg, #ffad70, #ff7b2c);
+  box-shadow: 0 9px 30px #ff7b2c35;
+}
+
+.btn-primary:hover {
+  box-shadow: 0 12px 35px #ff7b2c60;
+  background: #ffb17e;
+}
+
+.btn-secondary {
+  color: #fff;
+  border: 1px solid #ffffff80;
+  background: #09121cc4;
   backdrop-filter: blur(8px);
 }
 
-.settings-button:hover {
-  background: #ff7417;
-  color: #08111b;
+.btn-secondary:hover {
+  border-color: #ffb17e;
+  background: #172535e8;
 }
 
-.modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: rgba(0,0,0,.75);
+.btn-arrow { font-size: 19px; font-weight: 400; }
+
+.hero-caption {
+  margin-top: 21px;
+  color: #e0e4e8;
+  font-size: 11px;
+  letter-spacing: 1.5px;
 }
 
-.modal.show {
-  display: flex;
+.landscapes {
+  padding: 80px 7% 88px;
+  background:
+    radial-gradient(ellipse at 50% 0%, #172b3b 0%, transparent 60%),
+    var(--bg);
 }
 
-.dialog {
-  width: 100%;
-  max-width: 360px;
-  padding: 25px;
-  border: 1px solid rgba(255,116,23,.5);
-  border-radius: 18px;
-  background: #101d29;
-  line-height: 1.5;
+.section-intro {
+  text-align: center;
+  max-width: 650px;
+  margin: 0 auto 39px;
 }
 
-.dialog h2 {
-  margin-bottom: 10px;
+.kicker {
+  color: var(--orange);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-transform: uppercase;
 }
 
-.dialog p {
-  color: #c1ccd7;
+.section-intro h2 {
+  margin-top: 15px;
+  font-size: clamp(28px, 4vw, 43px);
+  letter-spacing: -1.3px;
+  line-height: 1.2;
+}
+
+.section-intro p {
+  margin-top: 15px;
+  color: var(--muted);
   font-size: 14px;
-  margin-bottom: 20px;
+  line-height: 1.9;
 }
 
-.close-button {
+.photo-grid {
+  max-width: 1250px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 21px;
+}
+
+.photo-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #ffffff16;
+  border-radius: 15px;
+  background: #101d29;
+  transition: transform .25s ease, border-color .25s ease;
+}
+
+.photo-card:hover {
+  transform: translateY(-5px);
+  border-color: #ff7b2c80;
+}
+
+.photo {
+  height: 255px;
+  position: relative;
+  overflow: hidden;
+  background: #20384a;
+}
+
+.photo img {
+  display: block;
   width: 100%;
-  padding: 13px;
-  border: 0;
-  border-radius: 10px;
-  background: #ff7417;
-  color: #08111b;
-  font-weight: bold;
-  cursor: pointer;
+  height: 100%;
+  object-fit: cover;
+  transition: transform .6s ease;
+}
+
+.photo-card:hover .photo img { transform: scale(1.055); }
+
+.photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 45%, #07111bc9 100%);
+  pointer-events: none;
+}
+
+.photo-number {
+  position: absolute;
+  z-index: 1;
+  top: 16px;
+  left: 16px;
+  padding: 7px 10px;
+  border: 1px solid #ffffff50;
+  border-radius: 50px;
+  background: #08111b82;
+  color: white;
+  font-size: 10px;
+  letter-spacing: 1.4px;
+}
+
+.photo-caption {
+  position: absolute;
+  z-index: 1;
+  left: 21px;
+  right: 15px;
+  bottom: 20px;
+}
+
+.photo-caption small {
+  color: #ffc49e;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.photo-caption h3 {
+  margin-top: 7px;
+  font-size: 25px;
+  letter-spacing: -.5px;
+}
+
+.card-copy {
+  padding: 20px 21px 24px;
+}
+
+.card-copy p {
+  min-height: 68px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.85;
+}
+
+.card-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  color: #ffad79;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.card-link span { transition: transform .2s; }
+.card-link:hover span { transform: translateX(4px); }
+
+.bottom-cta {
+  margin: 0 7% 75px;
+  padding: 45px 28px;
+  border: 1px solid #ffffff18;
+  border-radius: 16px;
+  text-align: center;
+  background:
+    radial-gradient(ellipse at top right, #ff7b2c19, transparent 50%),
+    #101e2b;
+}
+
+.bottom-cta h2 {
+  font-size: clamp(25px, 4vw, 36px);
+  letter-spacing: -1px;
+}
+
+.bottom-cta p {
+  margin: 13px auto 25px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.8;
 }
 
 footer {
-  padding: 16px;
-  text-align: center;
-  color: #aab8c8;
+  min-height: 90px;
+  padding: 25px 7%;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  color: var(--muted);
   font-size: 12px;
-  line-height: 1.5;
-  background: #08111b;
 }
 
-@media (max-width: 600px) {
-  .settings-button {
-    width: 36px;
-    height: 36px;
-    top: 8px;
-    right: 8px;
-    font-size: 18px;
-  }
+.footer-brand {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 3px;
+}
 
-  .role-link {
-    top: 59.2%;
-    height: 9.5%;
-  }
+.footer-brand span { color: var(--orange); }
 
-  footer {
-    font-size: 11px;
-  }
+@media (max-width: 850px) {
+  .photo-grid { grid-template-columns: 1fr 1fr; }
+  .photo-card:last-child { grid-column: 1 / -1; }
+  .photo-card:last-child .photo { height: 300px; }
+  .landscapes { padding-left: 5%; padding-right: 5%; }
+}
+
+@media (max-width: 560px) {
+  .topbar { height: 72px; padding: 0 20px; }
+  .brand { font-size: 25px; }
+  .top-note { max-width: 105px; font-size: 9px; line-height: 1.6; text-align: right; }
+  .hero { min-height: 590px; padding: 72px 20px; }
+  h1 { letter-spacing: -2px; }
+  .buttons { flex-direction: column; align-items: center; }
+  .btn { width: min(100%, 330px); }
+  .landscapes { padding: 60px 18px; }
+  .photo-grid { grid-template-columns: 1fr; gap: 17px; }
+  .photo-card:last-child { grid-column: auto; }
+  .photo, .photo-card:last-child .photo { height: 245px; }
+  .card-copy p { min-height: 0; }
+  .bottom-cta { margin: 0 18px 50px; padding: 35px 20px; }
+  footer { justify-content: center; text-align: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .role-link {
-    transition: none;
+  *, *::before, *::after {
+    transition: none !important;
+    scroll-behavior: auto !important;
   }
 }
 </style>
@@ -180,93 +412,150 @@ footer {
 
 <body>
 
+<header class="topbar">
+  <a href="index.html" aria-label="RRYD homepage">
+    <div class="brand">RR<span>Y</span>D</div>
+    <div class="brand-sub">Move your way.</div>
+  </a>
+  <div class="top-note">INSPIRED BY NEPAL</div>
+</header>
+
 <main>
-  <section class="poster" aria-label="RRYD Nepal ride platform">
-    <img
-      src="nepal-hero.png"
-      alt="RRYD Nepal: Mount Everest and the Himalayas, green hills, and the Terai plains at sunset."
-      fetchpriority="high"
-    >
+  <section class="hero">
+    <div class="hero-content">
+      <div class="eyebrow">NEPAL · YOUR JOURNEY BEGINS</div>
+      <h1>Move your way<span>.</span></h1>
+      <p>
+        Every journey tells a story. Discover the beauty of Nepal,
+        from its magnificent mountain peaks to its peaceful hills
+        and sunlit southern plains.
+      </p>
 
-    <a
-      class="role-link passenger-link"
-      href="passenger.html"
-      aria-label="Book a ride as a passenger"
-      title="Book a Ride"
-    ></a>
+      <div class="buttons">
+        <a class="btn btn-primary" href="passenger.html">
+          Book a Ride <span class="btn-arrow">↗</span>
+        </a>
+        <a class="btn btn-secondary" href="driver.html">
+          Become a Driver <span class="btn-arrow">↗</span>
+        </a>
+      </div>
 
-    <a
-      class="role-link driver-link"
-      href="driver.html"
-      aria-label="Become a driver"
-      title="Become a Driver"
-    ></a>
+      <div class="hero-caption">THREE REGIONS · ONE BEAUTIFUL NEPAL</div>
+    </div>
+  </section>
+
+  <section class="landscapes">
+    <div class="section-intro">
+      <div class="kicker">A LAND OF CONTRASTS</div>
+      <h2>Discover Nepal's natural beauty</h2>
+      <p>
+        From the roof of the world to green valleys and open plains,
+        each region has a character of its own.
+      </p>
+    </div>
+
+    <div class="photo-grid">
+      <article class="photo-card">
+        <div class="photo">
+          <img
+            src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=900&q=85"
+            alt="Dramatic mountain peaks representing the Himalayas"
+            loading="lazy"
+            onerror="this.style.display='none'">
+          <div class="photo-number">01 / THE NORTH</div>
+          <div class="photo-caption">
+            <small>Above the clouds</small>
+            <h3>The Himalayas</h3>
+          </div>
+        </div>
+        <div class="card-copy">
+          <p>
+            Towering snow-capped peaks, dramatic mountain
+            silhouettes and the quiet grandeur of the high Himalayas.
+          </p>
+          <a class="card-link" href="passenger.html">
+            Begin your journey <span>→</span>
+          </a>
+        </div>
+      </article>
+
+      <article class="photo-card">
+        <div class="photo">
+          <img
+            src="https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=900&q=85"
+            alt="Lush green landscape representing Nepal's hills"
+            loading="lazy"
+            onerror="this.style.display='none'">
+          <div class="photo-number">02 / THE MIDDLE</div>
+          <div class="photo-caption">
+            <small>Where green meets sky</small>
+            <h3>The Hills</h3>
+          </div>
+        </div>
+        <div class="card-copy">
+          <p>
+            Rolling green ridges, tranquil valleys, terraced
+            landscapes and villages nestled among the hills.
+          </p>
+          <a class="card-link" href="passenger.html">
+            Begin your journey <span>→</span>
+          </a>
+        </div>
+      </article>
+
+      <article class="photo-card">
+        <div class="photo">
+          <img
+            src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=900&q=85"
+            alt="Open green agricultural fields representing the Terai plains"
+            loading="lazy"
+            onerror="this.style.display='none'">
+          <div class="photo-number">03 / THE SOUTH</div>
+          <div class="photo-caption">
+            <small>Open horizons</small>
+            <h3>The Terai</h3>
+          </div>
+        </div>
+        <div class="card-copy">
+          <p>
+            Broad fertile plains, agricultural fields, warm
+            horizons and the natural richness of southern Nepal.
+          </p>
+          <a class="card-link" href="passenger.html">
+            Begin your journey <span>→</span>
+          </a>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="bottom-cta">
+    <h2>Your next journey starts here.</h2>
+    <p>
+      Choose your path and get started with RRYD.
+    </p>
+    <div class="buttons">
+      <a class="btn btn-primary" href="passenger.html">
+        Book a Ride <span class="btn-arrow">↗</span>
+      </a>
+      <a class="btn btn-secondary" href="driver.html">
+        Become a Driver <span class="btn-arrow">↗</span>
+      </a>
+    </div>
   </section>
 </main>
 
 <footer>
-  © 2026 RRYD · Move your way.
+  <div>
+    <div class="footer-brand">RR<span>Y</span>D</div>
+    <div class="brand-sub">Move your way.</div>
+  </div>
+  <div>© <span id="year"></span> RRYD. Made for Nepal.</div>
 </footer>
 
-<button
-  class="settings-button"
-  id="settingsButton"
-  type="button"
-  aria-label="Open website settings"
-  title="Settings"
->⚙</button>
-
-<div
-  class="modal"
-  id="settingsModal"
-  role="dialog"
-  aria-modal="true"
-  aria-labelledby="settingsTitle"
->
-  <div class="dialog">
-    <h2 id="settingsTitle">RRYD Settings</h2>
-    <p>
-      Nepal's ride platform.<br>
-      Choose Book a Ride to continue as a passenger,
-      or Become a Driver to open the driver portal.
-    </p>
-    <button class="close-button" id="closeSettings" type="button">
-      Close
-    </button>
-  </div>
-</div>
-
 <script>
-const settingsButton = document.getElementById("settingsButton");
-const settingsModal = document.getElementById("settingsModal");
-const closeSettings = document.getElementById("closeSettings");
-
-function openSettings() {
-  settingsModal.classList.add("show");
-  closeSettings.focus();
-}
-
-function hideSettings() {
-  settingsModal.classList.remove("show");
-  settingsButton.focus();
-}
-
-settingsButton.addEventListener("click", openSettings);
-closeSettings.addEventListener("click", hideSettings);
-
-settingsModal.addEventListener("click", function(event) {
-  if (event.target === settingsModal) {
-    hideSettings();
-  }
-});
-
-document.addEventListener("keydown", function(event) {
-  if (event.key === "Escape" && settingsModal.classList.contains("show")) {
-    hideSettings();
-  }
-});
+document.getElementById("year").textContent = new Date().getFullYear();
 </script>
 
 </body>
 </html>
-```
