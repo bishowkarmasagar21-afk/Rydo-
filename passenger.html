@@ -267,7 +267,14 @@ const FARE_RULES = {
 };
 const ACTIVE_STATUSES = ["requested","accepted","arriving","started"];
 const $ = id => document.getElementById(id);
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: window.localStorage
+  }
+});
 
 let user = null;
 let profile = null;
