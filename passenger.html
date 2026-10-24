@@ -47,6 +47,10 @@ h1{font-size:24px}h2{font-size:20px;margin-top:0}h3{font-size:17px}
 .status.completed{background:#37d99a22;color:var(--success)}
 .status.cancelled{background:#ff536622;color:var(--danger)}
 #driverDetails{margin-top:10px}
+.receipt-toast{position:fixed;z-index:2000;left:12px;right:12px;bottom:12px;max-width:680px;margin:0 auto;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:13px;box-shadow:0 12px 40px #0008;padding:14px;max-height:72vh;overflow:auto}
+.receipt-toast-head{display:flex;align-items:center;gap:8px;justify-content:space-between;position:sticky;top:-14px;background:var(--panel);padding:0 0 8px}
+.receipt-close{padding:3px 9px;min-width:28px;font-size:17px;line-height:1.2;background:transparent;border:1px solid var(--border);color:var(--text);border-radius:7px}
+.receipt-toast pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;margin:8px 0}
 footer{text-align:center;color:var(--muted);padding:20px;font-size:12px}
 @media(max-width:700px){main{padding:9px}.grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}#map{height:290px}header{padding:9px}.brand{font-size:21px}}
 </style>
@@ -115,18 +119,6 @@ footer{text-align:center;color:var(--muted);padding:20px;font-size:12px}
     <button class="secondary" id="enableNotificationsBtn" type="button">Enable notifications</button>
   </section>
 
-  <section class="card">
-    <h2>Dashboard</h2>
-    <p class="muted small">Tap a card to see your ride details.</p>
-    <div class="stats">
-      <button class="stat" data-stat="total" type="button">Total rides<strong id="statTotal">0</strong></button>
-      <button class="stat" data-stat="completed" type="button">Completed<strong id="statCompleted">0</strong></button>
-      <button class="stat" data-stat="cancelled" type="button">Cancelled<strong id="statCancelled">0</strong></button>
-    </div>
-    <div id="dashboardDetail" class="detail hidden"></div>
-    <button class="ghost" id="refreshDashboardBtn" type="button" style="margin-top:10px">Refresh dashboard</button>
-  </section>
-
   <div class="grid">
     <section class="card">
       <h2>Book a ride</h2>
@@ -159,7 +151,9 @@ footer{text-align:center;color:var(--muted);padding:20px;font-size:12px}
         <div class="muted small">Estimated fare</div>
         <div class="fare" id="fareDisplay">NPR 25</div>
         <p class="muted small" id="fareBreakdown">Fare is estimated from route distance.</p>
+        <button class="secondary" id="calculateFareBtn" type="button" style="width:100%;margin:6px 0">Calculate fare</button>
         <p id="availabilityText" class="muted small">Driver availability will be checked before booking.</p>
+        <div id="vehicleAvailabilityList" class="small muted" aria-live="polite"></div>
       </div>
 
       <label for="paymentMethod">Payment method</label>
@@ -193,6 +187,7 @@ footer{text-align:center;color:var(--muted);padding:20px;font-size:12px}
 </section>
 <footer>Rryd · Move your way.</footer>
 </main>
+<div id="receiptPopup" class="receipt-toast hidden" role="dialog" aria-label="Ride receipt" aria-live="polite"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -351,6 +346,7 @@ async function loadPassenger(){
   initMap();
   await refreshCurrentRide();
   await refreshNearbyDrivers();
+  await checkAvailabilityDisplay();
   startPolling();
 }
 
@@ -388,11 +384,20 @@ function updateFareDisplay(){
   setText("fareDisplay",money(calculateFare(selectedVehicle,routeDistanceKm)));
   setText("fareBreakdown",`${money(rule.base)} base + ${money(rule.perKm)} per km · ${routeDistanceKm.toFixed(2)} km · estimated fare`);
 }
+$("calculateFareBtn").addEventListener("click",()=>{
+  if(!pickupCoords||!destinationCoords||routeDistanceKm<=0){
+    setMessage("appMessage","Choose pickup and destination first, then wait for the road route to calculate.","error");
+    return;
+  }
+  updateFareDisplay();
+  setMessage("appMessage",`Estimated ${selectedVehicle.replace("_"," ")} fare: ${money(calculateFare(selectedVehicle,routeDistanceKm))} for ${routeDistanceKm.toFixed(2)} km.`,"ok");
+});
 document.querySelectorAll("[data-vehicle]").forEach(btn=>btn.addEventListener("click",()=>{
   selectedVehicle=btn.dataset.vehicle;
   document.querySelectorAll("[data-vehicle]").forEach(b=>b.classList.toggle("selected",b===btn));
   updateFareDisplay();
   checkAvailabilityDisplay();
+  refreshNearbyDrivers();
 }));
 
 /* Map, map pins, Nepal-only search and road route */
@@ -591,7 +596,6 @@ async function refreshCurrentRide(){
     currentRide=rideRows.find(r=>isActiveStatus(r.status))||null;
     renderCurrentRide();
     renderHistory();
-    renderDashboard();
     if(currentRide)await loadDriverDetails(currentRide);
     else{$("driverDetails").innerHTML="";lastKnownRideStatus=""}
   }catch(error){
@@ -664,31 +668,6 @@ function renderHistory(){
 }
 $("refreshHistoryBtn").addEventListener("click",refreshCurrentRide);
 
-/* Passenger dashboard: ride counts only, no driver earnings or admin commission */
-function renderDashboard(){
-  const completed=rideRows.filter(r=>String(r.status).toLowerCase()==="completed");
-  const cancelled=rideRows.filter(r=>["cancelled","canceled"].includes(String(r.status).toLowerCase()));
-  setText("statTotal",rideRows.length);
-  setText("statCompleted",completed.length);
-  setText("statCancelled",cancelled.length);
-}
-function showDashboardDetail(key){
-  const completed=rideRows.filter(r=>String(r.status).toLowerCase()==="completed");
-  const cancelled=rideRows.filter(r=>["cancelled","canceled"].includes(String(r.status).toLowerCase()));
-  const cfg={
-    total:["All rides",rideRows],
-    completed:["Completed rides",completed],
-    cancelled:["Cancelled rides",cancelled]
-  }[key];
-  if(!cfg)return;
-  const [title,rows]=cfg;
-  $("dashboardDetail").innerHTML=`<b>${escapeHTML(title)}</b><p>${rows.length} ride(s)</p>`+
-    (rows.length?rows.slice(0,20).map(r=>`<div class="ride"><b>Ride #${escapeHTML(r.id)}</b> · ${escapeHTML(statusText(r.status))}<p>${escapeHTML(r.pickup_location??r.pickup??"")} → ${escapeHTML(r.destination??"")}</p><p>${escapeHTML(r.vehicle_type??"—")} · ${money(r.final_fare??r.fare??r.estimated_fare)}</p></div>`).join(""):'<p class="muted">No matching rides.</p>');
-  show("dashboardDetail",true);
-}
-document.querySelectorAll("[data-stat]").forEach(btn=>btn.addEventListener("click",()=>showDashboardDetail(btn.dataset.stat)));
-$("refreshDashboardBtn").addEventListener("click",async()=>{await refreshCurrentRide();setMessage("appMessage","Dashboard refreshed.","ok")});
-
 /* Shareable receipt for completed rides. This reports stored payment status; it does not process payment. */
 function receiptText(r){
   return [
@@ -701,11 +680,22 @@ function receiptText(r){
     "Receipt generated from ride information recorded in Rryd."
   ].join("\n");
 }
+let receiptCloseTimer=null;
+function closeReceiptPopup(){
+  const popup=$("receiptPopup");
+  popup.classList.add("hidden");
+  popup.innerHTML="";
+  if(receiptCloseTimer){clearTimeout(receiptCloseTimer);receiptCloseTimer=null;}
+}
 function showReceipt(r){
-  const box=$("dashboardDetail");
-  box.innerHTML=`<b>Rryd receipt · Ride #${escapeHTML(r.id)}</b><pre id="receiptText" style="white-space:pre-wrap;overflow-wrap:anywhere;font:inherit">${escapeHTML(receiptText(r))}</pre>
-  <div class="row" style="flex-wrap:wrap"><button class="primary" id="downloadReceiptBtn" type="button">Download receipt</button><button class="primary" id="shareReceiptBtn" type="button">Share</button><button class="secondary" id="copyReceiptBtn" type="button">Copy</button><button class="ghost" id="printReceiptBtn" type="button">Print / Save as PDF</button></div>`;
-  show("dashboardDetail",true);
+  const popup=$("receiptPopup");
+  closeReceiptPopup();
+  popup.innerHTML=`<div class="receipt-toast-head"><strong>Rryd receipt · Ride #${escapeHTML(r.id)}</strong><button class="receipt-close" id="closeReceiptBtn" type="button" aria-label="Close receipt">×</button></div>
+  <pre id="receiptText">${escapeHTML(receiptText(r))}</pre>
+  <div class="row" style="flex-wrap:wrap"><button class="primary" id="downloadReceiptBtn" type="button">Download receipt</button><button class="primary" id="shareReceiptBtn" type="button">Share</button><button class="secondary" id="copyReceiptBtn" type="button">Copy</button><button class="ghost" id="printReceiptBtn" type="button">Print / Save as PDF</button></div>
+  <p class="muted small">This receipt popup closes automatically after 10 seconds. Use × to close it sooner.</p>`;
+  show("receiptPopup",true);
+  $("closeReceiptBtn").addEventListener("click",closeReceiptPopup);
   $("downloadReceiptBtn").addEventListener("click",()=>downloadReceipt(r));
   $("shareReceiptBtn").addEventListener("click",async()=>{
     try{if(navigator.share)await navigator.share({title:"Rryd ride receipt",text:receiptText(r)});else await copyReceipt(r)}
@@ -718,6 +708,7 @@ function showReceipt(r){
     w.document.write("<!doctype html><title>Rryd receipt</title><pre style='white-space:pre-wrap;font:16px Arial;padding:24px'>"+escapeHTML(receiptText(r))+"</pre>");
     w.document.close();w.focus();w.print();
   });
+  receiptCloseTimer=setTimeout(closeReceiptPopup,10000);
 }
 function downloadReceipt(r){
   const content=receiptText(r)+"\n\nThis receipt reflects ride/payment information stored in Rryd. It is not confirmation of online payment unless payment status is recorded as successful.";
@@ -736,32 +727,55 @@ async function copyReceipt(r){
   catch(_){window.prompt("Copy your Rryd receipt:",receiptText(r))}
 }
 
-/* Nearby online drivers on the map. This requires profile SELECT access and recent driver GPS coordinates. */
+/* Show online, verified drivers with approved vehicle types on the passenger map. */
 async function refreshNearbyDrivers(){
   if(!db||!session||!map||!nearbyLayer)return;
+  const availabilityBox=$("vehicleAvailabilityList");
   try{
-    const {data,error}=await db.from("profiles")
+    const {data:drivers,error:driverError}=await db.from("profiles")
       .select("id,full_name,role,is_verified,is_online,is_suspended,current_latitude,current_longitude,location_updated_at")
       .eq("role","driver").eq("is_online",true).eq("is_verified",true)
       .not("current_latitude","is",null).not("current_longitude","is",null).limit(200);
-    if(error)throw error;
+    if(driverError)throw driverError;
     nearbyLayer.clearLayers();
-    let count=0;
-    (data||[]).forEach(d=>{
-      if(d.is_suspended===true)return;
+    const validDrivers=(drivers||[]).filter(d=>d.is_suspended!==true&&Number.isFinite(Number(d.current_latitude))&&Number.isFinite(Number(d.current_longitude))&&Number(d.current_latitude)>=26&&Number(d.current_latitude)<=31&&Number(d.current_longitude)>=80&&Number(d.current_longitude)<=89);
+    let vehiclesByDriver={};
+    if(validDrivers.length){
+      const ids=validDrivers.map(d=>d.id);
+      const {data:vehicles,error:vehicleError}=await db.from("vehicles")
+        .select("driver_id,vehicle_type,model,vehicle_number,is_approved")
+        .in("driver_id",ids).eq("is_approved",true);
+      if(vehicleError)console.warn("Approved vehicle lookup:",vehicleError.message);
+      else (vehicles||[]).forEach(v=>{
+        const key=String(v.driver_id);
+        (vehiclesByDriver[key]||(vehiclesByDriver[key]=[])).push(v);
+      });
+    }
+    const counts={bike:0,car:0,tuk_tuk:0};
+    let markerCount=0;
+    validDrivers.forEach(d=>{
+      const vehicles=vehiclesByDriver[String(d.id)]||[];
+      if(!vehicles.length)return;
       const lat=Number(d.current_latitude),lon=Number(d.current_longitude);
-      if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat<26||lat>31||lon<80||lon>89)return;
-      const name=d.full_name||"Online driver";
-      const marker=L.marker([lat,lon],{icon:L.divIcon({
-        className:"",html:'<div style="font-size:24px">🚕</div>',iconSize:[30,30],iconAnchor:[15,15]
-      })});
-      marker.bindPopup(`<b>${escapeHTML(name)}</b><br>Online · approved profile<br>Vehicle type may be available in the driver portal.`);
-      marker.addTo(nearbyLayer);count++;
+      vehicles.forEach(v=>{
+        const type=String(v.vehicle_type||"").toLowerCase();
+        if(!["bike","car","tuk_tuk"].includes(type))return;
+        counts[type]++;
+        const emoji=type==="bike"?"🏍️":type==="car"?"🚗":"🛺";
+        const typeName=type==="tuk_tuk"?"Tuk Tuk":type.charAt(0).toUpperCase()+type.slice(1);
+        const marker=L.marker([lat,lon],{icon:L.divIcon({className:"",html:`<div style="font-size:24px">${emoji}</div>`,iconSize:[30,30],iconAnchor:[15,15]})});
+        marker.bindPopup(`<b>${escapeHTML(d.full_name||"Online driver")}</b><br>${escapeHTML(typeName)} · Available<br>${escapeHTML(v.model||"")}<br>Registration: ${escapeHTML(v.vehicle_number||"Not provided")}`);
+        marker.addTo(nearbyLayer);markerCount++;
+      });
     });
-    setText("mapMessage",count+" online verified driver(s) shown. Vehicle type and visibility depend on available database fields and location permissions.");
+    if(availabilityBox){
+      availabilityBox.innerHTML=`<b>Approved online vehicles</b><br>🏍️ Bike: ${counts.bike}<br>🚗 Car: ${counts.car}<br>🛺 Tuk Tuk: ${counts.tuk_tuk}<br><span class="muted">Counts reflect verified online drivers with an approved vehicle and available GPS location.</span>`;
+    }
+    setText("mapMessage",markerCount?`${markerCount} approved online vehicle(s) shown on the map. Tap a vehicle marker for details.`:"No approved online vehicles with a current GPS location were found.");
   }catch(error){
     console.warn("Nearby drivers unavailable:",error);
-    setText("mapMessage","Nearby drivers could not be loaded. Check driver-location updates and profiles SELECT permissions.");
+    if(availabilityBox)availabilityBox.textContent="Vehicle availability could not be loaded. Check profile/vehicle read permissions and driver GPS updates.";
+    setText("mapMessage","Nearby vehicles could not be loaded. Check profiles/vehicles SELECT permissions and driver location updates.");
   }
 }
 
