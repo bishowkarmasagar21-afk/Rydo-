@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -118,11 +117,8 @@ footer{text-align:center;color:var(--muted);padding:20px;font-size:12px}
 
   <section class="card">
     <h2>Dashboard</h2>
-    <p class="muted small">Tap a card to see ride details.</p>
+    <p class="muted small">Tap a card to see your ride details.</p>
     <div class="stats">
-      <button class="stat" data-stat="earnings" type="button">Completed fares<strong id="statEarnings">NPR 0</strong></button>
-      <button class="stat" data-stat="commission" type="button">Admin commission<strong id="statCommission">NPR 0</strong></button>
-      <button class="stat" data-stat="net" type="button">Driver net<strong id="statNet">NPR 0</strong></button>
       <button class="stat" data-stat="total" type="button">Total rides<strong id="statTotal">0</strong></button>
       <button class="stat" data-stat="completed" type="button">Completed<strong id="statCompleted">0</strong></button>
       <button class="stat" data-stat="cancelled" type="button">Cancelled<strong id="statCancelled">0</strong></button>
@@ -668,31 +664,26 @@ function renderHistory(){
 }
 $("refreshHistoryBtn").addEventListener("click",refreshCurrentRide);
 
-/* Dashboard statistics and tap-to-view detail */
+/* Passenger dashboard: ride counts only, no driver earnings or admin commission */
 function renderDashboard(){
   const completed=rideRows.filter(r=>String(r.status).toLowerCase()==="completed");
   const cancelled=rideRows.filter(r=>["cancelled","canceled"].includes(String(r.status).toLowerCase()));
-  const earnings=completed.reduce((s,r)=>s+Number(r.final_fare??r.fare??r.estimated_fare??0),0);
-  const commission=completed.reduce((s,r)=>s+Number(r.admin_earnings??0),0);
-  const net=completed.reduce((s,r)=>s+Number(r.driver_earnings??0),0);
-  setText("statEarnings",money(earnings));setText("statCommission",money(commission));setText("statNet",money(net));
-  setText("statTotal",rideRows.length);setText("statCompleted",completed.length);setText("statCancelled",cancelled.length);
+  setText("statTotal",rideRows.length);
+  setText("statCompleted",completed.length);
+  setText("statCancelled",cancelled.length);
 }
 function showDashboardDetail(key){
   const completed=rideRows.filter(r=>String(r.status).toLowerCase()==="completed");
   const cancelled=rideRows.filter(r=>["cancelled","canceled"].includes(String(r.status).toLowerCase()));
   const cfg={
-    earnings:["Completed ride fares",completed,r=>r.final_fare??r.fare??r.estimated_fare??0],
-    commission:["Admin commission recorded in Supabase",completed,r=>r.admin_earnings??0],
-    net:["Driver net recorded in Supabase",completed,r=>r.driver_earnings??0],
-    total:["All rides",rideRows,r=>r.final_fare??r.fare??r.estimated_fare??0],
-    completed:["Completed rides",completed,r=>r.final_fare??r.fare??r.estimated_fare??0],
-    cancelled:["Cancelled rides",cancelled,()=>0]
+    total:["All rides",rideRows],
+    completed:["Completed rides",completed],
+    cancelled:["Cancelled rides",cancelled]
   }[key];
   if(!cfg)return;
-  const [title,rows,amount]=cfg;
-  $("dashboardDetail").innerHTML=`<b>${escapeHTML(title)}</b><p>${rows.length} ride(s) · ${money(rows.reduce((s,r)=>s+Number(amount(r)||0),0))}</p>`+
-    (rows.length?rows.slice(0,20).map(r=>`<div class="ride"><b>Ride #${escapeHTML(r.id)}</b> · ${escapeHTML(statusText(r.status))}<p>${escapeHTML(r.pickup_location??r.pickup??"")} → ${escapeHTML(r.destination??"")}</p>${money(amount(r))}</div>`).join(""):'<p class="muted">No matching rides.</p>');
+  const [title,rows]=cfg;
+  $("dashboardDetail").innerHTML=`<b>${escapeHTML(title)}</b><p>${rows.length} ride(s)</p>`+
+    (rows.length?rows.slice(0,20).map(r=>`<div class="ride"><b>Ride #${escapeHTML(r.id)}</b> · ${escapeHTML(statusText(r.status))}<p>${escapeHTML(r.pickup_location??r.pickup??"")} → ${escapeHTML(r.destination??"")}</p><p>${escapeHTML(r.vehicle_type??"—")} · ${money(r.final_fare??r.fare??r.estimated_fare)}</p></div>`).join(""):'<p class="muted">No matching rides.</p>');
   show("dashboardDetail",true);
 }
 document.querySelectorAll("[data-stat]").forEach(btn=>btn.addEventListener("click",()=>showDashboardDetail(btn.dataset.stat)));
@@ -713,8 +704,9 @@ function receiptText(r){
 function showReceipt(r){
   const box=$("dashboardDetail");
   box.innerHTML=`<b>Rryd receipt · Ride #${escapeHTML(r.id)}</b><pre id="receiptText" style="white-space:pre-wrap;overflow-wrap:anywhere;font:inherit">${escapeHTML(receiptText(r))}</pre>
-  <div class="row" style="flex-wrap:wrap"><button class="primary" id="shareReceiptBtn" type="button">Share</button><button class="secondary" id="copyReceiptBtn" type="button">Copy</button><button class="ghost" id="printReceiptBtn" type="button">Print</button></div>`;
+  <div class="row" style="flex-wrap:wrap"><button class="primary" id="downloadReceiptBtn" type="button">Download receipt</button><button class="primary" id="shareReceiptBtn" type="button">Share</button><button class="secondary" id="copyReceiptBtn" type="button">Copy</button><button class="ghost" id="printReceiptBtn" type="button">Print / Save as PDF</button></div>`;
   show("dashboardDetail",true);
+  $("downloadReceiptBtn").addEventListener("click",()=>downloadReceipt(r));
   $("shareReceiptBtn").addEventListener("click",async()=>{
     try{if(navigator.share)await navigator.share({title:"Rryd ride receipt",text:receiptText(r)});else await copyReceipt(r)}
     catch(error){if(error.name!=="AbortError")setMessage("appMessage","Could not share receipt: "+cleanError(error),"error")}
@@ -727,6 +719,18 @@ function showReceipt(r){
     w.document.close();w.focus();w.print();
   });
 }
+function downloadReceipt(r){
+  const content=receiptText(r)+"\n\nThis receipt reflects ride/payment information stored in Rryd. It is not confirmation of online payment unless payment status is recorded as successful.";
+  const blob=new Blob(["\ufeff",content],{type:"text/plain;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=`Rryd-receipt-${String(r.id).replace(/[^a-zA-Z0-9_-]/g,"")}.txt`;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  setMessage("appMessage","Receipt downloaded to your device.","ok");
+}
+
 async function copyReceipt(r){
   try{await navigator.clipboard.writeText(receiptText(r));setMessage("appMessage","Receipt copied. You can paste and share it.","ok")}
   catch(_){window.prompt("Copy your Rryd receipt:",receiptText(r))}
