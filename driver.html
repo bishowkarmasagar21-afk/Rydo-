@@ -447,8 +447,7 @@ async function bootDriver(){
   if(profile.is_online&&isDriverApproved())startGPS();
   else{
    stopGPS();
-   gpsStatus("Offline","Go online and allow location permission to receive dispatch offers.");
-  }
+   message("mapMessage", "Go online and allow location permission to receive dispatch offers.", "error");
  }finally{booting=false}
 }
 
