@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -229,13 +228,14 @@ a{color:var(--blue)}footer{text-align:center;color:var(--muted);padding:20px;fon
 
 const SUPABASE_URL="https://kqtvuorasqyzjbnlkkxs.supabase.co";
 const SUPABASE_KEY="sb_publishable_zZFJiy0YWZgOXFesVuAQcA_wd7rleMb";
-const REQUEST_POLL_MS=12000;
+const REQUEST_POLL_MS=3000;
+const LOCATION_REFRESH_MS=5000;
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=id=>document.getElementById(id);
 
 let user=null,profile=null,vehicle=null,currentRide=null;
 let map=null,driverMarker=null,pickupMarker=null,destinationMarker=null,routeLine=null;
-let gpsWatch=null,lastLocation=null,locationBusy=false,refreshBusy=false,realtimeChannel=null,requestPollTimer=null;
+let gpsWatch=null,lastLocation=null,locationBusy=false,refreshBusy=false,realtimeChannel=null,requestPollTimer=null,locationRefreshTimer=null,offersBusy=false;
 let audioContext=null,notificationSoundEnabled=false,soundEnableBusy=false;
 let knownRequestIds=new Set(),requestBaselineLoaded=false;
 
@@ -310,7 +310,7 @@ async function bootDriver(){
  if(error)throw error;if(!p)throw new Error("Your profile was not found. Contact Rryd support.");
  if(!["driver","admin"].includes(p.role)){await db.auth.signOut();throw new Error("This portal is for driver accounts only.")}
  profile=p;$("profileName").value=p.full_name||"";$("profilePhone").value=p.phone||"";
- updateStatusUI();showDashboard();await loadVehicle();await refreshRideData();await loadHistory();startRealtime();startRequestPolling();
+ updateStatusUI();showDashboard();await savePendingVehicle();await loadVehicle();await refreshRideData();await loadHistory();startRealtime();startRequestPolling();
  if(profile.is_online&&isDriverApproved())startGPS();else stopGPS();
 }
 async function login(email,password){message("authMessage","Signing in…");const {error}=await db.auth.signInWithPassword({email,password});if(error)throw error;await bootDriver()}
@@ -378,8 +378,17 @@ function updateLocationOnce(){return new Promise(resolve=>{
  if(!navigator.geolocation){message("mapMessage","Geolocation is not supported by this browser.","error");resolve();return}
  navigator.geolocation.getCurrentPosition(async p=>{await updateLocation(p.coords);resolve()},e=>{message("mapMessage","Location permission/error: "+e.message,"error");resolve()},{enableHighAccuracy:true,timeout:15000,maximumAge:5000});
 })}
-function startGPS(){if(gpsWatch!==null||!navigator.geolocation||!profile?.is_online)return;gpsWatch=navigator.geolocation.watchPosition(p=>updateLocation(p.coords),e=>message("mapMessage","GPS error: "+e.message,"error"),{enableHighAccuracy:true,maximumAge:10000,timeout:20000})}
-function stopGPS(){if(gpsWatch!==null&&navigator.geolocation)navigator.geolocation.clearWatch(gpsWatch);gpsWatch=null}
+function startGPS(){
+ if(!profile?.is_online||!isDriverApproved())return;
+ if(navigator.geolocation&&gpsWatch===null)gpsWatch=navigator.geolocation.watchPosition(p=>updateLocation(p.coords),e=>message("mapMessage","GPS error: "+e.message,"error"),{enableHighAccuracy:true,maximumAge:0,timeout:20000});
+ if(locationRefreshTimer===null)locationRefreshTimer=setInterval(()=>{if(user&&profile?.is_online&&!document.hidden)updateLocationOnce()},LOCATION_REFRESH_MS);
+}
+function stopGPS(){
+ if(gpsWatch!==null&&navigator.geolocation)navigator.geolocation.clearWatch(gpsWatch);
+ gpsWatch=null;
+ if(locationRefreshTimer!==null)clearInterval(locationRefreshTimer);
+ locationRefreshTimer=null;
+}
 
 /* Map */
 function initMap(){
@@ -418,15 +427,15 @@ async function refreshRideData(){
  finally{refreshBusy=false}
 }
 async function loadCurrentRide(){
- const {data,error}=await db.from("rides").select("*").eq("driver_id",user.id).in("status",["accepted","arriving","started","in_progress"]).order("id",{ascending:false}).limit(1);
+ const {data,error}=await db.from("rides").select("*").eq("driver_id",user.id).in("status",["accepted","arriving","reached","started","in_progress"]).order("id",{ascending:false}).limit(1);
  if(error)throw error;currentRide=data?.[0]||null;renderCurrentRide();if(map&&currentRide)drawRidePoints(currentRide);
 }
 function renderCurrentRide(){
  const root=$("currentRide");
  if(!currentRide){root.innerHTML='<p class="muted">You have no active ride.</p>';return}
  const r=currentRide,s=String(r.status||"").toLowerCase();let action="";
- if(s==="accepted")action='<button data-ride-action="arriving">Mark arrived</button>';
- else if(s==="arriving")action='<button data-ride-action="start">Start ride</button>';
+ if(s==="accepted"||s==="arriving")action='<button data-ride-action="reached">Mark arrived</button>';
+ else if(s==="reached")action='<button data-ride-action="start">Start ride</button>';
  else if(s==="started"||s==="in_progress")action='<button data-ride-action="complete">Complete ride</button>';
  root.innerHTML=`<div class="item"><span class="badge">${escapeHTML(s)}</span>
  <p><strong>Pickup:</strong> ${escapeHTML(pickupText(r))}</p>
@@ -438,36 +447,53 @@ function renderCurrentRide(){
 }
 async function loadRequests(){
  const root=$("requestList");
- if(!profile?.is_online||!isDriverApproved()){root.innerHTML='<p class="muted">Go online after verification to receive requests.</p>';return}
- if(!vehicle||vehicle.is_approved!==true){root.innerHTML='<p class="muted">Your vehicle must be approved before accepting rides.</p>';return}
- const {data,error}=await db.from("rides").select("*").eq("status","requested").eq("vehicle_type",vehicle.vehicle_type).is("driver_id",null).order("id",{ascending:false}).limit(30);
- if(error)throw error;const requests=data||[],ids=new Set(requests.map(r=>String(r.id)));
- if(!requestBaselineLoaded){knownRequestIds=ids;requestBaselineLoaded=true}
- else{
-  const fresh=requests.filter(r=>!knownRequestIds.has(String(r.id)));
-  if(fresh.length){fresh.forEach(r=>knownRequestIds.add(String(r.id)));playNewRideSound();message("dashboardMessage",fresh.length===1?"New ride request received!":"New ride requests received!","success")}
-  ids.forEach(id=>knownRequestIds.add(id));
- }
- if(!requests.length){root.innerHTML='<p class="muted">No matching ride requests right now.</p>';return}
- root.innerHTML=requests.map(r=>`<div class="item"><span class="badge">New request</span>
- <p><strong>Pickup:</strong> ${escapeHTML(pickupText(r))}</p>
- <p><strong>Destination:</strong> ${escapeHTML(destinationText(r))}</p>
- <p><strong>Distance:</strong> ${escapeHTML(r.distance_km??"—")} km</p>
- <p><strong>Fare:</strong> ${escapeHTML(money(r.fare))}</p>
- <button data-accept-ride="${escapeHTML(r.id)}">Accept ride</button></div>`).join("");
+ if(!profile?.is_online||!isDriverApproved()){root.innerHTML='<p class="muted">Go online after verification to receive automatic dispatch offers.</p>';return}
+ if(!vehicle||vehicle.is_approved!==true){root.innerHTML='<p class="muted">Your vehicle must be approved before receiving offers.</p>';return}
+ if(offersBusy)return;
+ offersBusy=true;
+ try{
+  const {data:offers,error}=await db.rpc("rryd_get_my_dispatch_offers");
+  if(error)throw error;
+  const validOffers=(Array.isArray(offers)?offers:[]).filter(o=>o?.ride_id!=null);
+  if(!validOffers.length){root.innerHTML='<p class="muted">No active dispatch offers right now. Keep this page open while online; new offers are checked automatically.</p>';knownRequestIds=new Set();return}
+  const currentIds=new Set(validOffers.map(o=>String(o.ride_id)));
+  const fresh=validOffers.filter(o=>!knownRequestIds.has(String(o.ride_id)));
+  if(requestBaselineLoaded&&fresh.length){playNewRideSound();message("dashboardMessage",fresh.length===1?"New automatic dispatch offer received!":"New automatic dispatch offers received!","success")}
+  requestBaselineLoaded=true;knownRequestIds=currentIds;
+  root.innerHTML=validOffers.map(o=>{
+   const expiry=o.expires_at?new Date(o.expires_at).getTime():0;
+   const seconds=expiry?Math.max(0,Math.ceil((expiry-Date.now())/1000)):15;
+   const distance=o.distance_km==null?"Not available":Number(o.distance_km).toFixed(1)+" km";
+   return `<div class="item"><span class="badge">Automatic dispatch offer · Attempt ${escapeHTML(o.attempt_number??"—")}</span>
+   <p><strong>Pickup:</strong> ${escapeHTML(o.pickup_location||"Not provided")}</p>
+   <p><strong>Destination:</strong> ${escapeHTML(o.destination||"Not provided")}</p>
+   <p><strong>Vehicle:</strong> ${escapeHTML(o.vehicle_type||"—")}</p>
+   <p><strong>Driver-to-pickup distance:</strong> ${escapeHTML(distance)}</p>
+   <p><strong>Fare:</strong> ${escapeHTML(money(o.fare))}</p>
+   <p class="muted">Offer expires in approximately <strong>${seconds}s</strong>. Accept promptly.</p>
+   <div class="actions"><button data-accept-ride="${escapeHTML(o.ride_id)}">Accept ride</button><button class="secondary" data-decline-ride="${escapeHTML(o.ride_id)}">Decline</button></div></div>`;
+  }).join("");
+ }finally{offersBusy=false}
 }
-function startRequestPolling(){stopRequestPolling();requestPollTimer=setInterval(()=>{if(user&&!document.hidden)refreshRideData()},REQUEST_POLL_MS)}
+function startRequestPolling(){stopRequestPolling();requestPollTimer=setInterval(()=>{if(user&&!document.hidden){loadRequests().catch(e=>message("dashboardMessage","Could not check dispatch offers: "+displayError(e),"error"));loadCurrentRide().catch(e=>message("dashboardMessage","Could not refresh current ride: "+displayError(e),"error"))}},REQUEST_POLL_MS)}
 function stopRequestPolling(){if(requestPollTimer!==null)clearInterval(requestPollTimer);requestPollTimer=null}
 async function acceptRide(id){
  if(!isDriverApproved()||!profile?.is_online)throw new Error("You must be a verified online driver to accept a ride.");
  if(!vehicle?.is_approved)throw new Error("Your vehicle is not approved.");
- const {data,error}=await db.rpc("accept_ride",{p_ride_id:Number(id)});if(error)throw error;if(data===false)throw new Error("This ride is no longer available. Refresh and try another.");
- knownRequestIds.add(String(id));message("dashboardMessage","Ride accepted.","success");await refreshRideData();
+ const {data,error}=await db.rpc("accept_ride",{p_ride_id:Number(id)});if(error)throw error;if(data===false)throw new Error("This offer is no longer available. Refresh and wait for another automatic offer.");
+ knownRequestIds.add(String(id));message("dashboardMessage","Dispatch offer accepted. The ride is now assigned to you.","success");await refreshRideData();
+}
+async function declineRide(id){
+ const {data,error}=await db.rpc("rryd_decline_dispatch_offer",{p_ride_id:Number(id)});
+ if(error)throw error;
+ if(data===false)throw new Error("This offer has already expired or is no longer available.");
+ message("dashboardMessage","Offer declined. Automatic dispatch may offer another ride.","success");
+ await loadRequests();
 }
 async function updateRideStatus(action){
  if(!currentRide||!user)throw new Error("No active ride was found.");const id=Number(currentRide.id);
- if(action==="arriving"){
-  const {data,error}=await db.from("rides").update({status:"arriving"}).eq("id",id).eq("driver_id",user.id).eq("status","accepted").select("id");
+ if(action==="reached"){
+  const {data,error}=await db.from("rides").update({status:"reached"}).eq("id",id).eq("driver_id",user.id).in("status",["accepted","arriving"]).select("id");
   if(error)throw error;if(!data?.length)throw new Error("Could not mark arrived. The ride may have changed.");
  }else if(action==="start"){
   const {data,error}=await db.rpc("start_ride",{p_ride_id:id});if(error)throw error;if(data===false)throw new Error("The server rejected the start action.");
@@ -560,6 +586,8 @@ document.querySelectorAll("[data-tab]").forEach(b=>b.addEventListener("click",()
 document.addEventListener("click",async e=>{
  const accept=e.target.closest("[data-accept-ride]");
  if(accept){accept.disabled=true;try{await acceptRide(accept.dataset.acceptRide)}catch(err){message("dashboardMessage",displayError(err),"error")}finally{accept.disabled=false}return}
+ const decline=e.target.closest("[data-decline-ride]");
+ if(decline){decline.disabled=true;try{await declineRide(decline.dataset.declineRide)}catch(err){message("dashboardMessage",displayError(err),"error")}finally{decline.disabled=false}return}
  const btn=e.target.closest("[data-ride-action]");if(!btn)return;const action=btn.dataset.rideAction;
  try{if(action==="call")await callPassenger();else if(action==="map"){showPanel("mapPanel");setTimeout(()=>{initMap();if(currentRide)drawRidePoints(currentRide)},100)}else{btn.disabled=true;await updateRideStatus(action)}}
  catch(err){message("dashboardMessage",displayError(err),"error")}finally{btn.disabled=false}
