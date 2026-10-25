@@ -353,7 +353,30 @@ async function savePendingVehicle(){
 }
 async function loadVehicle(){
  if(!user)return;
- const {data,error}=await db.from("vehicles").select("id,driver_id,vehicle_type,vehicle_number,model,is_approved").eq("driver_id",user.id).limit(1);
+ const { data: authData, error: authError } = await db.auth.getUser();
+
+console.log("RRYD GPS diagnostic:", {
+  signedInUserId: authData?.user?.id,
+  authError: authError?.message,
+  expectedDriverId: "cd93eb7d-a9ca-4161-9410-ebf669a8c015",
+  latitude: coords.latitude,
+  longitude: coords.longitude
+});
+
+const { data, error } = await db.rpc(
+  "update_driver_location",
+  {
+    p_lat: coords.latitude,
+    p_lng: coords.longitude
+  }
+);
+
+console.log("RRYD GPS RPC result:", { data, error });
+
+if (error) throw error;
+if (data !== true) {
+  throw new Error("Supabase returned false. Check the signed-in driver ID and profile conditions.");
+}
  if(error){$("vehicleApproval").textContent="Could not load vehicle: "+error.message;return}
  vehicle=data?.[0]||null;
  if(vehicle){
