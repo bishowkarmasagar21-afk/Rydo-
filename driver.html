@@ -432,10 +432,12 @@ async function bootDriver(){
    throw new Error("This portal is for driver accounts only. Your account role is "+p.role+".");
   }
 
-  profile=p;
-  $("profileName").value=p.full_name||"";
-  $("profilePhone").value=p.phone||"";
-  updateStatusUI();showDashboard();
+try {
+  profile = p;
+  $("profileName").value = p.full_name || "";
+  $("profilePhone").value = p.phone || "";
+  updateStatusUI();
+  showDashboard();
 
   await loadVehicle();
   await savePendingVehicle();
@@ -444,18 +446,26 @@ async function bootDriver(){
   startRealtime();
   startRequestPolling();
 
-  if(profile.is_online&&isDriverApproved())startGPS();
-  else{
-   stopGPS();
-   message("mapMessage", "Go online and allow location permission to receive dispatch offers.", "error");
- }finally{booting=false}
+  if (profile.is_online && isDriverApproved()) {
+    startGPS();
+  } else {
+    stopGPS();
+    message(
+      "mapMessage",
+      "Go online and allow location permission to receive dispatch offers.",
+      "error"
+    );
+  }
+} finally {
+  booting = false;
+}
 }
 
-async function login(email,password){
- message("authMessage","Signing in…");
- const {error}=await db.auth.signInWithPassword({email,password});
- if(error)throw error;
- await bootDriver();
+async function login(email, password) {
+  message("authMessage", "Signing in…");
+  const { error } = await db.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  await bootDriver();
 }
 
 async function registerDriver(e){
