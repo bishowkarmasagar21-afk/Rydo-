@@ -67,6 +67,8 @@ main{max-width:1150px;margin:auto;padding:14px}
 .result{padding:10px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;margin-top:4px;cursor:pointer;overflow-wrap:anywhere}
 .footer{text-align:center;color:var(--muted);padding:24px;font-size:12px}
 hr{border:0;border-top:1px solid var(--border);margin:16px 0}
+.payment-choice{margin-top:10px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--panel2)}
+#destinationMapBtn{background:var(--orange);color:white}
 @media(max-width:740px){
   main{padding:9px}.grid{grid-template-columns:1fr}.card{padding:13px}
   #map{height:280px}header{padding:10px}.brand{font-size:22px}
@@ -155,7 +157,13 @@ hr{border:0;border-top:1px solid var(--border);margin:16px 0}
       <label for="destination">Destination</label>
       <input id="destination" autocomplete="off" placeholder="Where are you going?">
       <div id="destinationResults" class="hidden"></div>
-      <p class="muted small">Search Nepal addresses or select locations on the map.</p>
+      <p class="muted small">Search Nepal addresses or pin a location directly on the map.</p>
+
+      <!-- ADDED: direct destination pin control -->
+      <button id="destinationMapBtn" type="button" style="width:100%;margin:6px 0 10px">
+        📍 Pin destination on map
+      </button>
+
       <div id="map"></div>
       <p id="mapMessage" class="muted small">Select pickup and destination to calculate a route.</p>
       <hr>
@@ -165,12 +173,17 @@ hr{border:0;border-top:1px solid var(--border);margin:16px 0}
         <button class="vehicle" data-vehicle="car" type="button"><span>🚗</span>Car</button>
         <button class="vehicle" data-vehicle="tuk_tuk" type="button"><span>🛺</span>Tuk Tuk</button>
       </div>
+
+      <!-- ADDED: cash/online payment choice -->
       <label for="paymentMethod">Payment method</label>
       <select id="paymentMethod">
-        <option value="cash">Cash</option>
-        <option value="online">Online</option>
+        <option value="cash">💵 Cash</option>
+        <option value="online">💳 Online payment</option>
       </select>
-      <p class="muted small">Online payment is unavailable until a real payment gateway is connected.</p>
+      <div id="paymentNote" class="payment-choice muted small">
+        Cash selected. Pay the driver directly after your ride.
+      </div>
+
       <hr>
       <div class="row">
         <div class="grow"><div class="muted small">Estimated fare</div><div id="fareDisplay" class="fare">NPR --</div></div>
@@ -396,10 +409,7 @@ $("authForm").onsubmit = async event => {
   } finally { $("authSubmit").disabled=false; }
 };
 
-/* INITIALIZATION AND SESSION
-   FIX: get the initial session before registering the listener.
-   A null INITIAL_SESSION is not treated as a user sign-out.
-   Only an explicit SIGNED_OUT event shows the signed-out state. */
+/* INITIALIZATION AND SESSION */
 async function initialize() {
   if(!window.supabase || !window.supabase.createClient)
     throw Error("Supabase library did not load. Check your internet connection.");
@@ -408,7 +418,6 @@ async function initialize() {
     auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
   });
 
-  // Read the stored session first. Do not sign the user out here.
   const {data,error}=await db.auth.getSession();
   if(error) throw error;
   session=data.session || null;
@@ -431,8 +440,6 @@ async function initialize() {
     show("logoutBtn",false);
   }
 
-  // Register the listener after initial session retrieval.
-  // Keep this callback synchronous; defer Supabase work with setTimeout.
   db.auth.onAuthStateChange((event,newSession) => {
     session=newSession || null;
 
@@ -444,7 +451,6 @@ async function initialize() {
       return;
     }
 
-    // This is the only auth event that should trigger the signed-out view.
     if(event==="SIGNED_OUT") {
       logoutView();
       return;
@@ -481,7 +487,6 @@ $("logoutBtn").onclick = async () => {
   try {
     const {error}=await db.auth.signOut();
     if(error) throw error;
-    // SIGNED_OUT event normally calls logoutView; call as a safe fallback.
     logoutView();
   } catch(error) { message("appMessage","Log out failed: "+errText(error),"error"); }
 };
@@ -498,7 +503,6 @@ async function loadPassenger() {
     if(data.role && data.role!=="passenger")
       throw Error("This page is for passenger accounts. Please use the correct portal.");
 
-    // Do not render an old profile if the active user changed while loading.
     if(!session || session.user.id!==userId) return;
 
     profile=data;
@@ -519,7 +523,6 @@ async function loadPassenger() {
     startPolling();
     message("appMessage","");
   } catch(error) {
-    // A profile read failure is not proof that the auth session expired.
     console.error("Could not load passenger profile:",error);
     message("authMessage","Could not load passenger profile: "+errText(error),"error");
     show("authSection",true);
@@ -642,6 +645,20 @@ document.querySelectorAll(".vehicle").forEach(button=>{
   };
 });
 
+/* ADDED: explain payment selection accurately.
+   Online is saved as pending until a payment gateway is connected. */
+function updatePaymentNote() {
+  const method=$("paymentMethod").value;
+  if(method==="online") {
+    $("paymentNote").textContent=
+      "Online selected. The ride request can be sent, but payment will remain pending until Rryd connects a real payment gateway. You will not be charged by this page.";
+  } else {
+    $("paymentNote").textContent="Cash selected. Pay the driver directly after your ride.";
+  }
+}
+$("paymentMethod").addEventListener("change",updatePaymentNote);
+updatePaymentNote();
+
 /* MAP */
 function initMap() {
   if(!window.L || map) return;
@@ -728,6 +745,8 @@ async function searchPlace(query,which) {
     searchTimers[which]=setTimeout(()=>searchPlace($(which).value,which),500);
   });
 });
+
+/* Existing map picker: select either pickup or destination. */
 $("pickMapBtn").onclick=()=>{
   if(!map) return message("appMessage","Map is not ready yet.","error");
   const choice=prompt("Type pickup or destination:","pickup");
@@ -738,6 +757,16 @@ $("pickMapBtn").onclick=()=>{
   message("appMessage","Tap the map to select your "+target+".","info");
   $("map").scrollIntoView({behavior:"smooth",block:"center"});
 };
+
+/* ADDED: one-tap destination pin mode. */
+$("destinationMapBtn").onclick=()=>{
+  if(!map) return message("appMessage","Map is not ready yet.","error");
+  mapPickTarget="destination";
+  pickingMap=true;
+  message("appMessage","Destination pin mode is active. Tap your destination on the map.","info");
+  $("map").scrollIntoView({behavior:"smooth",block:"center"});
+};
+
 $("gpsBtn").onclick=()=>{
   if(!navigator.geolocation) return message("appMessage","GPS is not supported by this browser.","error");
   $("gpsBtn").disabled=true; message("appMessage","Getting your current location...","info");
@@ -801,14 +830,16 @@ async function checkAvailability() {
   return count;
 }
 
-/* REQUEST RIDE */
+/* REQUEST RIDE
+   Payment choice is stored with the ride.
+   Online selection remains pending until a real gateway is connected. */
 $("requestRideBtn").onclick=async()=>{
   if(!db||!session) return message("appMessage","Please log in first.","error");
   if(!pickupCoords||!destinationCoords) return message("appMessage","Choose valid pickup and destination locations in Nepal.","error");
   if(routeDistanceKm<=0) return message("appMessage","Wait until a valid route and distance are calculated.","error");
   if(currentRide&&isActive(currentRide.status)) return message("appMessage","You already have an active ride.","error");
-  if($("paymentMethod").value==="online") return message("appMessage","Online payment is not connected yet. Choose Cash for now.","info");
 
+  const selectedPaymentMethod=$("paymentMethod").value==="online"?"online":"cash";
   const button=$("requestRideBtn"); button.disabled=true;
   let requestStarted=false;
   try {
@@ -849,15 +880,25 @@ $("requestRideBtn").onclick=async()=>{
     if(!createdRide) throw Error("Supabase may have created the ride, but the page could not read it back. Do not press Request repeatedly. The rides SELECT policy or RPC response needs checking.");
 
     currentRide=createdRide;
-    const extra={payment_method:"cash",pickup_latitude:pickupCoords.lat,pickup_longitude:pickupCoords.lon,destination_latitude:destinationCoords.lat,destination_longitude:destinationCoords.lon,estimated_fare:fare};
+    const extra={
+      payment_method:selectedPaymentMethod,
+      payment_status:"pending",
+      pickup_latitude:pickupCoords.lat,
+      pickup_longitude:pickupCoords.lon,
+      destination_latitude:destinationCoords.lat,
+      destination_longitude:destinationCoords.lon,
+      estimated_fare:fare
+    };
     const extraResult=await db.from("rides").update(extra).eq("id",createdRide.id).eq("passenger_id",session.user.id);
     await refreshRides();
 
     if(extraResult.error) {
       console.warn("Optional ride details were not saved:",extraResult.error);
-      message("appMessage","Ride request created. Some optional location/payment fields could not be saved. Check the rides schema and RLS.","info");
+      message("appMessage","Ride request created, but payment/location details could not all be saved. Check the rides columns and RLS permissions. "+errText(extraResult.error),"info");
+    } else if(selectedPaymentMethod==="online") {
+      message("appMessage","Ride request sent. Online payment is selected and marked PENDING. No payment has been collected because a payment gateway is not connected yet.","info");
     } else {
-      message("appMessage","Ride request sent. Supabase confirmed "+count+" available driver(s).","ok");
+      message("appMessage","Ride request sent. Cash selected. Supabase confirmed "+count+" available driver(s).","ok");
     }
     notify("Rryd ride requested","Your ride request has been sent.");
   } catch(error) {
@@ -889,13 +930,16 @@ function renderCurrentRide() {
   const ride=currentRide,status=String(ride.status||"requested").toLowerCase();
   if(lastStatus&&lastStatus!==status) notify("Rryd ride update","Your ride is now "+statusName(status)+".");
   lastStatus=status;
+  const paymentMethod=String(ride.payment_method||"cash").toLowerCase();
+  const paymentStatus=String(ride.payment_status||"pending").toLowerCase();
   box.innerHTML=`<div class="item">
     <div class="row"><strong class="grow">Ride #${esc(ride.id)}</strong><span class="status">${esc(statusName(status))}</span></div>
     <p><strong>Pickup:</strong> ${esc(ride.pickup_location??ride.pickup??"")}</p>
     <p><strong>Destination:</strong> ${esc(ride.destination??"")}</p>
     <p><strong>Vehicle:</strong> ${esc(ride.vehicle_type||"—")}</p>
     <p><strong>Fare:</strong> ${money(ride.final_fare??ride.actual_fare??ride.fare??ride.estimated_fare)}</p>
-    <p><strong>Payment:</strong> ${esc(ride.payment_method||"cash")}</p>
+    <p><strong>Payment method:</strong> ${esc(statusName(paymentMethod))}</p>
+    <p><strong>Payment status:</strong> ${esc(statusName(paymentStatus))}${paymentMethod==="online"&&paymentStatus!=="paid"?" — gateway not connected":""}</p>
     ${["requested","accepted","arriving"].includes(status)?'<button id="cancelRideBtn" class="danger" type="button" style="width:100%">Cancel ride</button>':""}
   </div>`;
   if($("cancelRideBtn")) $("cancelRideBtn").onclick=cancelRide;
@@ -908,6 +952,7 @@ function renderHistory(rides) {
     <p><strong>To:</strong> ${esc(ride.destination??"")}</p>
     <p><strong>Vehicle:</strong> ${esc(ride.vehicle_type||"—")}</p>
     <p><strong>Fare:</strong> ${money(ride.final_fare??ride.actual_fare??ride.fare??ride.estimated_fare)}</p>
+    <p><strong>Payment:</strong> ${esc(statusName(ride.payment_method||"cash"))} · ${esc(statusName(ride.payment_status||"pending"))}</p>
     <p class="muted small">${ride.created_at?esc(new Date(ride.created_at).toLocaleString()):""}</p>
   </div>`).join("");
 }
@@ -970,7 +1015,8 @@ function renderReceipt(ride) {
     <p><strong>Destination:</strong> ${esc(ride.destination??"")}</p>
     <p><strong>Vehicle:</strong> ${esc(ride.vehicle_type||"—")}</p>
     <p><strong>Distance:</strong> ${Number(ride.distance_km||0).toFixed(2)} km</p>
-    <p><strong>Payment:</strong> ${esc(ride.payment_method||"cash")}</p>
+    <p><strong>Payment method:</strong> ${esc(statusName(ride.payment_method||"cash"))}</p>
+    <p><strong>Payment status:</strong> ${esc(statusName(ride.payment_status||"pending"))}</p>
     <hr><p><strong>Fare:</strong> ${money(ride.final_fare??ride.actual_fare??ride.fare??ride.estimated_fare)}</p>
   </div>`;
   show("receiptCard",true);
