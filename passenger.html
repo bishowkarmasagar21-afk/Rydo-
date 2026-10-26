@@ -235,6 +235,7 @@ let rideRows = [];
 let isLoading = false;
 let receiptCloseTimer = null;
 let searchTimers = {};
+let requestInProgress = false;
 
 const $ = id => document.getElementById(id);
 const show = (id,on) => $(id)?.classList.toggle("hidden",!on);
@@ -772,11 +773,23 @@ async function checkAvailabilityDisplay() {
   }
 }
 
-/* Corrected ride request: verify the live Supabase user and profile first. */
+/*
+ * Corrected dispatch flow:
+ * 1. Verify the current passenger.
+ * 2. Create the ride.
+ * 3. Save pickup/destination coordinates and payment details.
+ * 4. Start dispatch using the new ride ID.
+ * 5. Inspect the JSON response and refresh the passenger's ride.
+ */
 $("requestRideBtn").addEventListener("click",async() => {
   const btn = $("requestRideBtn");
+  if(requestInProgress) return;
   if(!db || !session) return setMessage("appMessage","Please log in first.","error");
   if(!pickupCoords || !destinationCoords) return setMessage("appMessage","Choose valid pickup and destination locations in Nepal.","error");
+  if(!isNepalCoordinate(pickupCoords.lat,pickupCoords.lon) ||
+     !isNepalCoordinate(destinationCoords.lat,destinationCoords.lon)) {
+    return setMessage("appMessage","Both pickup and destination must be in Nepal.","error");
+  }
   if(routeDistanceKm <= 0) return setMessage("appMessage","Wait until the road route and distance are calculated.","error");
   if(currentRide && isActiveStatus(currentRide.status)) return setMessage("appMessage","You already have an active ride.","error");
 
@@ -786,7 +799,12 @@ $("requestRideBtn").addEventListener("click",async() => {
     return setMessage("appMessage","Enter or select both pickup and destination locations.","error");
   }
 
+  requestInProgress = true;
   btn.disabled = true;
+
+  let createdRideId = null;
+  let dispatchStarted = false;
+
   try {
     setMessage("appMessage","Verifying passenger account...");
 
@@ -827,43 +845,157 @@ $("requestRideBtn").addEventListener("click",async() => {
 
     setMessage("appMessage","Checking driver availability...");
     const count = await checkAvailability();
-    if(count < 1) throw new Error("No approved online drivers are available for this vehicle. Try again later.");
+    if(count < 1) {
+      throw new Error("No approved online drivers are currently reported for this vehicle. Your ride has not been created. Try again later.");
+    }
 
-    setMessage("appMessage","Sending ride request...");
-    const {data,error} = await db.rpc("request_ride",{
+    setMessage("appMessage","Creating your ride request...");
+    const {data:rideData,error:rideError} = await db.rpc("request_ride",{
       p_pickup:$("pickup").value.trim(),
       p_destination:$("destination").value.trim(),
       p_vehicle:selectedVehicle,
       p_distance:Number(routeDistanceKm.toFixed(2))
     });
-    if(error) throw error;
+    if(rideError) throw rideError;
 
-    let rideId = null;
-    if(typeof data === "number" || typeof data === "string") rideId = data;
-    else if(Array.isArray(data) && data.length) rideId = data[0]?.id ?? data[0]?.ride_id;
-    else if(data && typeof data === "object") rideId = data.id ?? data.ride_id;
-
-    if(rideId) {
-      const extra = {
-        payment_method:$("paymentMethod").value,
-        pickup_latitude:pickupCoords.lat,
-        pickup_longitude:pickupCoords.lon,
-        destination_latitude:destinationCoords.lat,
-        destination_longitude:destinationCoords.lon,
-        estimated_fare:fare
-      };
-      const {error:extraError} = await db.from("rides").update(extra)
-        .eq("id",rideId).eq("passenger_id",authenticatedUser.id);
-      if(extraError) console.warn("Ride created; optional details not saved:",extraError.message);
+    if(typeof rideData === "number" || typeof rideData === "string") {
+      createdRideId = rideData;
+    } else if(Array.isArray(rideData) && rideData.length) {
+      createdRideId = rideData[0]?.id ?? rideData[0]?.ride_id;
+    } else if(rideData && typeof rideData === "object") {
+      createdRideId = rideData.id ?? rideData.ride_id;
     }
 
-    setMessage("appMessage","Ride request submitted.","ok");
+    if(createdRideId === null || createdRideId === undefined || String(createdRideId).trim() === "") {
+      throw new Error("Supabase created no usable ride ID. The ride cannot be dispatched safely. Check the request_ride RPC result.");
+    }
+
+    /*
+     * Dispatch requires valid pickup coordinates stored in rides.
+     * Save them before calling rryd_start_dispatch.
+     */
+    setMessage("appMessage",`Ride #${createdRideId} created. Saving location and payment details...`);
+
+    const extra = {
+      payment_method:$("paymentMethod").value,
+      pickup_latitude:Number(pickupCoords.lat),
+      pickup_longitude:Number(pickupCoords.lon),
+      destination_latitude:Number(destinationCoords.lat),
+      destination_longitude:Number(destinationCoords.lon),
+      estimated_fare:fare
+    };
+
+    const {data:savedRide,error:extraError} = await db.from("rides")
+      .update(extra)
+      .eq("id",createdRideId)
+      .eq("passenger_id",authenticatedUser.id)
+      .select("id,pickup_latitude,pickup_longitude")
+      .maybeSingle();
+
+    if(extraError) {
+      throw new Error(
+        `Ride #${createdRideId} was created, but its GPS details could not be saved: ${cleanError(extraError)}. Dispatch was not started because the dispatch function requires pickup GPS.`
+      );
+    }
+
+    if(!savedRide) {
+      throw new Error(
+        `Ride #${createdRideId} was created, but Supabase did not confirm that its GPS details were saved. Dispatch was not started. Check ride update permissions and row-level security.`
+      );
+    }
+
+    if(savedRide.pickup_latitude == null || savedRide.pickup_longitude == null) {
+      throw new Error(
+        `Ride #${createdRideId} was created, but the saved pickup GPS is missing. Dispatch was not started.`
+      );
+    }
+
+    /*
+     * Start dispatch only after coordinates have been saved.
+     * This RPC returns JSONB with fields such as ok, offers_created,
+     * active_offers, already_started, and message.
+     */
+    setMessage("appMessage",`Ride #${createdRideId} saved. Searching for eligible drivers...`);
+
+    const {data:dispatchResult,error:dispatchError} = await db.rpc(
+      "rryd_start_dispatch",
+      {p_ride_id:createdRideId}
+    );
+
+    if(dispatchError) {
+      throw new Error(
+        `Ride #${createdRideId} was created, but dispatch could not start: ${cleanError(dispatchError)}. The ride may remain requested without an offer.`
+      );
+    }
+
+    dispatchStarted = true;
+
+    if(dispatchResult === false || dispatchResult?.ok === false) {
+      throw new Error(
+        `Ride #${createdRideId} was created, but dispatch did not confirm success. Response: ${JSON.stringify(dispatchResult)}`
+      );
+    }
+
+    const offersCreated = Number(dispatchResult?.offers_created ?? 0);
+    const activeOffers = Number(dispatchResult?.active_offers ?? 0);
+    const alreadyStarted = dispatchResult?.already_started === true;
+    const dispatchMessage = String(dispatchResult?.message || "");
+
     await refreshCurrentRide();
     await refreshNearbyDrivers();
+    await checkAvailabilityDisplay();
+
+    if(offersCreated > 0) {
+      setMessage(
+        "appMessage",
+        `Ride #${createdRideId} created. Dispatch sent ${offersCreated} driver offer(s). Waiting for a driver to accept.`,
+        "ok"
+      );
+      notifyUser("Rryd ride requested",`Ride #${createdRideId} is being offered to eligible drivers.`);
+    } else if(alreadyStarted && activeOffers > 0) {
+      setMessage(
+        "appMessage",
+        `Ride #${createdRideId} is still searching. ${activeOffers} active driver offer(s) already exist. Waiting for a driver to respond.`,
+        "info"
+      );
+    } else if(alreadyStarted && activeOffers === 0) {
+      setMessage(
+        "appMessage",
+        `Ride #${createdRideId} exists, but dispatch found no active offer to reuse. The dispatch function reports that offers were already started earlier. ${dispatchMessage}`.trim(),
+        "error"
+      );
+    } else {
+      setMessage(
+        "appMessage",
+        `Ride #${createdRideId} was created, but no eligible driver offer was created. Your ride is still requested. Check driver approval, vehicle approval, online status, fresh GPS, and dispatch radius. ${dispatchMessage}`.trim(),
+        "error"
+      );
+    }
   } catch(error) {
-    console.error("Ride request:",error);
-    setMessage("appMessage",cleanError(error),"error");
+    console.error("Ride request/dispatch error:",error);
+
+    /*
+     * If a ride was already created, refresh it and explain that it may
+     * still exist. Do not tell the passenger to submit a duplicate request.
+     */
+    if(createdRideId !== null && createdRideId !== undefined) {
+      try {
+        await refreshCurrentRide();
+      } catch(refreshError) {
+        console.warn("Could not refresh after dispatch error:",refreshError);
+      }
+
+      const msg = cleanError(error);
+      setMessage(
+        "appMessage",
+        `Ride #${createdRideId} may already exist. Do not submit another request until you check Current ride. ${msg}`,
+        "error"
+      );
+    } else {
+      setMessage("appMessage",cleanError(error),"error");
+    }
   } finally {
+    requestInProgress = false;
     btn.disabled = false;
   }
 });
