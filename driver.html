@@ -1,1457 +1,1152 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#08111b">
 <title>Rryd | Driver Portal</title>
+
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <style>
-:root{--bg:#08111b;--panel:#142638;--panel2:#1c3348;--text:#f3f7fb;--muted:#a9bacb;--orange:#ff7417;--blue:#47b9f5;--green:#28c985;--red:#ff5366;--line:#30475b}
+:root{
+  --bg:#08111b;--panel:#142638;--panel2:#1a3044;
+  --text:#f3f7fb;--muted:#a9bac9;--line:#2b4255;
+  --orange:#ff7417;--blue:#3498ff;--green:#31cf88;
+  --red:#ff5366;--shadow:0 12px 35px #0003;
+}
+body.light{
+  --bg:#eef3f8;--panel:#fff;--panel2:#f4f7fb;
+  --text:#172737;--muted:#627386;--line:#d7e0e9;
+  --shadow:0 8px 25px #20304012;
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:15px Arial,sans-serif}
-button,input,select{font:inherit}
-button{cursor:pointer;border:0;border-radius:10px;padding:12px 15px;font-weight:bold;background:var(--orange);color:white}
-button:disabled{opacity:.45;cursor:not-allowed}
-input,select{width:100%;padding:12px;border-radius:9px;border:1px solid var(--line);background:#091724;color:var(--text);margin:5px 0 13px}
-label{display:block;color:var(--muted);font-size:13px}
-h1,h2,h3,p{margin-top:0}
-h1{font-size:25px}h2{font-size:19px}h3{font-size:17px}
-p{line-height:1.5}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+button:disabled{opacity:.48;cursor:not-allowed}
 a{color:var(--blue)}
-.hidden{display:none!important}.muted{color:var(--muted)}.small{font-size:12px}
-.brand{color:var(--orange);font-size:25px;font-weight:900;letter-spacing:1px}
-.wrap{max-width:1200px;margin:auto;padding:16px}
-.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;background:#0c1a27;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:500}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:17px;margin-bottom:15px;min-width:0}
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:15px 0}
-.stat{background:var(--panel2);padding:14px;border-radius:12px}
-.stat strong{display:block;font-size:22px;margin-top:8px;overflow-wrap:anywhere}
-.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.row>*{flex:1;min-width:0}.row button{flex:0 1 auto}
-.green{background:var(--green);color:#062016}.blue{background:var(--blue);color:#061b29}.red{background:var(--red);color:white}.gray{background:#43576a;color:white}
-.tabs{display:flex;gap:7px;flex-wrap:wrap;margin:16px 0}
-.tabs button{background:var(--panel2)}.tabs button.active{background:var(--orange)}
-.badge{display:inline-block;border-radius:20px;padding:5px 9px;background:#31485c;font-size:12px}
-.badge.ok{background:#14583f}.badge.wait{background:#66501b}
-.message{padding:11px;border-radius:9px;margin:10px 0;overflow-wrap:anywhere}
-.error{background:#52232c;color:#ffdce0}.success{background:#164b39;color:#d6ffed}
-.notice{padding:11px;border:1px solid var(--line);border-radius:9px;color:var(--muted);margin:8px 0}
-.ride{border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0;overflow-wrap:anywhere}
-.ride p{margin:6px 0}.ride-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.ride-actions button{flex:1;min-width:115px}
-.section-title{display:flex;justify-content:space-between;align-items:center;gap:10px}
-#map{height:350px;border-radius:12px;background:#20364a;z-index:1}
-.footer{text-align:center;padding:20px;color:var(--muted);font-size:12px}.danger-zone{border-color:#80404a}
-@media(max-width:720px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.wrap{padding:10px}.top{padding:12px}.brand{font-size:21px}#map{height:300px}.card{padding:13px}}
+.hidden{display:none!important}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+.wrap{width:min(1180px,100%);margin:auto;padding:16px}
+header{display:flex;align-items:center;justify-content:space-between;
+  gap:12px;padding:12px 0 18px}
+.brand{display:flex;align-items:center;gap:10px;font-size:23px;font-weight:900}
+.logo{width:44px;height:44px;border-radius:14px;background:var(--orange);
+  color:#fff;display:grid;place-items:center;font-size:24px}
+.tag{font-size:11px;color:var(--muted);font-weight:500}
+.top-actions{display:flex;gap:8px;flex-wrap:wrap}
+button,.btn{border:0;border-radius:11px;padding:11px 15px;font-weight:750;
+  background:var(--orange);color:#fff}
+.secondary{background:var(--panel2);border:1px solid var(--line);color:var(--text)}
+.blue{background:var(--blue)}.green{background:var(--green);color:#06271a}
+.red{background:var(--red)}
+input,select,textarea{width:100%;padding:12px;border-radius:10px;
+  background:var(--bg);border:1px solid var(--line);color:var(--text);outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--orange)}
+label{display:block;font-size:13px;font-weight:750;margin:12px 0 6px}
+.card{background:var(--panel);border:1px solid var(--line);
+  border-radius:17px;padding:17px;box-shadow:var(--shadow);min-width:0}
+h1,h2,h3,p{margin-top:0}
+h1{font-size:25px;margin-bottom:8px}
+h2{font-size:19px;margin-bottom:12px}
+h3{font-size:16px}
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}
+.span12{grid-column:span 12}.span8{grid-column:span 8}
+.span7{grid-column:span 7}.span6{grid-column:span 6}
+.span5{grid-column:span 5}.span4{grid-column:span 4}
+.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.row>*{min-width:0}
+.between{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.stat{padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel2)}
+.stat strong{display:block;font-size:22px;margin-top:5px}
+.stat span{font-size:12px;color:var(--muted)}
+.pill{display:inline-flex;padding:5px 9px;border-radius:99px;
+  font-size:11px;font-weight:800;background:var(--panel2);border:1px solid var(--line)}
+.pill.good{color:var(--green)}.pill.warn{color:var(--orange)}
+.pill.bad{color:var(--red)}
+.notice{padding:12px;border:1px solid var(--line);border-radius:12px;
+  margin:12px 0;background:var(--panel2);line-height:1.5}
+#message{position:sticky;top:8px;z-index:1000}
+#map{height:300px;border-radius:14px;border:1px solid var(--line);overflow:hidden}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.actions button{flex:1;min-width:110px}
+.ride{padding:14px 0;border-bottom:1px solid var(--line)}
+.ride:last-child{border-bottom:0}
+.ride p{margin:6px 0}
+.money{font-size:25px;font-weight:900}
+.tabs{display:flex;gap:8px;margin:15px 0}
+.tabs button{flex:1}
+.auth-card{max-width:500px;margin:25px auto}
+.checkrow{display:flex;align-items:center;gap:9px;margin:10px 0}
+.checkrow input{width:auto}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
+  z-index:3000;max-width:92%;padding:12px 16px;border-radius:12px;
+  background:var(--panel2);border:1px solid var(--line);display:none;
+  box-shadow:var(--shadow)}
+footer{text-align:center;padding:25px;color:var(--muted);font-size:12px}
+hr{border:0;border-top:1px solid var(--line);margin:16px 0}
+@media(max-width:760px){
+ .wrap{padding:11px}.span8,.span7,.span6,.span5,.span4{grid-column:span 12}
+ .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #map{height:250px}.brand{font-size:20px}
+ header{align-items:flex-start}.top-actions button{padding:9px}
+}
 </style>
 </head>
+
 <body>
-<header class="top">
-  <div>
-    <div class="brand">RRYD <span style="color:white">DRIVER</span></div>
-    <div class="small muted">Move your way.</div>
+<div class="wrap">
+<header>
+  <div class="brand">
+    <div class="logo">R</div>
+    <div>Rryd <div class="tag">DRIVER PARTNER PORTAL</div></div>
   </div>
-  <div class="row" style="flex:0 1 auto">
-    <span id="headerStatus" class="badge">Not signed in</span>
-    <button id="logoutBtn" class="gray hidden" type="button">Log out</button>
+  <div class="top-actions">
+    <button class="secondary" id="themeBtn" type="button">☀️ / 🌙</button>
+    <button class="secondary hidden" id="soundBtn" type="button">🔔 Enable sound</button>
+    <button class="secondary hidden" id="logoutBtn" type="button">Log out</button>
   </div>
 </header>
 
-<main class="wrap">
-<section id="authView">
-  <div class="card" style="max-width:520px;margin:28px auto">
-    <h1>Driver portal</h1>
-    <p class="muted">Sign in to manage your rides, location and earnings.</p>
-    <div class="tabs">
-      <button id="loginTab" class="active" type="button">Login</button>
-      <button id="registerTab" type="button">Register</button>
-    </div>
+<div id="message" class="notice hidden"></div>
 
-    <form id="loginForm">
-      <label>Email</label>
-      <input id="loginEmail" type="email" autocomplete="username" required>
-      <label>Password</label>
-      <input id="loginPassword" type="password" autocomplete="current-password" required>
-      <label><input id="showLoginPassword" type="checkbox" style="width:auto"> Show password</label>
-      <button id="loginSubmit" style="width:100%" type="submit">Login</button>
-      <button id="forgotBtn" class="gray" style="width:100%;margin-top:8px" type="button">Send password reset email</button>
-      <div id="loginMessage" aria-live="polite"></div>
-    </form>
-
-    <form id="registerForm" class="hidden">
-      <p class="notice">Driver and vehicle approval are required before you can receive rides. Do not enter false information.</p>
-      <label>Full name *</label><input id="regName" autocomplete="name" required>
-      <label>Email *</label><input id="regEmail" type="email" autocomplete="email" required>
-      <label>Phone number *</label><input id="regPhone" type="tel" autocomplete="tel" required>
-      <label>Password (at least 8 characters) *</label><input id="regPassword" type="password" minlength="8" autocomplete="new-password" required>
-      <label><input id="showRegPassword" type="checkbox" style="width:auto"> Show password</label>
-      <label>Vehicle type *</label>
-      <select id="regVehicleType" required>
-        <option value="bike">Bike</option>
-        <option value="car">Car</option>
-        <option value="tuk_tuk">Tuk Tuk</option>
-      </select>
-      <label>Vehicle number *</label><input id="regVehicleNumber" placeholder="e.g. BA 01 PA 1234" required>
-      <label>Vehicle model *</label><input id="regVehicleModel" placeholder="Make and model" required>
-      <button id="registerSubmit" style="width:100%" type="submit">Create driver account</button>
-      <div id="registerMessage" aria-live="polite"></div>
-    </form>
-  </div>
-</section>
-
-<section id="resetView" class="hidden">
-  <div class="card" style="max-width:520px;margin:28px auto">
-    <h1>Set a new password</h1>
-    <p class="muted">Enter and confirm your new password.</p>
-    <form id="resetPasswordForm">
-      <label>New password</label>
-      <input id="resetPassword" type="password" minlength="8" required autocomplete="new-password">
-      <label>Confirm password</label>
-      <input id="resetPasswordConfirm" type="password" minlength="8" required autocomplete="new-password">
-      <label><input id="showResetPassword" type="checkbox" style="width:auto"> Show passwords</label>
-      <button id="saveResetPasswordBtn" style="width:100%" type="submit">Save new password</button>
-      <div id="resetPasswordMessage" aria-live="polite"></div>
-      <button id="backToLoginBtn" class="gray" style="width:100%;margin-top:8px" type="button">Back to login</button>
-    </form>
-  </div>
-</section>
-
-<section id="dashboard" class="hidden">
-  <div class="section-title">
-    <div>
-      <h1 id="welcome">Welcome, Driver</h1>
-      <p class="muted">Your work, rides and earnings.</p>
-    </div>
-    <button id="refreshBtn" class="blue" type="button">Refresh</button>
-  </div>
-
-  <div id="globalMessage" aria-live="polite"></div>
-
-  <div class="card">
-    <div class="section-title">
-      <h2>Driver approval</h2>
-      <span id="approvalStatus" class="badge wait">Checking</span>
-    </div>
-    <p id="driverHint" class="muted">Checking account status…</p>
-    <div class="row">
-      <button id="onlineBtn" class="green" type="button" disabled>Go Online</button>
-      <span id="gpsStatus" class="badge">GPS not started</span>
-    </div>
-    <p class="small muted" style="margin-top:10px">Allow location permission and keep this page open while working.</p>
-  </div>
-
-  <div class="stats">
-    <div class="stat"><span class="muted">Today's earnings</span><strong id="todayEarnings">NPR 0</strong></div>
-    <div class="stat"><span class="muted">Total earnings</span><strong id="totalEarnings">NPR 0</strong></div>
-    <div class="stat"><span class="muted">Completed rides</span><strong id="completedCount">0</strong></div>
-    <div class="stat"><span class="muted">Active rides</span><strong id="activeCount">0</strong></div>
-  </div>
-
+<!-- AUTH -->
+<section id="authView" class="card auth-card">
+  <h1>Drive with Rryd</h1>
+  <p class="muted">Sign in to manage rides, track earnings and receive requests.</p>
   <div class="tabs">
-    <button class="tabBtn active" data-tab="ridesPanel" type="button">Rides</button>
-    <button class="tabBtn" data-tab="mapPanel" type="button">Map & Tracking</button>
-    <button class="tabBtn" data-tab="historyPanel" type="button">Ride History</button>
-    <button class="tabBtn" data-tab="vehiclePanel" type="button">Vehicle</button>
-    <button class="tabBtn" data-tab="settingsPanel" type="button">Settings</button>
+    <button id="loginTab" type="button">Log in</button>
+    <button id="registerTab" class="secondary" type="button">Register</button>
   </div>
 
-  <div id="ridesPanel" class="tabPanel">
-    <div class="grid">
-      <div class="card"><h2>Current ride</h2><div id="currentRide"><p class="muted">No active ride.</p></div></div>
-      <div class="card">
-        <div class="section-title"><h2>Available requests</h2><button id="requestRefreshBtn" class="gray" type="button">Reload</button></div>
-        <p class="small muted">Only genuine dispatch offers for your approved vehicle are shown here.</p>
-        <div id="requestList"><p class="muted">Loading requests…</p></div>
-      </div>
+  <form id="loginForm">
+    <label for="loginEmail">Email address</label>
+    <input id="loginEmail" type="email" autocomplete="email" required>
+    <label for="loginPassword">Password</label>
+    <div class="row">
+      <input id="loginPassword" type="password" autocomplete="current-password" required>
+      <button class="secondary" type="button" id="showLoginPassword">Show</button>
     </div>
-  </div>
+    <div class="actions"><button type="submit">Log in</button></div>
+    <p class="small"><a href="#" id="forgotLink">Forgot password?</a></p>
+  </form>
 
-  <div id="mapPanel" class="tabPanel hidden">
-    <div class="card">
-      <div class="section-title"><h2>Live map</h2><button id="locateBtn" class="blue" type="button">Locate me</button></div>
-      <div id="map"></div>
-      <p id="mapHint" class="muted small" style="margin-top:10px">Map shows your GPS position and saved ride coordinates.</p>
-      <div class="row" style="margin-top:10px">
-        <button id="navPickupBtn" class="gray" type="button" disabled>Navigate to pickup</button>
-        <button id="navDestinationBtn" class="gray" type="button" disabled>Navigate to destination</button>
-      </div>
-    </div>
-  </div>
+  <form id="registerForm" class="hidden">
+    <label for="regName">Full name</label>
+    <input id="regName" autocomplete="name" required minlength="2">
+    <label for="regPhone">Mobile number</label>
+    <input id="regPhone" type="tel" autocomplete="tel" placeholder="+977 98XXXXXXXX" required>
+    <label for="regEmail">Email address</label>
+    <input id="regEmail" type="email" autocomplete="email" required>
+    <label for="regPassword">Create password</label>
+    <input id="regPassword" type="password" autocomplete="new-password" required minlength="8">
+    <label for="regVehicle">Vehicle type</label>
+    <select id="regVehicle" required>
+      <option value="bike">Bike</option>
+      <option value="car">Car</option>
+      <option value="tuk_tuk">Tuk Tuk</option>
+    </select>
+    <label for="regVehicleNumber">Vehicle number plate</label>
+    <input id="regVehicleNumber" required placeholder="Example: Ba 01 Pa 1234">
+    <label for="regVehicleModel">Vehicle make / model</label>
+    <input id="regVehicleModel" required placeholder="Example: Honda Shine">
+    <p class="small muted">Driver and vehicle approval may be required before you can go online.</p>
+    <div class="actions"><button type="submit">Create driver account</button></div>
+  </form>
 
-  <div id="historyPanel" class="tabPanel hidden">
-    <div class="card">
-      <div class="section-title"><h2>Ride history</h2><button id="historyRefreshBtn" class="gray" type="button">Reload</button></div>
-      <div id="historyList">Loading history…</div>
+  <form id="forgotForm" class="hidden">
+    <h2>Reset password</h2>
+    <p class="muted">We'll email you a password-reset link.</p>
+    <label for="forgotEmail">Email address</label>
+    <input id="forgotEmail" type="email" required>
+    <div class="actions">
+      <button type="submit">Send reset link</button>
+      <button class="secondary" type="button" id="backFromForgot">Back</button>
     </div>
-  </div>
+  </form>
 
-  <div id="vehiclePanel" class="tabPanel hidden">
-    <div class="card">
-      <h2>Vehicle information</h2>
-      <p class="muted">Changing vehicle details may require new admin approval.</p>
-      <form id="vehicleForm">
-        <label>Vehicle type</label>
-        <select id="vehicleType">
-          <option value="bike">Bike</option><option value="car">Car</option><option value="tuk_tuk">Tuk Tuk</option>
-        </select>
-        <label>Vehicle number</label><input id="vehicleNumber" required>
-        <label>Vehicle model</label><input id="vehicleModel" required>
-        <p>Vehicle status: <span id="vehicleStatus" class="badge">Not loaded</span></p>
-        <button id="saveVehicleBtn" type="submit">Save vehicle details</button>
-        <div id="vehicleMessage" aria-live="polite"></div>
-      </form>
-    </div>
-  </div>
-
-  <div id="settingsPanel" class="tabPanel hidden">
-    <div class="grid">
-      <div class="card">
-        <h2>Profile settings</h2>
-        <form id="profileForm">
-          <label>Full name</label><input id="editName" required>
-          <label>Phone number</label><input id="editPhone" type="tel" required>
-          <label>Email</label><input id="editEmail" type="email" disabled>
-          <button type="submit">Save profile</button><div id="profileMessage" aria-live="polite"></div>
-        </form>
-      </div>
-      <div class="card">
-        <h2>Change password</h2>
-        <form id="passwordForm">
-          <label>New password (at least 8 characters)</label><input id="newPassword" type="password" minlength="8" required autocomplete="new-password">
-          <label><input id="showNewPassword" type="checkbox" style="width:auto"> Show password</label>
-          <button type="submit">Change password</button><div id="passwordMessage" aria-live="polite"></div>
-        </form>
-      </div>
-    </div>
-    <div class="card">
-      <h2>Safety & support</h2>
-      <p class="muted">Do not use this portal while driving. For emergencies, contact local emergency services.</p>
-      <label>Official Rryd support phone</label><input id="supportPhone" type="tel" placeholder="Enter support phone number">
-      <div class="row"><button id="callSupportBtn" class="gray" type="button">Call support</button><button id="emailSupportBtn" class="gray" type="button">Email support</button></div>
-      <p class="small muted">The support number is used by this browser only; it does not change server settings.</p>
-    </div>
-    <div class="card danger-zone">
-      <h2>Delete account</h2>
-      <p class="muted">Permanent deletion requires the secured server-side delete_own_account RPC.</p>
-      <button id="deleteAccountBtn" class="red" type="button">Delete my account</button><div id="deleteMessage" aria-live="polite"></div>
-    </div>
-  </div>
+  <form id="resetForm" class="hidden">
+    <h2>Set a new password</h2>
+    <label for="newPassword">New password</label>
+    <input id="newPassword" type="password" minlength="8" required autocomplete="new-password">
+    <label for="confirmPassword">Confirm new password</label>
+    <input id="confirmPassword" type="password" minlength="8" required autocomplete="new-password">
+    <div class="actions"><button type="submit">Save new password</button></div>
+  </form>
 </section>
 
-<div class="footer">Rryd Driver Portal · Keep your account details private.</div>
-</main>
+<!-- DRIVER APP -->
+<main id="appView" class="hidden">
+  <section class="card" style="margin-bottom:14px">
+    <div class="between">
+      <div>
+        <h1 id="welcomeName">Welcome, Driver</h1>
+        <p class="muted small" id="profileLine">Loading driver profile…</p>
+      </div>
+      <span id="approvalPill" class="pill warn">Checking approval</span>
+    </div>
+    <div id="approvalNotice" class="notice hidden"></div>
+    <div class="between" style="margin-top:12px">
+      <div>
+        <div class="muted small">Driver status</div>
+        <strong id="onlineLabel">Offline</strong>
+      </div>
+      <button id="onlineBtn" type="button" disabled>Go online</button>
+    </div>
+    <p class="muted small" id="locationStatus" style="margin:10px 0 0">
+      Location has not started.
+    </p>
+  </section>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <section class="stats" style="margin-bottom:14px">
+    <div class="stat"><span>Today's earnings</span><strong id="todayEarnings">NPR 0</strong></div>
+    <div class="stat"><span>Total earnings</span><strong id="totalEarnings">NPR 0</strong></div>
+    <div class="stat"><span>Completed rides</span><strong id="completedCount">0</strong></div>
+    <div class="stat"><span>Active rides</span><strong id="activeCount">0</strong></div>
+  </section>
+
+  <div class="grid">
+    <section class="card span7">
+      <div class="between">
+        <h2>Ride requests</h2>
+        <button class="secondary" id="refreshBtn" type="button">↻ Refresh</button>
+      </div>
+      <p class="muted small">New requests appear here while you are online and eligible.</p>
+      <div id="requestsList"><p class="muted">Loading requests…</p></div>
+    </section>
+
+    <section class="card span5">
+      <h2>Active ride</h2>
+      <div id="activeRide"><p class="muted">No active ride.</p></div>
+    </section>
+
+    <section class="card span12">
+      <div class="between">
+        <h2>Live map</h2>
+        <button class="secondary" id="locateBtn" type="button">📍 My location</button>
+      </div>
+      <div id="map"></div>
+      <p class="muted small" id="mapHint" style="margin:10px 0 0">
+        Allow location access to share your position while online.
+      </p>
+    </section>
+
+    <section class="card span6">
+      <h2>My vehicle</h2>
+      <div id="vehicleSummary"><p class="muted">Loading vehicle details…</p></div>
+      <hr>
+      <h3>Update vehicle details</h3>
+      <form id="vehicleForm">
+        <label for="vehicleType">Vehicle type</label>
+        <select id="vehicleType">
+          <option value="bike">Bike</option>
+          <option value="car">Car</option>
+          <option value="tuk_tuk">Tuk Tuk</option>
+        </select>
+        <label for="vehicleNumber">Vehicle number plate</label>
+        <input id="vehicleNumber" required>
+        <label for="vehicleModel">Make / model</label>
+        <input id="vehicleModel" required>
+        <div class="actions"><button type="submit">Save vehicle details</button></div>
+        <p class="muted small">Vehicle changes may require admin re-approval.</p>
+      </form>
+    </section>
+
+    <section class="card span6">
+      <h2>Account settings</h2>
+      <form id="profileForm">
+        <label for="profileName">Full name</label>
+        <input id="profileName" required>
+        <label for="profilePhone">Phone number</label>
+        <input id="profilePhone" type="tel" required>
+        <div class="actions"><button type="submit">Save profile</button></div>
+      </form>
+      <hr>
+      <h3>Change password</h3>
+      <form id="changePasswordForm">
+        <label for="currentPassword">Current password</label>
+        <input id="currentPassword" type="password" autocomplete="current-password" required>
+        <label for="changedPassword">New password</label>
+        <input id="changedPassword" type="password" minlength="8" autocomplete="new-password" required>
+        <div class="actions"><button type="submit">Change password</button></div>
+      </form>
+      <hr>
+      <button class="red" id="deleteAccountBtn" type="button">Delete my account</button>
+      <p class="muted small">Account deletion may be unavailable if your database does not permit the configured deletion RPC.</p>
+    </section>
+
+    <section class="card span12">
+      <div class="between">
+        <h2>Ride history</h2>
+        <button class="secondary" id="historyRefreshBtn" type="button">Refresh history</button>
+      </div>
+      <div id="historyList"><p class="muted">Loading ride history…</p></div>
+    </section>
+
+    <section class="card span12">
+      <h2>Driver safety checklist</h2>
+      <div class="notice">
+        <strong>Before accepting a ride</strong>
+        <ul>
+          <li>Confirm that your vehicle is approved and roadworthy.</li>
+          <li>Check the pickup and destination details.</li>
+          <li>Never share your account password or verification codes.</li>
+          <li>Use the in-portal passenger contact details for the assigned ride.</li>
+          <li>Only mark a ride started or completed when that action has actually happened.</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+</main>
+<footer>Rryd · Move your way.</footer>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
 <script>
 "use strict";
 
-const SUPABASE_URL="https://kqtvuorasqyzjbnlkkxs.supabase.co";
-const SUPABASE_KEY="sb_publishable_zZFJiy0YWZgOXFesVuAQcA_wd7rleMb";
-const $=id=>document.getElementById(id);
-const money=n=>"NPR "+Math.round(Number(n||0)).toLocaleString("en-NP");
-const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+/* RRYD CONFIGURATION */
+const SUPABASE_URL = "https://kqtvuorasqyzjbnlkkxs.supabase.co";
+const SUPABASE_KEY = "sb_publishable_zZFJiy0YWZgOXFesVuAQcA_wd7rleMb";
 
-let db=null,user=null,profile=null,vehicle=null,allRides=[],currentRide=null;
-let map=null,driverMarker=null,pickupMarker=null,destinationMarker=null,routeLine=null;
-let watchId=null,refreshTimer=null,rideChannel=null,lastPosition=null;
-let lastLocationWrite=0,locationWriteInFlight=false,lastGpsErrorAt=0;
-let busy=false,passwordRecoveryMode=false,requestIdsSeen=new Set(),audioContext=null;
-
-const ACTIVE_STATUSES=["accepted","arriving","reached","started"];
-const TERMINAL_STATUSES=["completed","cancelled"];
-
-function showMessage(id,text,type="error"){
-  const el=$(id);if(!el)return;
-  el.textContent=text;el.className="message "+(type==="success"?"success":"error");
-}
-function clearMessage(id){
-  const el=$(id);if(el){el.textContent="";el.className="";}
-}
-function notice(text,type="success"){showMessage("globalMessage",text,type);}
-function errorText(e){
-  const msg=e?.message||e?.error_description||String(e||"Unknown error");
-  if(/invalid api key/i.test(msg))return msg+" — verify the Supabase publishable key.";
-  if(/row-level security|permission denied/i.test(msg))return msg+" — check the relevant Supabase RLS policy.";
-  if(/column .* does not exist|schema cache/i.test(msg))return msg+" — the HTML and database schema may not match.";
-  return msg;
-}
-function isApproved(){return profile?.is_verified===true;}
-function vehicleApproved(){return vehicle?.is_approved===true||vehicle?.verified===true;}
-function isActive(status){return ACTIVE_STATUSES.includes(String(status||"").toLowerCase());}
-function isTerminal(status){return TERMINAL_STATUSES.includes(String(status||"").toLowerCase());}
-function statusName(status){
-  return({requested:"Requested",accepted:"Accepted",arriving:"Driver arrived",reached:"Driver arrived",started:"Ride in progress",completed:"Completed",cancelled:"Cancelled"})[String(status||"").toLowerCase()]||status||"Unknown";
-}
-function validCoord(lat,lng){
-  lat=Number(lat);lng=Number(lng);
-  if(!Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)return null;
-  if(lat===0&&lng===0)return null;
-  return[lat,lng];
-}
-function pickupCoord(r){return validCoord(r?.pickup_latitude,r?.pickup_longitude)||validCoord(r?.passenger_latitude,r?.passenger_longitude);}
-function destinationCoord(r){return validCoord(r?.destination_latitude,r?.destination_longitude)||validCoord(r?.dropoff_latitude,r?.dropoff_longitude);}
-
-function setAuthTab(tab){
-  $("loginForm").classList.toggle("hidden",tab!=="login");
-  $("registerForm").classList.toggle("hidden",tab!=="register");
-  $("loginTab").classList.toggle("active",tab==="login");
-  $("registerTab").classList.toggle("active",tab==="register");
-}
-
-function stopLocationWatch(){
-  if(watchId!==null&&navigator.geolocation){
-    navigator.geolocation.clearWatch(watchId);
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
   }
-  watchId=null;
-  locationWriteInFlight=false;
-}
+});
 
-function cleanupDashboard(){
-  stopLocationWatch();
-  if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null;}
-  if(rideChannel&&db){db.removeChannel(rideChannel);rideChannel=null;}
-}
+const $ = id => document.getElementById(id);
+const money = value => "NPR " + Math.round(Number(value) || 0).toLocaleString("en-IN");
+const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({
+  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+}[ch]));
+const niceVehicle = value => ({
+  bike:"Bike",car:"Car",tuk_tuk:"Tuk Tuk"
+}[value] || value || "Vehicle");
+const niceStatus = value => String(value || "unknown").replaceAll("_"," ");
+const activeStatuses = ["accepted","arriving","started"];
+const completedStatuses = ["completed"];
+const terminalStatuses = ["completed","cancelled"];
 
-function showAuth(){
-  cleanupDashboard();
+let currentUser = null;
+let profile = null;
+let myVehicles = [];
+let rides = [];
+let map = null;
+let driverMarker = null;
+let pickupMarker = null;
+let destinationMarker = null;
+let routeLine = null;
+let driverLat = null;
+let driverLon = null;
+let watchId = null;
+let isOnline = false;
+let mapReady = false;
+let audioEnabled = false;
+let lastRequestIds = new Set();
+let requestChannel = null;
+let ridesChannel = null;
+let refreshBusy = false;
+let lastLocationWrite = 0;
+let authViewMode = "login";
+
+function showToast(message) {
+  const el = $("toast");
+  el.textContent = message;
+  el.style.display = "block";
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => el.style.display = "none", 4500);
+}
+function showMessage(message, type="info") {
+  const el = $("message");
+  el.classList.remove("hidden");
+  el.textContent = message;
+  el.style.borderColor = type === "error" ? "var(--red)" :
+    type === "ok" ? "var(--green)" : "var(--line)";
+}
+function clearMessage() {
+  $("message").classList.add("hidden");
+  $("message").textContent = "";
+}
+function errText(error) {
+  return error?.message || error?.details || String(error || "Unknown error");
+}
+function setBusy(button, busy, busyText="Please wait…") {
+  if (!button) return;
+  if (busy) {
+    button.dataset.originalText = button.textContent;
+    button.textContent = busyText;
+    button.disabled = true;
+  } else {
+    button.textContent = button.dataset.originalText || button.textContent;
+    button.disabled = false;
+  }
+}
+function setAuthMode(mode) {
+  authViewMode = mode;
+  ["loginForm","registerForm","forgotForm","resetForm"].forEach(id => $(id).classList.add("hidden"));
   $("authView").classList.remove("hidden");
-  $("dashboard").classList.add("hidden");
-  $("resetView").classList.add("hidden");
-  $("logoutBtn").classList.add("hidden");
-  $("headerStatus").textContent="Not signed in";
+  $("appView").classList.add("hidden");
+  $("loginTab").classList.toggle("secondary", mode !== "login");
+  $("registerTab").classList.toggle("secondary", mode !== "register");
+  if (mode === "login") $("loginForm").classList.remove("hidden");
+  if (mode === "register") $("registerForm").classList.remove("hidden");
+  if (mode === "forgot") $("forgotForm").classList.remove("hidden");
+  if (mode === "reset") $("resetForm").classList.remove("hidden");
+}
+function isApproved() {
+  return !!profile && profile.is_verified === true &&
+    profile.is_suspended !== true;
+}
+function formatDate(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
+}
+function userOwnsRide(ride) {
+  return ride && (ride.driver_id === currentUser?.id ||
+    ride.driver_user_id === currentUser?.id);
 }
 
-function showDashboard(){
-  $("authView").classList.add("hidden");
-  $("resetView").classList.add("hidden");
-  $("dashboard").classList.remove("hidden");
-  $("logoutBtn").classList.remove("hidden");
-  $("headerStatus").textContent="Signed in";
+/* SOUND AND BROWSER NOTIFICATIONS */
+let audioContext = null;
+async function enableSound() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) throw new Error("This browser does not support notification audio.");
+    audioContext = audioContext || new AC();
+    if (audioContext.state === "suspended") await audioContext.resume();
+    audioEnabled = true;
+    $("soundBtn").textContent = "🔔 Sound enabled";
+    showToast("Ride request sound enabled.");
+    if ("Notification" in window && Notification.permission === "default") {
+      try { await Notification.requestPermission(); } catch (_) {}
+    }
+  } catch (error) {
+    showToast(errText(error));
+  }
 }
-
-function showReset(){
-  passwordRecoveryMode=true;
-  cleanupDashboard();
-  $("authView").classList.add("hidden");
-  $("dashboard").classList.add("hidden");
-  $("resetView").classList.remove("hidden");
-  $("logoutBtn").classList.add("hidden");
-  $("headerStatus").textContent="Reset password";
-}
-
-function setButtonBusy(button,busyText){
-  if(!button)return()=>{};
-  const old=button.textContent;
-  button.disabled=true;
-  button.textContent=busyText;
-  return()=>{button.disabled=false;button.textContent=old;};
-}
-
-/* REQUEST SOUND AND BROWSER NOTIFICATIONS */
-function playRequestSound(){
-  try{
-    const AudioCtor=window.AudioContext||window.webkitAudioContext;
-    if(!AudioCtor)return;
-    audioContext=audioContext||(new AudioCtor());
-    if(audioContext.state==="suspended")audioContext.resume();
-    const now=audioContext.currentTime;
-    [0,.22,.44].forEach((offset,i)=>{
-      const osc=audioContext.createOscillator(),gain=audioContext.createGain();
-      osc.type="sine";
-      osc.frequency.value=i===1?1040:790;
-      gain.gain.setValueAtTime(.0001,now+offset);
-      gain.gain.exponentialRampToValueAtTime(.20,now+offset+.025);
-      gain.gain.exponentialRampToValueAtTime(.0001,now+offset+.17);
-      osc.connect(gain);
+function playRequestSound() {
+  if (!audioEnabled || !audioContext) return;
+  try {
+    const now = audioContext.currentTime;
+    [0,0.24,0.48].forEach((offset,index) => {
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = index === 1 ? 1040 : 820;
+      gain.gain.setValueAtTime(0.0001, now + offset);
+      gain.gain.exponentialRampToValueAtTime(0.22, now + offset + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.18);
+      oscillator.connect(gain);
       gain.connect(audioContext.destination);
-      osc.start(now+offset);
-      osc.stop(now+offset+.19);
+      oscillator.start(now + offset);
+      oscillator.stop(now + offset + 0.2);
     });
-  }catch(e){console.warn("Notification sound unavailable:",e);}
+  } catch (_) {}
 }
-
-async function requestNotificationPermission(){
-  if("Notification"in window&&Notification.permission==="default"){
-    try{await Notification.requestPermission();}catch(_){}
-  }
-}
-
-function newRideAlert(ride){
+function notifyNewRequest(ride) {
   playRequestSound();
-  if("Notification"in window&&Notification.permission==="granted"){
-    try{
-      new Notification("Rryd — New ride request",{
-        body:"Pickup: "+(ride.pickup_location||ride.pickup_address||"Location unavailable"),
-        tag:"rryd-ride-"+ride.id
+  showToast("New Rryd ride request!");
+  if ("Notification" in window && Notification.permission === "granted") {
+    try {
+      new Notification("New Rryd ride request", {
+        body: `${ride.pickup_location || "Pickup"} → ${ride.destination || "Destination"}`,
+        tag: "rryd-ride-" + ride.id
       });
-    }catch(_){}
+    } catch (_) {}
   }
 }
-
-/* AUTH AND DASHBOARD INITIALIZATION */
-async function bootDriver(){
-  const{data:authData,error:authError}=await db.auth.getUser();
-  if(authError)throw authError;
-
-  if(!authData?.user){
-    user=null;profile=null;showAuth();return;
-  }
-
-  user=authData.user;
-
-  const{data:p,error:profileError}=await db.from("profiles")
-    .select("*").eq("id",user.id).maybeSingle();
-
-  if(profileError)throw new Error("Could not load profile: "+errorText(profileError));
-  if(!p)throw new Error("Your login succeeded, but your profiles row is missing. Check the signup trigger.");
-
-  if(p.role!=="driver"&&p.role!=="admin"){
-    await db.auth.signOut();
-    user=null;
-    showAuth();
-    throw new Error("This account is not registered as a driver.");
-  }
-
-  profile=p;
-  showDashboard();
-
-  $("welcome").textContent="Welcome, "+(profile.full_name||"Driver");
-  $("editName").value=profile.full_name||"";
-  $("editPhone").value=profile.phone||"";
-  $("editEmail").value=user.email||"";
-
-  await loadVehicle();
-  await loadRides();
-  initMap();
-  updateApprovalUI();
-
-  if(refreshTimer)clearInterval(refreshTimer);
-  refreshTimer=setInterval(async()=>{
-    if(!user||busy||document.hidden)return;
-    try{
-      await refreshProfileGpsState();
-      await loadRides();
-      await loadRequests();
-      await loadVehicle();
-    }catch(e){console.error("Automatic refresh failed:",e);}
-  },10000);
-
-  subscribeRides();
-
-  if(profile.is_online){
-    startLocationWatch();
-    await loadRequests();
-  }else{
-    $("gpsStatus").textContent="Offline";
-    await loadRequests();
-  }
-}
-
-async function login(email,password){
-  const{data,error}=await db.auth.signInWithPassword({email,password});
-  if(error)throw error;
-  if(!data?.user)throw new Error("Login did not return a user.");
-  await bootDriver();
-}
-
-$("loginTab").onclick=()=>setAuthTab("login");
-$("registerTab").onclick=()=>setAuthTab("register");
-$("showLoginPassword").onchange=e=>$("loginPassword").type=e.target.checked?"text":"password";
-$("showRegPassword").onchange=e=>$("regPassword").type=e.target.checked?"text":"password";
-$("showNewPassword").onchange=e=>$("newPassword").type=e.target.checked?"text":"password";
-$("showResetPassword").onchange=e=>{
-  const type=e.target.checked?"text":"password";
-  $("resetPassword").type=type;
-  $("resetPasswordConfirm").type=type;
-};
-
-$("loginForm").addEventListener("submit",async e=>{
-  e.preventDefault();
-  clearMessage("loginMessage");
-  const restore=setButtonBusy($("loginSubmit"),"Signing in…");
-  try{
-    await login($("loginEmail").value.trim(),$("loginPassword").value);
-  }catch(err){
-    showAuth();
-    showMessage("loginMessage",errorText(err));
-  }finally{restore();}
-});
-
-$("forgotBtn").onclick=async()=>{
-  clearMessage("loginMessage");
-  const email=$("loginEmail").value.trim();
-  if(!email)return showMessage("loginMessage","Enter your email address first.");
-
-  const restore=setButtonBusy($("forgotBtn"),"Sending…");
-  try{
-    const redirectTo=location.href.split("#")[0].split("?")[0];
-    const{error}=await db.auth.resetPasswordForEmail(email,{redirectTo});
-    if(error)throw error;
-    showMessage("loginMessage","Reset email requested. Check your inbox and spam folder, then open the link on this site.","success");
-  }catch(err){
-    showMessage("loginMessage",errorText(err));
-  }finally{restore();}
-};
-
-$("registerForm").addEventListener("submit",async e=>{
-  e.preventDefault();
-  clearMessage("registerMessage");
-
-  const name=$("regName").value.trim();
-  const email=$("regEmail").value.trim();
-  const phone=$("regPhone").value.trim();
-  const password=$("regPassword").value;
-  const pendingVehicle={
-    vehicle_type:$("regVehicleType").value,
-    vehicle_number:$("regVehicleNumber").value.trim(),
-    model:$("regVehicleModel").value.trim()
-  };
-
-  if(!name||!email||!phone||password.length<8||!pendingVehicle.vehicle_number||!pendingVehicle.model){
-    return showMessage("registerMessage","Complete every field. Password must contain at least 8 characters.");
-  }
-
-  const restore=setButtonBusy($("registerSubmit"),"Creating account…");
-  try{
-    const{data,error}=await db.auth.signUp({
-      email,password,
-      options:{data:{full_name:name,phone,role:"driver"}}
-    });
-
-    if(error)throw error;
-    if(!data?.user)throw new Error("Registration did not return a user.");
-
-    try{localStorage.setItem("rryd_pending_vehicle_"+data.user.id,JSON.stringify(pendingVehicle));}catch(_){}
-
-    if(data.session){
-      await bootDriver();
-      await saveVehicle(pendingVehicle);
-      try{localStorage.removeItem("rryd_pending_vehicle_"+data.user.id);}catch(_){}
-      showMessage("registerMessage","Account created. Wait for driver and vehicle approval.","success");
-    }else{
-      showMessage("registerMessage","Account created. Confirm your email, then log in. Your vehicle details will be saved after login.","success");
-    }
-  }catch(err){
-    showMessage("registerMessage","Registration failed: "+errorText(err));
-  }finally{restore();}
-});
-
-$("resetPasswordForm").addEventListener("submit",async e=>{
-  e.preventDefault();
-  clearMessage("resetPasswordMessage");
-
-  const password=$("resetPassword").value;
-  const confirmPassword=$("resetPasswordConfirm").value;
-
-  if(password.length<8)return showMessage("resetPasswordMessage","Use at least 8 characters.");
-  if(password!==confirmPassword)return showMessage("resetPasswordMessage","Passwords do not match.");
-
-  const restore=setButtonBusy($("saveResetPasswordBtn"),"Saving…");
-  try{
-    const{data,error:sessionError}=await db.auth.getSession();
-    if(sessionError)throw sessionError;
-    if(!data?.session)throw new Error("Reset link expired or invalid. Request another reset email.");
-
-    const{error}=await db.auth.updateUser({password});
-    if(error)throw error;
-
-    $("resetPassword").value="";
-    $("resetPasswordConfirm").value="";
-    passwordRecoveryMode=false;
-    await db.auth.signOut();
-    showAuth();
-    setAuthTab("login");
-    showMessage("loginMessage","Password updated. Log in with your new password.","success");
-  }catch(err){
-    showMessage("resetPasswordMessage",errorText(err));
-  }finally{restore();}
-});
-
-$("backToLoginBtn").onclick=async()=>{
-  passwordRecoveryMode=false;
-  try{await db.auth.signOut();}catch(_){}
-  showAuth();
-  setAuthTab("login");
-};
-
-/* PROFILE AND VEHICLE */
-async function loadVehicle(){
-  if(!user)return;
-
-  const{data,error}=await db.from("vehicles")
-    .select("*").eq("driver_id",user.id).maybeSingle();
-
-  if(error)throw new Error("Vehicle lookup failed: "+errorText(error));
-  vehicle=data||null;
-
-  if(vehicle){
-    $("vehicleType").value=vehicle.vehicle_type||"bike";
-    $("vehicleNumber").value=vehicle.vehicle_number||"";
-    $("vehicleModel").value=vehicle.model||"";
-    $("vehicleStatus").textContent=vehicleApproved()?"Approved":"Pending approval";
-    $("vehicleStatus").className="badge "+(vehicleApproved()?"ok":"wait");
-  }else{
-    $("vehicleStatus").textContent="Not registered";
-    $("vehicleStatus").className="badge wait";
-  }
-
-  try{
-    const key="rryd_pending_vehicle_"+user.id;
-    const pending=localStorage.getItem(key);
-    if(pending&&!vehicle){
-      await saveVehicle(JSON.parse(pending));
-      localStorage.removeItem(key);
-    }
-  }catch(e){
-    showMessage("vehicleMessage","Vehicle details still need saving: "+errorText(e));
-  }
-
-  updateApprovalUI();
-}
-
-async function saveVehicle(v){
-  if(!user)throw new Error("Please log in again.");
-
-  const payload={
-    driver_id:user.id,
-    vehicle_type:v.vehicle_type,
-    vehicle_number:v.vehicle_number,
-    model:v.model
-  };
-
-  let result;
-  if(vehicle?.id){
-    result=await db.from("vehicles").update(payload)
-      .eq("id",vehicle.id).eq("driver_id",user.id).select("*").maybeSingle();
-  }else{
-    result=await db.from("vehicles").insert(payload).select("*").single();
-  }
-
-  if(result.error)throw result.error;
-  if(!result.data)throw new Error("Vehicle was not saved. Check vehicles RLS policies.");
-  vehicle=result.data;
-  return vehicle;
-}
-
-$("vehicleForm").addEventListener("submit",async e=>{
-  e.preventDefault();
-  clearMessage("vehicleMessage");
-  const restore=setButtonBusy($("saveVehicleBtn"),"Saving…");
-  try{
-    await saveVehicle({
-      vehicle_type:$("vehicleType").value,
-      vehicle_number:$("vehicleNumber").value.trim(),
-      model:$("vehicleModel").value.trim()
-    });
-    await loadVehicle();
-    showMessage("vehicleMessage","Vehicle details saved. Admin approval may be required.","success");
-  }catch(err){
-    showMessage("vehicleMessage","Could not save vehicle: "+errorText(err));
-  }finally{restore();}
-});
-
-$("profileForm").addEventListener("submit",async e=>{
-  e.preventDefault();
-  clearMessage("profileMessage");
-  try{
-    if(!user)throw new Error("Please log in again.");
-
-    const{data,error}=await db.from("profiles").update({
-      full_name:$("editName").value.trim(),
-      phone:$("editPhone").value.trim(),
-      updated_at:new Date().toISOString()
-    }).eq("id",user.id).select("*").maybeSingle();
-
-    if(error)throw error;
-    if(!data)throw new Error("Profile was not updated. Check the profiles update policy.");
-
-    profile=data;
-    $("welcome").textContent="Welcome, "+(profile.full_name||"Driver");
-    showMessage("profileMessage","Profile updated successfully.","success");
-  }catch(err){showMessage("profileMessage",errorText(err));}
-});
-
-$("passwordForm").addEventListener("submit",async e=>{
-  e.preventDefault();
-  clearMessage("passwordMessage");
-  const password=$("newPassword").value;
-  if(password.length<8)return showMessage("passwordMessage","Use at least 8 characters.");
-
-  try{
-    const{error}=await db.auth.updateUser({password});
-    if(error)throw error;
-    $("newPassword").value="";
-    showMessage("passwordMessage","Password changed successfully.","success");
-  }catch(err){showMessage("passwordMessage",errorText(err));}
-});
-
-/* APPROVAL AND ONLINE/OFFLINE */
-function updateApprovalUI(){
-  const approved=isApproved(),vApproved=vehicleApproved();
-
-  $("approvalStatus").textContent=approved?"Driver approved":"Pending approval";
-  $("approvalStatus").className="badge "+(approved?"ok":"wait");
-
-  if(!approved){
-    $("driverHint").textContent="Your driver account is awaiting admin approval.";
-  }else if(!vApproved){
-    $("driverHint").textContent="Your driver account is approved, but your vehicle must also be approved.";
-  }else{
-    $("driverHint").textContent="Your account and vehicle are approved. You can go online when ready.";
-  }
-
-  const online=profile?.is_online===true;
-  $("onlineBtn").textContent=online?"Go Offline":"Go Online";
-  $("onlineBtn").className=online?"red":"green";
-  $("onlineBtn").disabled=busy||!approved||!vApproved;
-}
-
-$("onlineBtn").onclick=async()=>{
-  if(busy)return;
-  if(!user)return notice("Please log in again.","error");
-  if(!isApproved())return notice("Your driver account is not approved yet.","error");
-  if(!vehicleApproved())return notice("Your vehicle must be approved first.","error");
-
-  busy=true;
-  updateApprovalUI();
-
-  try{
-    const next=!profile.is_online;
-    const{data,error}=await db.rpc("set_driver_online",{p_online:next});
-    if(error)throw error;
-    if(data!==true)throw new Error("Supabase did not confirm the online status.");
-
-    profile={...profile,is_online:next};
-    updateApprovalUI();
-
-    if(next){
-      await requestNotificationPermission();
-      startLocationWatch();
-      notice("You are online. Keep this page open and wait for GPS to be saved before expecting requests.","success");
-    }else{
-      stopLocationWatch();
-      $("gpsStatus").textContent="Offline";
-      notice("You are offline.","success");
-    }
-
-    await loadRequests();
-  }catch(err){
-    notice("Could not change online status: "+errorText(err),"error");
-  }finally{
-    busy=false;
-    updateApprovalUI();
-  }
-};
-
-/* GPS — SHOWS WHETHER SUPABASE ACTUALLY SAVED THE LOCATION */
-function updateGpsStatus(text,type){
-  const el=$("gpsStatus");
-  el.textContent=text;
-  el.className="badge"+(type==="ok"?" ok":type==="error"?" wait":"");
-}
-
-async function saveLocation(coords){
-  if(!user||!profile?.is_online)return;
-  if(locationWriteInFlight)return;
-
-  locationWriteInFlight=true;
-  updateGpsStatus("GPS found · saving…");
-
-  try{
-    const{data,error}=await db.rpc("update_driver_location",{
-      p_lat:coords[0],
-      p_lng:coords[1]
-    });
-
-    if(error)throw error;
-    if(data!==true){
-      throw new Error("Location RPC did not return true. Returned: "+JSON.stringify(data));
-    }
-
-    const now=new Date();
-    updateGpsStatus("GPS saved · "+now.toLocaleTimeString([],{
-      hour:"2-digit",minute:"2-digit",second:"2-digit"
-    }),"ok");
-    lastLocationWrite=Date.now();
-  }catch(e){
-    console.error("Rryd GPS update failed:",e);
-    updateGpsStatus("GPS save failed","error");
-
-    // Do not repeatedly fill the screen with the same error.
-    if(Date.now()-lastGpsErrorAt>30000){
-      lastGpsErrorAt=Date.now();
-      notice("GPS was detected by your device, but Supabase did not confirm saving it: "+errorText(e),"error");
-    }
-  }finally{
-    locationWriteInFlight=false;
-  }
-}
-
-function startLocationWatch(){
-  if(!user||!profile?.is_online)return;
-
-  if(!navigator.geolocation){
-    updateGpsStatus("GPS unsupported","error");
-    notice("This browser does not support GPS location.","error");
-    return;
-  }
-
-  if(!window.isSecureContext){
-    updateGpsStatus("HTTPS required","error");
-    notice("GPS requires a secure HTTPS page. Open the published GitHub Pages HTTPS address.","error");
-    return;
-  }
-
-  if(watchId!==null)return;
-
-  updateGpsStatus("Waiting for GPS…");
-
-  watchId=navigator.geolocation.watchPosition(pos=>{
-    const coords=validCoord(pos.coords.latitude,pos.coords.longitude);
-    if(!coords){
-      updateGpsStatus("Invalid GPS coordinates","error");
-      return;
-    }
-
-    lastPosition=coords;
-
-    if(map){
-      if(!driverMarker){
-        driverMarker=L.marker(lastPosition).addTo(map).bindPopup("Your location");
-      }else{
-        driverMarker.setLatLng(lastPosition);
-      }
-    }
-
-    // Show that GPS was detected immediately; "GPS saved" only appears after the RPC succeeds.
-    if(!locationWriteInFlight){
-      updateGpsStatus("GPS found · checking save…");
-    }
-
-    // Attempt a first write immediately, then no more than once every 8 seconds.
-    if(!lastLocationWrite||Date.now()-lastLocationWrite>=8000){
-      saveLocation(lastPosition).catch(e=>console.error("Location save:",e));
-    }
-  },err=>{
-    let message="GPS unavailable";
-    if(err.code===1)message="GPS permission denied";
-    else if(err.code===2)message="Device location unavailable";
-    else if(err.code===3)message="GPS request timed out";
-
-    updateGpsStatus(message,"error");
-    console.error("Rryd geolocation error:",err);
-
-    if(Date.now()-lastGpsErrorAt>30000){
-      lastGpsErrorAt=Date.now();
-      notice("GPS error: "+err.message+". Check device location settings and browser permission.","error");
-    }
-  },{
-    enableHighAccuracy:true,
-    maximumAge:0,
-    timeout:20000
-  });
-}
-
-async function refreshProfileGpsState(){
-  if(!user)return;
-
-  const{data,error}=await db.from("profiles")
-    .select("is_online,is_verified,is_suspended,current_latitude,current_longitude,location_updated_at")
-    .eq("id",user.id).maybeSingle();
-
-  if(error)throw error;
-  if(!data)return;
-
-  profile={...profile,...data};
-  updateApprovalUI();
-
-  if(!profile.is_online){
-    updateGpsStatus("Offline");
-    return;
-  }
-
-  const timestamp=data.location_updated_at?new Date(data.location_updated_at).getTime():0;
-  const age=timestamp?Math.max(0,Math.round((Date.now()-timestamp)/1000)):null;
-
-  if(age===null||!Number.isFinite(age)){
-    updateGpsStatus("No saved GPS","error");
-  }else if(age>90){
-    updateGpsStatus("GPS stale · "+age+"s","error");
-  }
-}
-
-$("locateBtn").onclick=()=>{
-  if(lastPosition&&map){
-    map.setView(lastPosition,16);
-    if(driverMarker)driverMarker.openPopup();
-    return;
-  }
-
-  if(!navigator.geolocation)return notice("GPS is not supported by this browser.","error");
-
-  navigator.geolocation.getCurrentPosition(pos=>{
-    lastPosition=[pos.coords.latitude,pos.coords.longitude];
-    initMap();
-    map.setView(lastPosition,16);
-
-    if(!driverMarker){
-      driverMarker=L.marker(lastPosition).addTo(map).bindPopup("Your location");
-    }else{
-      driverMarker.setLatLng(lastPosition);
-    }
-
-    if(profile?.is_online)saveLocation(lastPosition).catch(console.error);
-  },err=>{
-    notice("Could not get GPS: "+err.message,"error");
-  },{enableHighAccuracy:true,maximumAge:0,timeout:20000});
-};
 
 /* MAP */
-function initMap(){
-  if(map||!window.L)return;
-
-  map=L.map("map").setView([27.7172,85.3240],13);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
-    maxZoom:19,
-    attribution:"&copy; OpenStreetMap contributors"
-  }).addTo(map);
-
-  if(lastPosition){
-    driverMarker=L.marker(lastPosition).addTo(map).bindPopup("Your location");
+function initMap() {
+  if (mapReady || !window.L) return;
+  try {
+    map = L.map("map").setView([27.7172,85.3240],12);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom:19,
+      attribution:'&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    mapReady = true;
+    setTimeout(() => map.invalidateSize(), 250);
+  } catch (error) {
+    $("mapHint").textContent = "Map could not be loaded: " + errText(error);
   }
-
-  setTimeout(()=>map.invalidateSize(),200);
-  renderRideMap();
 }
-
-function renderRideMap(){
-  if(!map)return;
-
-  if(pickupMarker)map.removeLayer(pickupMarker);
-  if(destinationMarker)map.removeLayer(destinationMarker);
-  if(routeLine)map.removeLayer(routeLine);
-
-  pickupMarker=null;
-  destinationMarker=null;
-  routeLine=null;
-
-  const pickup=currentRide?pickupCoord(currentRide):null;
-  const destination=currentRide?destinationCoord(currentRide):null;
-
-  $("navPickupBtn").disabled=!pickup;
-  $("navDestinationBtn").disabled=!destination;
-
-  if(pickup)pickupMarker=L.marker(pickup).addTo(map).bindPopup("Passenger pickup");
-  if(destination)destinationMarker=L.marker(destination).addTo(map).bindPopup("Destination");
-
-  const points=[lastPosition,pickup,destination].filter(Boolean);
-
-  if(points.length>1){
-    routeLine=L.polyline(points,{color:"#ff7417",weight:4,dashArray:"8 7"}).addTo(map);
-    map.fitBounds(routeLine.getBounds().pad(.2),{maxZoom:15});
-  }else if(points.length===1){
-    map.setView(points[0],15);
+function updateDriverMarker(lat, lon) {
+  if (!mapReady) initMap();
+  if (!map) return;
+  const point = [lat,lon];
+  if (!driverMarker) {
+    driverMarker = L.marker(point).addTo(map).bindPopup("Your live location");
+  } else {
+    driverMarker.setLatLng(point);
   }
-
-  $("mapHint").textContent=pickup
-    ?"Pickup and destination markers use coordinates saved on the ride."
-    :"No pickup coordinates are saved for this ride yet.";
+  map.setView(point,15);
 }
-
-function openNavigation(point){
-  if(!point)return notice("No usable coordinates are available for this location.","error");
-
-  const start=lastPosition||point;
-  const url="https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route="+
-    encodeURIComponent(start.join(","))+";"+encodeURIComponent(point.join(","));
-
-  window.open(url,"_blank","noopener");
+function drawRideOnMap(ride) {
+  if (!mapReady) initMap();
+  if (!map) return;
+  const pLat = Number(ride.pickup_latitude);
+  const pLon = Number(ride.pickup_longitude);
+  const dLat = Number(ride.destination_latitude);
+  const dLon = Number(ride.destination_longitude);
+  if (Number.isFinite(pLat) && Number.isFinite(pLon)) {
+    if (pickupMarker) pickupMarker.remove();
+    pickupMarker = L.marker([pLat,pLon]).addTo(map).bindPopup("Pickup");
+  }
+  if (Number.isFinite(dLat) && Number.isFinite(dLon)) {
+    if (destinationMarker) destinationMarker.remove();
+    destinationMarker = L.marker([dLat,dLon]).addTo(map).bindPopup("Destination");
+  }
+  const points = [];
+  if (Number.isFinite(pLat) && Number.isFinite(pLon)) points.push([pLat,pLon]);
+  if (Number.isFinite(dLat) && Number.isFinite(dLon)) points.push([dLat,dLon]);
+  if (routeLine) routeLine.remove();
+  if (points.length) {
+    routeLine = L.polyline(points,{color:"#ff7417",weight:5}).addTo(map);
+    map.fitBounds(routeLine.getBounds().pad(0.2));
+  }
 }
-
-$("navPickupBtn").onclick=()=>openNavigation(currentRide?pickupCoord(currentRide):null);
-$("navDestinationBtn").onclick=()=>openNavigation(currentRide?destinationCoord(currentRide):null);
-
-/* RIDES */
-async function loadRides(){
-  if(!user)return;
-
-  const{data,error}=await db.from("rides").select("*")
-    .eq("driver_id",user.id).order("created_at",{ascending:false}).limit(100);
-
-  if(error)throw new Error("Could not load rides: "+errorText(error));
-
-  allRides=data||[];
-  currentRide=allRides.find(r=>isActive(r.status))||null;
-
-  renderCurrentRide();
-  renderHistory();
-  renderStats();
-  renderRideMap();
-}
-
-/*
- * IMPORTANT:
- * Available requests are fetched from the secure dispatch-offer RPC.
- * Do not query every requested ride from the rides table.
- */
-async function loadRequests(){
-  const list=$("requestList");
-  if(!user)return;
-
-  if(!profile?.is_online||!isApproved()||profile?.is_suspended||!vehicleApproved()){
-    list.innerHTML='<p class="muted">Go online after your driver account and vehicle are approved to receive ride requests.</p>';
+function startLocationWatch() {
+  if (!navigator.geolocation) {
+    $("locationStatus").textContent = "This browser does not support GPS.";
     return;
   }
-
-  if(currentRide){
-    list.innerHTML='<p class="muted">Complete your current ride before accepting another request.</p>';
-    return;
-  }
-
-  const{data,error}=await db.rpc("rryd_get_my_dispatch_offers");
-
-  if(error){
-    list.innerHTML='<div class="message error">Could not load dispatch offers: '+esc(errorText(error))+'</div>';
-    throw new Error("Dispatch offer lookup failed: "+errorText(error));
-  }
-
-  const offers=(Array.isArray(data)?data:[]).map(offer=>({
-    ...offer,
-    id:offer.ride_id,
-    fare:offer.fare,
-    pickup_location:offer.pickup_location,
-    destination:offer.destination,
-    vehicle_type:offer.vehicle_type
-  })).filter(offer=>offer.id!==null&&offer.id!==undefined);
-
-  for(const ride of offers){
-    const id=String(ride.id);
-    if(!requestIdsSeen.has(id)){
-      requestIdsSeen.add(id);
-      newRideAlert(ride);
+  if (watchId !== null) return;
+  $("locationStatus").textContent = "Waiting for GPS permission…";
+  watchId = navigator.geolocation.watchPosition(async position => {
+    driverLat = position.coords.latitude;
+    driverLon = position.coords.longitude;
+    updateDriverMarker(driverLat,driverLon);
+    $("locationStatus").textContent =
+      `GPS active · Accuracy about ${Math.round(position.coords.accuracy)} m`;
+    $("mapHint").textContent = "Your latest GPS position is shown on the map.";
+    if (isOnline && Date.now() - lastLocationWrite > 8000) {
+      lastLocationWrite = Date.now();
+      await writeDriverLocation(driverLat,driverLon);
     }
+  }, error => {
+    $("locationStatus").textContent = "GPS error: " + error.message +
+      ". Check browser location permission and HTTPS.";
+  }, {enableHighAccuracy:true,maximumAge:5000,timeout:20000});
+}
+function stopLocationWatch() {
+  if (watchId !== null && navigator.geolocation) {
+    navigator.geolocation.clearWatch(watchId);
   }
+  watchId = null;
+}
+async function writeDriverLocation(lat,lon) {
+  const {error} = await db.rpc("update_driver_location",{p_lat:lat,p_lng:lon});
+  if (error) console.warn("Location RPC:",error.message);
+}
 
-  if(!offers.length){
-    list.innerHTML='<p class="muted">No active dispatch offers for you right now. Keep GPS fresh and stay online.</p>';
+/* PROFILE AND VEHICLE DATA */
+async function loadProfile() {
+  const {data,error} = await db.from("profiles").select("*").eq("id",currentUser.id).maybeSingle();
+  if (error) throw error;
+  if (!data) {
+    throw new Error("Your driver profile was not found. Check that the Supabase auth trigger created a profiles row.");
+  }
+  profile = data;
+  $("welcomeName").textContent = "Welcome, " + (profile.full_name || currentUser.email || "Driver");
+  $("profileLine").textContent = `${currentUser.email || ""} · ${profile.phone || "Phone not added"}`;
+  $("profileName").value = profile.full_name || "";
+  $("profilePhone").value = profile.phone || "";
+
+  const suspended = profile.is_suspended === true;
+  const approved = profile.is_verified === true;
+  $("approvalPill").textContent = suspended ? "Suspended" :
+    approved ? "Driver approved" : "Approval pending";
+  $("approvalPill").className = "pill " + (suspended ? "bad" : approved ? "good" : "warn");
+  if (suspended) {
+    $("approvalNotice").textContent = "Your account is suspended. Contact Rryd support or an administrator.";
+    $("approvalNotice").classList.remove("hidden");
+  } else if (!approved) {
+    $("approvalNotice").textContent = "Your driver account is awaiting verification. You cannot go online or accept rides until an administrator approves you.";
+    $("approvalNotice").classList.remove("hidden");
+  } else {
+    $("approvalNotice").classList.add("hidden");
+  }
+  if (suspended || !approved) {
+    isOnline = false;
+    $("onlineBtn").disabled = true;
+    $("onlineBtn").textContent = suspended ? "Account suspended" : "Awaiting approval";
+    $("onlineLabel").textContent = "Offline";
+  } else {
+    $("onlineBtn").disabled = false;
+    $("onlineBtn").textContent = "Go online";
+  }
+  await loadVehicles();
+}
+async function loadVehicles() {
+  // The portal uses the existing vehicles table. If its schema differs,
+  // the profile and ride features can still load; vehicle details show the error.
+  const {data,error} = await db.from("vehicles").select("*").eq("driver_id",currentUser.id).limit(10);
+  if (error) {
+    console.warn("Vehicle lookup:",error.message);
+    $("vehicleSummary").innerHTML =
+      `<p class="muted">Vehicle details could not be loaded from the current vehicles table.</p>
+       <p class="small muted">${esc(error.message)}</p>`;
     return;
   }
+  myVehicles = data || [];
+  const v = myVehicles[0] || {};
+  const type = v.vehicle_type || profile?.vehicle_type || "bike";
+  const number = v.vehicle_number || v.plate_number || v.registration_number || "";
+  const model = v.vehicle_model || v.model || "";
+  $("vehicleType").value = ["bike","car","tuk_tuk"].includes(type) ? type : "bike";
+  $("vehicleNumber").value = number;
+  $("vehicleModel").value = model;
+  const vehicleApproved = v.is_approved === true || v.is_verified === true || v.approved === true;
+  $("vehicleSummary").innerHTML = myVehicles.length
+    ? `<p><strong>${esc(niceVehicle(type))}</strong></p>
+       <p>${esc(number || "Number plate not recorded")}</p>
+       <p>${esc(model || "Model not recorded")}</p>
+       <span class="pill ${vehicleApproved ? "good":"warn"}">${vehicleApproved ? "Vehicle approved":"Vehicle approval to be confirmed"}</span>`
+    : `<p class="muted">No vehicle record was found for this driver.</p>
+       <p class="small">Submit your vehicle details below. If the table uses different column names, the save operation will explain the database error.</p>`;
+}
 
-  list.innerHTML=offers.map(r=>`
-    <article class="ride">
-      <h3>Ride #${esc(r.id)}</h3>
-      <p><b>Pickup:</b> ${esc(r.pickup_location||"Location unavailable")}</p>
-      <p><b>Destination:</b> ${esc(r.destination||"Not provided")}</p>
-      <p><b>Vehicle:</b> ${esc(r.vehicle_type||"—")}</p>
-      <p><b>Distance from driver:</b> ${r.distance_km==null?"—":esc(Number(r.distance_km).toFixed(2))+" km"}</p>
-      <p><b>Fare:</b> ${money(r.fare)}</p>
-      <p class="small muted">This is a dispatch offer. The ride is assigned only after the server confirms acceptance.</p>
-      <div class="ride-actions"><button type="button" data-accept="${esc(r.id)}">Accept Ride</button></div>
-    </article>`).join("");
+/* RIDE REQUESTS AND HISTORY */
+async function fetchRides() {
+  if (!currentUser || refreshBusy) return;
+  refreshBusy = true;
+  try {
+    const {data,error} = await db.from("rides").select("*")
+      .order("created_at",{ascending:false}).limit(150);
+    if (error) throw error;
+    rides = data || [];
 
-  list.querySelectorAll("[data-accept]").forEach(button=>{
-    button.onclick=()=>acceptRide(button.dataset.accept,button);
+    const requests = rides.filter(r => r.status === "requested");
+    const currentRequestIds = new Set(requests.map(r => String(r.id)));
+    if (isOnline && isApproved()) {
+      requests.forEach(r => {
+        const id = String(r.id);
+        if (!lastRequestIds.has(id)) notifyNewRequest(r);
+      });
+    }
+    lastRequestIds = currentRequestIds;
+
+    renderRequests(requests);
+    renderActiveRide();
+    renderHistory();
+    renderStats();
+  } catch (error) {
+    console.error("Ride refresh:",error);
+    $("requestsList").innerHTML =
+      `<p class="muted">Could not load ride requests.</p><p class="small">${esc(errText(error))}</p>`;
+  } finally {
+    refreshBusy = false;
+  }
+}
+function renderRequests(requests) {
+  if (!requests.length) {
+    $("requestsList").innerHTML = '<p class="muted">No new ride requests right now.</p>';
+    return;
+  }
+  $("requestsList").innerHTML = requests.map(r => `
+    <div class="ride">
+      <div class="between">
+        <strong>Ride #${esc(r.id)}</strong>
+        <span class="pill warn">${esc(niceStatus(r.status))}</span>
+      </div>
+      <p><strong>Pickup:</strong> ${esc(r.pickup_location || "Not provided")}</p>
+      <p><strong>Destination:</strong> ${esc(r.destination || "Not provided")}</p>
+      <p><strong>Vehicle:</strong> ${esc(niceVehicle(r.vehicle_type))}</p>
+      <p><strong>Distance:</strong> ${esc(r.distance_km ?? "—")} km</p>
+      <p><strong>Estimated fare:</strong> ${money(r.estimated_fare ?? r.fare)}</p>
+      <p class="muted small">Requested: ${esc(formatDate(r.created_at))}</p>
+      <div class="actions">
+        <button type="button" data-action="accept" data-id="${esc(r.id)}">Accept ride</button>
+        <button type="button" class="secondary" data-action="showmap" data-id="${esc(r.id)}">Show route</button>
+      </div>
+    </div>`).join("");
+}
+function getMyActiveRide() {
+  return rides.find(r => userOwnsRide(r) && activeStatuses.includes(r.status)) || null;
+}
+function renderActiveRide() {
+  const ride = getMyActiveRide();
+  if (!ride) {
+    $("activeRide").innerHTML = '<p class="muted">No active ride assigned to your account.</p>';
+    return;
+  }
+  drawRideOnMap(ride);
+  const passengerPhone = ride.passenger_phone || ride.customer_phone || "";
+  $("activeRide").innerHTML = `
+    <div class="between">
+      <strong>Ride #${esc(ride.id)}</strong>
+      <span class="pill good">${esc(niceStatus(ride.status))}</span>
+    </div>
+    <p><strong>Pickup:</strong> ${esc(ride.pickup_location || "—")}</p>
+    <p><strong>Destination:</strong> ${esc(ride.destination || "—")}</p>
+    <p><strong>Vehicle:</strong> ${esc(niceVehicle(ride.vehicle_type))}</p>
+    <p><strong>Fare:</strong> ${money(ride.final_fare ?? ride.fare ?? ride.estimated_fare)}</p>
+    <p><strong>Payment:</strong> ${esc(ride.payment_method || "—")} · ${esc(ride.payment_status || "pending")}</p>
+    ${passengerPhone ? `<p><strong>Passenger phone:</strong> <a href="tel:${esc(passengerPhone)}">${esc(passengerPhone)}</a></p>` : '<p class="muted small">Passenger phone is not present in the ride record.</p>'}
+    <div class="actions">
+      ${ride.status === "accepted" ? `<button data-action="arriving" data-id="${esc(ride.id)}">Reached pickup</button>` : ""}
+      ${ride.status === "arriving" ? `<button data-action="start" data-id="${esc(ride.id)}">Start ride</button>` : ""}
+      ${ride.status === "started" ? `<button class="green" data-action="complete" data-id="${esc(ride.id)}">Complete ride</button>` : ""}
+      <button class="secondary" data-action="showmap" data-id="${esc(ride.id)}">Show route</button>
+      <button class="red" data-action="cancel" data-id="${esc(ride.id)}">Cancel ride</button>
+    </div>
+    <p class="muted small">Status changes are saved through the Rryd database functions where available.</p>`;
+}
+function renderHistory() {
+  const history = rides.filter(r => userOwnsRide(r) && terminalStatuses.includes(r.status));
+  if (!history.length) {
+    $("historyList").innerHTML = '<p class="muted">No completed or cancelled rides yet.</p>';
+    return;
+  }
+  $("historyList").innerHTML = history.slice(0,50).map(r => `
+    <div class="ride">
+      <div class="between">
+        <strong>Ride #${esc(r.id)}</strong>
+        <span class="pill ${r.status === "completed" ? "good":"bad"}">${esc(niceStatus(r.status))}</span>
+      </div>
+      <p>${esc(r.pickup_location || "—")} → ${esc(r.destination || "—")}</p>
+      <p><strong>Fare:</strong> ${money(r.final_fare ?? r.fare ?? r.estimated_fare)}</p>
+      <p class="muted small">${esc(formatDate(r.completed_at || r.cancelled_at || r.created_at))}</p>
+    </div>`).join("");
+}
+function renderStats() {
+  const mine = rides.filter(userOwnsRide);
+  const completed = mine.filter(r => r.status === "completed");
+  const today = new Date();
+  const dayStart = new Date(today.getFullYear(),today.getMonth(),today.getDate());
+  const todays = completed.filter(r => {
+    const d = new Date(r.completed_at || r.updated_at || r.created_at);
+    return !Number.isNaN(d.getTime()) && d >= dayStart;
   });
+  const earnings = r => Number(r.driver_earnings ?? r.driver_net_earnings ??
+    r.final_fare ?? r.fare ?? 0) || 0;
+  $("todayEarnings").textContent = money(todays.reduce((s,r)=>s+earnings(r),0));
+  $("totalEarnings").textContent = money(completed.reduce((s,r)=>s+earnings(r),0));
+  $("completedCount").textContent = String(completed.length);
+  $("activeCount").textContent = String(mine.filter(r=>activeStatuses.includes(r.status)).length);
 }
 
-/* ACCEPT RIDE — SERVER CHECKS THE OFFER AND AWARDS THE RIDE TO ONE DRIVER */
-async function acceptRide(id,button){
-  if(busy)return;
+/* RIDE ACTIONS */
+async function runRideAction(action,id) {
+  if (!currentUser) throw new Error("Please log in again.");
+  if (!isApproved()) throw new Error("Your driver account is not approved or is suspended.");
+  const ride = rides.find(r => String(r.id) === String(id));
+  if (!ride) throw new Error("Ride not found. Refresh the list and try again.");
 
-  if(!user||!profile?.is_online||!isApproved()||profile?.is_suspended||!vehicleApproved()){
-    return notice("You must be signed in, approved, and online with an approved vehicle.","error");
+  if (action === "showmap") {
+    drawRideOnMap(ride);
+    $("map").scrollIntoView({behavior:"smooth",block:"center"});
+    return;
   }
-
-  if(currentRide)return notice("Complete your current ride first.","error");
-
-  busy=true;
-  const restore=setButtonBusy(button,"Accepting…");
-  updateApprovalUI();
-
-  try{
-    const rideId=Number(id);
-    if(!Number.isInteger(rideId)||rideId<=0)throw new Error("Invalid ride ID.");
-
-    const{data,error}=await db.rpc("accept_ride",{p_ride_id:rideId});
-    if(error)throw new Error("accept_ride RPC failed: "+error.message);
-
-    console.log("Rryd accept_ride response:",data);
-
-    const{data:ride,error:verifyError}=await db.from("rides")
-      .select("id,driver_id,status")
-      .eq("id",rideId).maybeSingle();
-
-    if(verifyError){
-      throw new Error("Acceptance was called, but ride verification failed: "+verifyError.message);
+  if (action === "accept") {
+    if (!isOnline) throw new Error("Go online before accepting a ride.");
+    if (getMyActiveRide()) throw new Error("Complete or cancel your active ride first.");
+    if (ride.status !== "requested") throw new Error("This request is no longer available.");
+    if (ride.vehicle_type && ride.vehicle_type !== (myVehicles[0]?.vehicle_type || profile?.vehicle_type) &&
+        myVehicles[0]?.vehicle_type) {
+      throw new Error("This request is for a different vehicle type.");
     }
-    if(!ride)throw new Error("Ride not found or you are not permitted to read this ride.");
+    const {error} = await db.rpc("accept_ride",{p_ride_id:id});
+    if (error) throw error;
+    showToast("Ride accepted.");
+  } else if (action === "arriving") {
+    if (ride.status !== "accepted") throw new Error("Ride must be accepted first.");
+    const {error} = await db.from("rides").update({status:"arriving"}).eq("id",id);
+    if (error) throw error;
+    showToast("Pickup arrival marked.");
+  } else if (action === "start") {
+    if (ride.status !== "arriving") throw new Error("Mark arrival at pickup first.");
+    const {error} = await db.rpc("start_ride",{p_ride_id:id});
+    if (error) throw error;
+    showToast("Ride started.");
+  } else if (action === "complete") {
+    if (ride.status !== "started") throw new Error("Start the ride before completing it.");
+    if (!confirm("Confirm that this ride has been completed?")) return;
+    const {error} = await db.rpc("complete_ride",{p_ride_id:id});
+    if (error) throw error;
+    showToast("Ride completed.");
+  } else if (action === "cancel") {
+    if (!confirm("Cancel this ride? Only cancel when necessary.")) return;
+    const {error} = await db.rpc("cancel_ride",{p_ride_id:id});
+    if (error) throw error;
+    showToast("Ride cancellation requested.");
+  }
+  await fetchRides();
+}
 
-    if(String(ride.driver_id)===String(user.id)&&isActive(ride.status)){
-      notice("Ride accepted successfully! Check the pickup location on the map.","success");
-      await loadRides();
-      await loadRequests();
+/* ONLINE / OFFLINE */
+async function setOnline(next) {
+  if (!isApproved()) throw new Error("Your driver account must be approved and not suspended.");
+  if (next && getMyActiveRide()) {
+    throw new Error("Finish your active ride before going online for new requests.");
+  }
+  if (next) {
+    startLocationWatch();
+    if (driverLat === null || driverLon === null) {
+      throw new Error("Waiting for GPS. Allow location access and try again.");
+    }
+  }
+  const {data,error} = await db.rpc("set_driver_online",{p_online:next});
+  if (error) throw error;
+  if (data === false) throw new Error("Supabase did not enable online status. Check driver approval and vehicle approval.");
+  isOnline = next;
+  $("onlineLabel").textContent = next ? "Online · Receiving requests" : "Offline";
+  $("onlineBtn").textContent = next ? "Go offline" : "Go online";
+  $("onlineBtn").className = next ? "red" : "";
+  showToast(next ? "You are online." : "You are offline.");
+  if (!next) {
+    // Keep GPS watch available for quick reactivation, but do not write coordinates.
+  } else {
+    await writeDriverLocation(driverLat,driverLon);
+  }
+  await fetchRides();
+}
+
+/* VEHICLE / PROFILE SETTINGS */
+async function saveVehicle(event) {
+  event.preventDefault();
+  const type = $("vehicleType").value;
+  const number = $("vehicleNumber").value.trim();
+  const model = $("vehicleModel").value.trim();
+  if (!number || !model) return showMessage("Enter your vehicle number and model.","error");
+  try {
+    if (myVehicles.length) {
+      const id = myVehicles[0].id;
+      const {error} = await db.from("vehicles").update({
+        vehicle_type:type,vehicle_number:number,vehicle_model:model
+      }).eq("id",id).eq("driver_id",currentUser.id);
+      if (error) throw error;
+    } else {
+      const {error} = await db.from("vehicles").insert({
+        driver_id:currentUser.id,vehicle_type:type,
+        vehicle_number:number,vehicle_model:model
+      });
+      if (error) throw error;
+    }
+    showMessage("Vehicle details saved. An administrator may need to approve changes.","ok");
+    await loadVehicles();
+  } catch (error) {
+    showMessage("Vehicle save failed: " + errText(error) +
+      ". The existing vehicles table may use different column names or RLS rules.","error");
+  }
+}
+async function saveProfile(event) {
+  event.preventDefault();
+  const full_name = $("profileName").value.trim();
+  const phone = $("profilePhone").value.trim();
+  if (!full_name || !phone) return showMessage("Name and phone are required.","error");
+  try {
+    const {error} = await db.from("profiles").update({
+      full_name,phone,updated_at:new Date().toISOString()
+    }).eq("id",currentUser.id);
+    if (error) throw error;
+    showMessage("Profile updated.","ok");
+    await loadProfile();
+  } catch (error) {
+    showMessage("Profile update failed: " + errText(error),"error");
+  }
+}
+async function changePassword(event) {
+  event.preventDefault();
+  const current = $("currentPassword").value;
+  const next = $("changedPassword").value;
+  if (next.length < 8) return showMessage("Use at least 8 characters for the new password.","error");
+  try {
+    const {error:verifyError} = await db.auth.signInWithPassword({
+      email:currentUser.email,password:current
+    });
+    if (verifyError) throw new Error("Current password is incorrect.");
+    const {error} = await db.auth.updateUser({password:next});
+    if (error) throw error;
+    $("changePasswordForm").reset();
+    showMessage("Password changed successfully.","ok");
+  } catch (error) {
+    showMessage("Password change failed: " + errText(error),"error");
+  }
+}
+async function deleteAccount() {
+  const typed = prompt("To confirm account deletion, type DELETE");
+  if (typed !== "DELETE") return;
+  if (!confirm("This may permanently delete your account. Continue?")) return;
+  try {
+    let {error} = await db.rpc("delete_own_account");
+    if (error) {
+      const second = await db.rpc("delete_my_account");
+      error = second.error;
+    }
+    if (error) throw error;
+    await db.auth.signOut();
+    showMessage("Account deletion request completed.","ok");
+    showAuth();
+  } catch (error) {
+    showMessage("Account deletion failed: " + errText(error) +
+      ". Ask your administrator to verify the account-deletion function.","error");
+  }
+}
+
+/* AUTH FLOWS */
+function showAuth() {
+  currentUser = null;
+  profile = null;
+  rides = [];
+  isOnline = false;
+  stopLocationWatch();
+  $("authView").classList.remove("hidden");
+  $("appView").classList.add("hidden");
+  $("logoutBtn").classList.add("hidden");
+  $("soundBtn").classList.add("hidden");
+  setAuthMode("login");
+  removeRealtime();
+}
+async function enterApp(user) {
+  currentUser = user;
+  $("authView").classList.add("hidden");
+  $("appView").classList.remove("hidden");
+  $("logoutBtn").classList.remove("hidden");
+  $("soundBtn").classList.remove("hidden");
+  initMap();
+  await loadProfile();
+  await fetchRides();
+  setupRealtime();
+  startLocationWatch();
+  clearMessage();
+}
+async function signIn(event) {
+  event.preventDefault();
+  const button = $("loginForm").querySelector('button[type="submit"]');
+  setBusy(button,true);
+  try {
+    const {data,error} = await db.auth.signInWithPassword({
+      email:$("loginEmail").value.trim(),
+      password:$("loginPassword").value
+    });
+    if (error) throw error;
+    if (data.user) await enterApp(data.user);
+  } catch (error) {
+    showMessage("Login failed: " + errText(error),"error");
+  } finally { setBusy(button,false); }
+}
+async function registerDriver(event) {
+  event.preventDefault();
+  const button = $("registerForm").querySelector('button[type="submit"]');
+  setBusy(button,true);
+  const full_name = $("regName").value.trim();
+  const phone = $("regPhone").value.trim();
+  const email = $("regEmail").value.trim();
+  const password = $("regPassword").value;
+  const vehicle_type = $("regVehicle").value;
+  const vehicle_number = $("regVehicleNumber").value.trim();
+  const vehicle_model = $("regVehicleModel").value.trim();
+  try {
+    const {data,error} = await db.auth.signUp({
+      email,password,
+      options:{
+        emailRedirectTo:location.origin + location.pathname,
+        data:{full_name,phone,role:"driver",vehicle_type,vehicle_number,vehicle_model}
+      }
+    });
+    if (error) throw error;
+    if (!data.user) throw new Error("Supabase did not return a user.");
+    if (!data.session) {
+      showMessage("Account created. Check your email to confirm the address, then log in. Vehicle details may need to be submitted again if your database trigger does not save them.","ok");
+      setAuthMode("login");
       return;
     }
+    currentUser = data.user;
+    // Try to update the profile created by the project's auth trigger.
+    const profileUpdate = await db.from("profiles").update({
+      full_name,phone,role:"driver"
+    }).eq("id",data.user.id);
+    if (profileUpdate.error) console.warn("Profile registration update:",profileUpdate.error.message);
 
-    if(ride.driver_id&&String(ride.driver_id)!==String(user.id)){
-      throw new Error("This ride has already been assigned to another driver.");
+    // Vehicle registration is attempted using the existing vehicles table.
+    const vehicleInsert = await db.from("vehicles").insert({
+      driver_id:data.user.id,vehicle_type,vehicle_number,vehicle_model
+    });
+    if (vehicleInsert.error) {
+      console.warn("Vehicle registration:",vehicleInsert.error.message);
+      showMessage("Driver account created, but vehicle submission needs attention: " +
+        vehicleInsert.error.message + ". You can log in; the administrator may need to register or approve your vehicle.","error");
+    } else {
+      showMessage("Account created. Wait for driver and vehicle approval before going online.","ok");
     }
-
-    throw new Error(
-      "Ride was not assigned to your account. RPC returned: "+
-      JSON.stringify(data)+". Database status: "+String(ride.status)+
-      ". Confirm that your offer is still active and your GPS is fresh."
-    );
-  }catch(err){
-    console.error("Rryd accept ride error:",err);
-    notice("Could not accept ride: "+errorText(err),"error");
-  }finally{
-    busy=false;
-    restore();
-    updateApprovalUI();
-    try{await loadRequests();}catch(e){console.error("Could not refresh requests:",e);}
+    await enterApp(data.user);
+  } catch (error) {
+    showMessage("Registration failed: " + errText(error),"error");
+  } finally { setBusy(button,false); }
+}
+async function sendReset(event) {
+  event.preventDefault();
+  try {
+    const email = $("forgotEmail").value.trim();
+    const {error} = await db.auth.resetPasswordForEmail(email,{
+      redirectTo:location.origin + location.pathname
+    });
+    if (error) throw error;
+    showMessage("If this email belongs to an account, a password-reset link has been sent. Check your inbox and spam folder.","ok");
+  } catch (error) {
+    showMessage("Could not send reset link: " + errText(error),"error");
+  }
+}
+async function saveResetPassword(event) {
+  event.preventDefault();
+  const password = $("newPassword").value;
+  if (password !== $("confirmPassword").value) {
+    return showMessage("The passwords do not match.","error");
+  }
+  try {
+    const {error} = await db.auth.updateUser({password});
+    if (error) throw error;
+    showMessage("New password saved. You can log in with it now.","ok");
+    await db.auth.signOut();
+    setAuthMode("login");
+  } catch (error) {
+    showMessage("Password reset failed: " + errText(error),"error");
   }
 }
 
-function renderCurrentRide(){
-  const el=$("currentRide");
-
-  if(!currentRide){
-    el.innerHTML='<p class="muted">No active ride. Go online to receive requests.</p>';
-    return;
-  }
-
-  const r=currentRide;
-  let actions="";
-
-  if(r.status==="accepted")actions+='<button data-status="arriving">I’ve Arrived</button>';
-  if(r.status==="arriving"||r.status==="reached")actions+='<button data-status="started" class="green">Start Ride</button>';
-  if(r.status==="started")actions+='<button data-status="completed" class="green">Complete Ride</button>';
-
-  el.innerHTML=`
-    <article class="ride">
-      <h3>Ride #${esc(r.id)}</h3>
-      <p><span class="badge ok">${esc(statusName(r.status))}</span></p>
-      <p><b>Pickup:</b> ${esc(r.pickup_location||r.pickup_address||"Not provided")}</p>
-      <p><b>Destination:</b> ${esc(r.destination||r.destination_location||"Not provided")}</p>
-      <p><b>Fare:</b> ${money(r.final_fare??r.fare??r.estimated_fare)}</p>
-      <p><b>Payment:</b> ${esc(r.payment_method||"—")}</p>
-      <p class="muted small">Passenger contact is available only for your assigned active ride.</p>
-      <div class="ride-actions">
-        ${actions}
-        <button class="blue" type="button" id="callPassengerBtn">Call passenger</button>
-        <button class="gray" type="button" id="showRideMapBtn">Show on map</button>
-      </div>
-    </article>`;
-
-  el.querySelectorAll("[data-status]").forEach(button=>{
-    button.onclick=()=>updateRideStatus(button.dataset.status,button);
-  });
-
-  $("showRideMapBtn").onclick=()=>{
-    document.querySelector('[data-tab="mapPanel"]').click();
-    setTimeout(()=>map?.invalidateSize(),150);
-  };
-
-  $("callPassengerBtn").onclick=async()=>{
-    const button=$("callPassengerBtn");
-    const restore=setButtonBusy(button,"Loading phone…");
-
-    try{
-      const{data,error}=await db.rpc("rryd_get_passenger_phone",{p_ride_id:Number(currentRide.id)});
-      if(error)throw error;
-
-      const phone=String(data||"").trim();
-      if(!/^[+0-9()\-\s]{6,25}$/.test(phone)){
-        throw new Error("Passenger phone number is unavailable.");
-      }
-
-      location.href="tel:"+phone.replace(/[^\d+]/g,"");
-    }catch(err){
-      notice("Could not call passenger: "+errorText(err),"error");
-    }finally{restore();}
-  };
+/* LIVE UPDATES */
+function removeRealtime() {
+  if (requestChannel) db.removeChannel(requestChannel);
+  if (ridesChannel) db.removeChannel(ridesChannel);
+  requestChannel = null;
+  ridesChannel = null;
+}
+function setupRealtime() {
+  removeRealtime();
+  // Realtime events trigger a refresh; polling below remains as a fallback.
+  requestChannel = db.channel("rryd-driver-requests-" + currentUser.id)
+    .on("postgres_changes",{event:"*",schema:"public",table:"rides"},() => fetchRides())
+    .subscribe();
+  ridesChannel = db.channel("rryd-driver-profile-" + currentUser.id)
+    .on("postgres_changes",{event:"*",schema:"public",table:"profiles",filter:"id=eq."+currentUser.id},
+      async () => {
+        try { await loadProfile(); } catch (error) { console.warn(error); }
+      })
+    .subscribe();
 }
 
-async function updateRideStatus(next,button){
-  if(busy||!currentRide||!user)return;
-
-  const allowed={
-    accepted:["arriving"],
-    arriving:["started"],
-    reached:["started"],
-    started:["completed"]
-  };
-
-  if(!(allowed[currentRide.status]||[]).includes(next)){
-    return notice("This status change is not allowed.","error");
-  }
-
-  const confirmText={
-    arriving:"Confirm that you have arrived at the pickup?",
-    started:"Start this ride now?",
-    completed:"Confirm that this ride is complete?"
-  }[next];
-
-  if(!confirm(confirmText))return;
-
-  busy=true;
-  const restore=setButtonBusy(button,"Saving…");
-  updateApprovalUI();
-
-  try{
-    if(next==="started"){
-      const{data,error}=await db.rpc("start_ride",{p_ride_id:Number(currentRide.id)});
-      if(error)throw error;
-      if(data!==true)throw new Error("Server did not confirm ride start.");
-    }else if(next==="completed"){
-      const{data,error}=await db.rpc("complete_ride",{p_ride_id:Number(currentRide.id)});
-      if(error)throw error;
-      if(data!==true)throw new Error("Server did not confirm ride completion.");
-    }else{
-      const{data,error}=await db.from("rides").update({status:"arriving"})
-        .eq("id",currentRide.id).eq("driver_id",user.id)
-        .eq("status","accepted").select("*").maybeSingle();
-
-      if(error)throw error;
-      if(!data)throw new Error("Arrival status was not saved. Check the rides update policy.");
-    }
-
-    notice("Ride status updated: "+statusName(next)+".","success");
-    await loadRides();
-    await loadRequests();
-  }catch(err){
-    notice("Ride update failed: "+errorText(err),"error");
-  }finally{
-    busy=false;
-    restore();
-    updateApprovalUI();
-  }
-}
-
-function renderHistory(){
-  const el=$("historyList");
-  const rows=allRides.filter(r=>isTerminal(r.status));
-
-  if(!rows.length){
-    el.innerHTML='<p class="muted">No completed or cancelled rides yet.</p>';
-    return;
-  }
-
-  el.innerHTML=rows.map(r=>`
-    <article class="ride">
-      <h3>Ride #${esc(r.id)} <span class="badge">${esc(statusName(r.status))}</span></h3>
-      <p><b>Pickup:</b> ${esc(r.pickup_location||r.pickup_address||"—")}</p>
-      <p><b>Destination:</b> ${esc(r.destination||r.destination_location||"—")}</p>
-      <p><b>Fare:</b> ${money(r.final_fare??r.fare??r.estimated_fare)}</p>
-      <p><b>Payment:</b> ${esc(r.payment_method||"—")}</p>
-      <p class="muted small">${esc(r.created_at?new Date(r.created_at).toLocaleString():"")}</p>
-    </article>`).join("");
-}
-
-function renderStats(){
-  const completed=allRides.filter(r=>r.status==="completed");
-  const today=new Date();
-  today.setHours(0,0,0,0);
-
-  const todayRides=completed.filter(r=>
-    new Date(r.completed_at||r.updated_at||r.created_at||0)>=today
-  );
-
-  const earnings=r=>r.driver_earnings!==null&&r.driver_earnings!==undefined
-    ?Number(r.driver_earnings||0)
-    :Number(r.final_fare??r.fare??0);
-
-  $("todayEarnings").textContent=money(todayRides.reduce((s,r)=>s+earnings(r),0));
-  $("totalEarnings").textContent=money(completed.reduce((s,r)=>s+earnings(r),0));
-  $("completedCount").textContent=String(completed.length);
-  $("activeCount").textContent=String(allRides.filter(r=>isActive(r.status)).length);
-}
-
-function subscribeRides(){
-  if(!db||!user)return;
-
-  if(rideChannel)db.removeChannel(rideChannel);
-
-  rideChannel=db.channel("rryd-driver-"+user.id)
-    .on("postgres_changes",{
-      event:"*",schema:"public",table:"rides"
-    },async payload=>{
-      if(!user)return;
-      const row=payload.new||payload.old;
-
-      if(row?.driver_id===user.id||row?.status==="requested"){
-        try{
-          await loadRides();
-          await loadRequests();
-        }catch(e){console.error("Realtime refresh failed:",e);}
-      }
-    }).subscribe();
-}
-
-/* REFRESH, TABS, SUPPORT, LOGOUT, DELETE */
-$("refreshBtn").onclick=async()=>{
-  const restore=setButtonBusy($("refreshBtn"),"Refreshing…");
-  try{
-    await refreshProfileGpsState();
-    await loadVehicle();
-    await loadRides();
-    await loadRequests();
-    notice("Dashboard refreshed.","success");
-  }catch(err){
-    notice("Refresh failed: "+errorText(err),"error");
-  }finally{restore();}
+/* UI EVENTS */
+$("loginTab").onclick = () => { clearMessage(); setAuthMode("login"); };
+$("registerTab").onclick = () => { clearMessage(); setAuthMode("register"); };
+$("forgotLink").onclick = event => { event.preventDefault(); clearMessage(); setAuthMode("forgot"); };
+$("backFromForgot").onclick = () => setAuthMode("login");
+$("loginForm").addEventListener("submit",signIn);
+$("registerForm").addEventListener("submit",registerDriver);
+$("forgotForm").addEventListener("submit",sendReset);
+$("resetForm").addEventListener("submit",saveResetPassword);
+$("showLoginPassword").onclick = () => {
+  const field = $("loginPassword");
+  field.type = field.type === "password" ? "text" : "password";
+  $("showLoginPassword").textContent = field.type === "password" ? "Show" : "Hide";
 };
-
-$("requestRefreshBtn").onclick=async()=>{
-  const restore=setButtonBusy($("requestRefreshBtn"),"Loading…");
-  try{
-    await refreshProfileGpsState();
-    await loadRides();
-    await loadRequests();
-  }catch(err){
-    notice("Could not reload requests: "+errorText(err),"error");
-  }finally{restore();}
+$("soundBtn").onclick = enableSound;
+$("onlineBtn").onclick = async () => {
+  try { await setOnline(!isOnline); }
+  catch (error) { showMessage(errText(error),"error"); }
 };
-
-$("historyRefreshBtn").onclick=async()=>{
-  const restore=setButtonBusy($("historyRefreshBtn"),"Loading…");
-  try{
-    await loadRides();
-    notice("Ride history refreshed.","success");
-  }catch(err){
-    notice("History refresh failed: "+errorText(err),"error");
-  }finally{restore();}
+$("refreshBtn").onclick = fetchRides;
+$("historyRefreshBtn").onclick = fetchRides;
+$("locateBtn").onclick = () => {
+  if (driverLat !== null && driverLon !== null && map) {
+    map.setView([driverLat,driverLon],16);
+  } else {
+    startLocationWatch();
+    showToast("Waiting for GPS permission and location fix.");
+  }
 };
-
-document.querySelectorAll(".tabBtn").forEach(button=>{
-  button.addEventListener("click",()=>{
-    document.querySelectorAll(".tabBtn").forEach(b=>b.classList.toggle("active",b===button));
-    document.querySelectorAll(".tabPanel").forEach(panel=>
-      panel.classList.toggle("hidden",panel.id!==button.dataset.tab)
-    );
-    if(button.dataset.tab==="mapPanel")setTimeout(()=>map?.invalidateSize(),150);
-  });
+$("vehicleForm").addEventListener("submit",saveVehicle);
+$("profileForm").addEventListener("submit",saveProfile);
+$("changePasswordForm").addEventListener("submit",changePassword);
+$("deleteAccountBtn").onclick = deleteAccount;
+$("logoutBtn").onclick = async () => {
+  try {
+    await db.auth.signOut();
+    showAuth();
+  } catch (error) {
+    showMessage("Logout failed: " + errText(error),"error");
+  }
+};
+document.addEventListener("click",async event => {
+  const button = event.target.closest("button[data-action]");
+  if (!button) return;
+  const action = button.dataset.action;
+  const id = button.dataset.id;
+  setBusy(button,true,"Working…");
+  try {
+    await runRideAction(action,id);
+  } catch (error) {
+    showMessage("Ride action failed: " + errText(error),"error");
+  } finally {
+    setBusy(button,false);
+  }
 });
-
-$("callSupportBtn").onclick=()=>{
-  const phone=$("supportPhone").value.trim();
-  if(!phone)return notice("Enter the official Rryd support phone number first.","error");
-  if(!/^[+0-9()\-\s]{6,25}$/.test(phone))return notice("Enter a valid phone number.","error");
-  location.href="tel:"+phone.replace(/[^\d+]/g,"");
+$("themeBtn").onclick = () => {
+  document.body.classList.toggle("light");
+  try { localStorage.setItem("rryd-driver-theme",document.body.classList.contains("light")?"light":"dark"); } catch (_) {}
 };
 
-$("emailSupportBtn").onclick=()=>{
-  const email=prompt("Enter the official Rryd support email address:");
-  if(!email)return;
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
-    return notice("Enter a valid email address.","error");
+/* INITIALIZATION */
+(async function init() {
+  try {
+    const savedTheme = localStorage.getItem("rryd-driver-theme");
+    if (savedTheme === "light") document.body.classList.add("light");
+  } catch (_) {}
+
+  // A password recovery link may carry a recovery session in the URL.
+  const params = new URLSearchParams(location.search);
+  if (params.get("type") === "recovery" || location.hash.includes("type=recovery")) {
+    setAuthMode("reset");
   }
-  location.href="mailto:"+email;
-};
 
-$("logoutBtn").onclick=async()=>{
-  const button=$("logoutBtn");
-  const restore=setButtonBusy(button,"Logging out…");
-
-  try{
-    if(profile?.is_online){
-      const{error}=await db.rpc("set_driver_online",{p_online:false});
-      if(error)throw error;
+  try {
+    const {data,error} = await db.auth.getSession();
+    if (error) throw error;
+    if (data.session?.user) {
+      await enterApp(data.session.user);
+    } else if (authViewMode !== "reset") {
+      setAuthMode("login");
     }
+  } catch (error) {
+    showMessage("Could not initialize your session: " + errText(error),"error");
+    setAuthMode("login");
+  }
 
-    cleanupDashboard();
-    const{error}=await db.auth.signOut();
-    if(error)throw error;
-
-    user=null;profile=null;vehicle=null;allRides=[];currentRide=null;
-    passwordRecoveryMode=false;
-    requestIdsSeen.clear();
-
-    showAuth();
-    setAuthTab("login");
-    clearMessage("globalMessage");
-    showMessage("loginMessage","You have logged out.","success");
-  }catch(err){
-    notice("Logout failed: "+errorText(err),"error");
-  }finally{restore();}
-};
-
-$("deleteAccountBtn").onclick=async()=>{
-  if(!user)return showMessage("deleteMessage","Please log in again.");
-  if(!confirm("Permanently delete your Rryd account? This cannot be undone."))return;
-  if(!confirm("Final confirmation: continue with account deletion?"))return;
-
-  const restore=setButtonBusy($("deleteAccountBtn"),"Processing…");
-
-  try{
-    const{error}=await db.rpc("delete_own_account");
-    if(error)throw error;
-
-    cleanupDashboard();
-    try{await db.auth.signOut();}catch(_){}
-
-    user=null;profile=null;vehicle=null;allRides=[];currentRide=null;
-    showAuth();
-    showMessage("deleteMessage","The server accepted the deletion request.","success");
-  }catch(err){
-    showMessage("deleteMessage","Deletion was not confirmed: "+errorText(err)+". No successful deletion is being reported.");
-  }finally{restore();}
-};
-
-/* STARTUP AND PASSWORD RECOVERY */
-(async function start(){
-  try{
-    if(!window.supabase){
-      throw new Error("Supabase library did not load. Check your internet connection.");
+  db.auth.onAuthStateChange(async (event,session) => {
+    // Do not force a logout on token refresh or password-recovery events.
+    if (event === "PASSWORD_RECOVERY") {
+      setAuthMode("reset");
+      return;
     }
-
-    db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
-      auth:{
-        persistSession:true,
-        autoRefreshToken:true,
-        detectSessionInUrl:true
-      }
-    });
-
-    db.auth.onAuthStateChange((event,session)=>{
-      if(event==="PASSWORD_RECOVERY"){
-        showReset();
-        return;
-      }
-
-      if(event==="SIGNED_OUT"&&!passwordRecoveryMode){
-        user=null;profile=null;vehicle=null;allRides=[];currentRide=null;
-        showAuth();
-      }
-
-      if(event==="SIGNED_IN"&&session&&!passwordRecoveryMode){
-        setTimeout(()=>{
-          if(!user){
-            bootDriver().catch(err=>{
-              showAuth();
-              showMessage("loginMessage","Could not open dashboard: "+errorText(err));
-            });
-          }
-        },0);
-      }
-    });
-
-    const{data,error}=await db.auth.getSession();
-    if(error)throw error;
-
-    if(data?.session&&!passwordRecoveryMode){
-      await bootDriver();
-    }else if(!passwordRecoveryMode){
+    if (event === "SIGNED_OUT") {
       showAuth();
+      return;
     }
-  }catch(err){
-    showAuth();
-    showMessage("loginMessage","Startup error: "+errorText(err));
-  }
+    if (event === "SIGNED_IN" && session?.user && !currentUser) {
+      try { await enterApp(session.user); }
+      catch (error) { showMessage("Portal setup failed: " + errText(error),"error"); }
+    }
+  });
+
+  // Polling helps if Supabase Realtime is not enabled for the rides table.
+  setInterval(() => {
+    if (currentUser && !document.hidden) fetchRides();
+  },10000);
+  document.addEventListener("visibilitychange",() => {
+    if (!document.hidden && currentUser) fetchRides();
+  });
 })();
 </script>
 </body>
