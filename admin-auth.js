@@ -256,12 +256,46 @@ function setBusy(button,busy,label) {
 
 /* Never trust a local role flag: recheck the authenticated profile. */
 async function checkAdmin(user) {
- const {data,error} = await db.from("profiles").select("*").eq("id",user.id).maybeSingle();
- if (error) throw new Error("Could not verify admin profile: " + error.message);
- if (!data || String(data.role || "").toLowerCase() !== "admin") {
-  await db.auth.signOut();
-  throw new Error("Access denied. This account's profiles.role is not admin. Ask the database administrator to verify the correct admin profile.");
- }
+  const { data, error } = await db
+    .from("profiles")
+    .select("id, full_name, role, is_verified, is_suspended")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Rryd admin profile verification failed:", error);
+    throw new Error(
+      "Could not verify admin profile: " +
+      error.message +
+      (error.code ? " (Code: " + error.code + ")" : "")
+    );
+  }
+
+  if (!data) {
+    await db.auth.signOut();
+    throw new Error(
+      "No profiles row matches the signed-in user's ID. " +
+      "Check that profiles.id matches auth.users.id."
+    );
+  }
+
+  if (String(data.role || "").toLowerCase() !== "admin") {
+    await db.auth.signOut();
+    throw new Error(
+      "Access denied: this signed-in account does not have role=admin."
+    );
+  }
+
+  if (data.is_suspended === true) {
+    await db.auth.signOut();
+    throw new Error("This admin account is suspended.");
+  }
+
+  profile = data;
+  currentUser = user;
+  showApp();
+  await navigate("Overview");
+}
  if (data.is_suspended === true) {
   await db.auth.signOut();
   throw new Error("This admin account is suspended.");
