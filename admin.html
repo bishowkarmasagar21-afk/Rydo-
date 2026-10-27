@@ -98,11 +98,35 @@ function table(id,cols,rows){
  $(id).innerHTML='<div class="tablewrap"><table><thead><tr>'+cols.map(c=>'<th>'+c.label+'</th>').join('')+'</tr></thead><tbody>'+
  rows.map(r=>'<tr>'+cols.map(c=>'<td>'+(c.render?c.render(r):esc(r[c.key]))+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
 }
+
 async function isAdmin(){
- const {data,error}=await db.rpc('rydo_is_admin');
- if(error)throw new Error('Admin verification failed: '+error.message);
- if(data!==true)throw new Error('This account is not authorized as a RRYD administrator.');
+  if (!currentUser?.id) {
+    throw new Error('No signed-in user was found.');
+  }
+
+  const { data, error } = await db
+    .from('profiles')
+    .select('id, role, is_suspended')
+    .eq('id', currentUser.id)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      'Admin profile verification failed: ' + error.message
+    );
+  }
+
+  if (!data || String(data.role || '').toLowerCase() !== 'admin') {
+    throw new Error(
+      'Access denied: this account does not have role=admin in profiles.'
+    );
+  }
+
+  if (data.is_suspended === true) {
+    throw new Error('This admin account is suspended.');
+  }
 }
+
 async function audit(action,tableName,id,details={}){
  const {error}=await db.from('rydo_admin_audit_logs').insert({
   admin_id:currentUser.id,action,target_table:tableName,target_id:String(id??''),details
