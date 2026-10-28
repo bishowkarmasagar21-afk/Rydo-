@@ -1,691 +1,966 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#061321">
-<title>Rryd | Admin Portal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#08111b">
+<title>Rryd | Admin & Business Reports</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <style>
-:root{--bg:#04111e;--panel:#071a2b;--panel2:#0b2033;--border:#18364d;--text:#f3f7ff;--muted:#91a9c4;--orange:#ff7417;--green:#00d6a0;--blue:#168bff;--red:#ff5366;--purple:#a76bff}
+:root {
+  --bg:#08111b;
+  --panel:#142638;
+  --panel2:#0e1d2b;
+  --line:#2b4053;
+  --text:#f2f6fb;
+  --muted:#9bb0c3;
+  --orange:#ff7417;
+  --blue:#3298ff;
+  --green:#37cf91;
+  --red:#ff5366;
+  --radius:15px;
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:14px Inter,Arial,sans-serif}
+body{margin:0;background:var(--bg);color:var(--text);
+font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif}
 button,input,select{font:inherit}
 button{cursor:pointer}
-button:disabled{opacity:.5;cursor:not-allowed}
-a{color:inherit;text-decoration:none}
+button:disabled{opacity:.55;cursor:not-allowed}
+a{color:#8fcaff}
 .hidden{display:none!important}
-#loginScreen{min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(ellipse at top,#133453,#04111e 65%)}
-.login-card{width:min(420px,100%);padding:32px;background:var(--panel);border:1px solid var(--border);border-radius:22px;box-shadow:0 25px 80px #0008}
-.logo{font-size:38px;font-weight:900;letter-spacing:-2px}
-.logo span{color:var(--orange)}
-.tagline{color:var(--muted);margin:4px 0 26px}
-.field{display:grid;gap:7px;margin:15px 0;color:#b9cce1}
-.field input,.field select,.search-input{width:100%;background:#061625;border:1px solid var(--border);color:var(--text);border-radius:10px;padding:13px;outline:none}
-.field input:focus,.search-input:focus{border-color:var(--orange)}
-.btn{border:1px solid var(--border);background:#10283c;color:var(--text);padding:10px 14px;border-radius:10px}
-.btn:hover{filter:brightness(1.15)}
-.btn-orange{background:var(--orange);border-color:var(--orange);color:white;font-weight:750}
-.btn-outline{border-color:var(--orange);color:#ff9a58;background:transparent}
-.btn-danger{background:#4a1c2a;border-color:#753044;color:#ff9aa6}
-.btn-green{background:#073e38;border-color:#087a65;color:#67f5d0}
-#app{display:none;min-height:100vh}
-.sidebar{position:fixed;inset:0 auto 0 0;width:252px;background:#041321;border-right:1px solid var(--border);padding:20px 14px;display:flex;flex-direction:column;z-index:500;overflow:auto}
-.brand{padding:0 10px 24px;display:flex;align-items:center;gap:10px}
-.brand-symbol{font-size:37px;color:var(--orange)}
-.brand-name{font-size:36px;font-weight:900;letter-spacing:-2px}
-.brand-name span{color:var(--orange)}
-.brand small{display:block;color:#c3d1e0;font-size:12px;letter-spacing:0}
-.nav{display:grid;gap:7px}
-.nav button{display:flex;align-items:center;gap:13px;padding:13px 14px;border:0;border-radius:10px;background:transparent;color:#d7e5f4;text-align:left}
-.nav button .ico{width:22px;font-size:19px;text-align:center}
-.nav button.active,.nav button:hover{background:linear-gradient(100deg,#ff7417,#f05a08);color:white}
-.side-footer{margin-top:auto;padding:18px 14px;border:1px solid var(--border);border-radius:12px;background:linear-gradient(155deg,#102940,#071524);color:var(--muted);line-height:1.8}
-.topbar{height:72px;margin-left:252px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;padding:12px 24px;background:#061523;position:sticky;top:0;z-index:400}
-.search-wrap{flex:1;max-width:650px;position:relative}
-.search-input{border-radius:30px;padding:12px 18px}
-.top-actions{margin-left:auto;display:flex;align-items:center;gap:12px}
-.admin-chip{padding:9px 13px;border-left:1px solid var(--border);color:var(--muted)}
-main{margin-left:252px;padding:25px 24px 18px;max-width:1900px}
-.welcome{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:20px}
-h1{font-size:23px;margin:0 0 6px}
-h2{font-size:16px;margin:0}
-.sub,.muted{color:var(--muted)}
-.date-label{text-align:right;color:#c6d6e8;line-height:1.6}
-.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:18px}
-.stat{border:1px solid var(--border);background:linear-gradient(145deg,#0a2032,#061625);border-radius:12px;padding:16px;display:flex;gap:13px;align-items:center;min-width:0}
-.stat-icon{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;font-size:23px;flex-shrink:0}
-.orange{background:#59391f;color:#ff9b43}.blue{background:#103d78;color:#70b8ff}.green{background:#075342;color:#7af3d0}.red{background:#542b25;color:#ffb08a}.cyan{background:#10466a;color:#74d9ff}
-.stat-label{color:#c1d3e8;font-size:12px;margin-bottom:7px}
-.stat-value{font-size:21px;font-weight:800;white-space:nowrap}
-.stat-change{color:var(--green);font-size:12px;margin-top:7px}
-.grid-main{display:grid;grid-template-columns:minmax(0,1.85fr) minmax(280px,.95fr);gap:18px}
-.panel{border:1px solid var(--border);border-radius:13px;background:linear-gradient(145deg,#081c2d,#061522);overflow:hidden;min-width:0}
-.panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:15px;border-bottom:1px solid var(--border)}
-.panel-title{display:flex;align-items:center;gap:10px;font-weight:750;font-size:15px}
-.panel-title .ico{font-size:21px;color:var(--orange)}
-.panel-body{padding:14px}
-.link-btn{border:0;background:transparent;color:#70bdff;padding:5px}
-.tracking-panel{margin-bottom:17px}
-.map-layout{display:grid;grid-template-columns:minmax(0,1fr) 224px;min-height:350px}
-#map{height:350px;min-width:0;background:#10263a}
-.active-list{padding:10px;background:#061625}
-.active-row{padding:11px 4px;border-bottom:1px solid var(--border);cursor:pointer}
-.active-row:hover{background:#10283a}
-.active-row:last-child{border-bottom:0}
-.ride-row-title{display:flex;justify-content:space-between;gap:8px;font-weight:750;margin-bottom:6px}
-.route-small{font-size:11px;color:var(--muted);overflow-wrap:anywhere}
-.pill{display:inline-block;border-radius:20px;padding:4px 9px;font-size:11px;white-space:nowrap;background:#183b62;color:#8ecaff}
-.pill.requested{background:#533a1c;color:#ffbf72}
-.pill.completed{background:#07533f;color:#6df0bf}
-.pill.cancelled{background:#51232b;color:#ff98a4}
-.pill.started,.pill.accepted,.pill.arriving,.pill.in_progress{background:#153d68;color:#8ecaff}
-.right-stack{display:grid;align-content:start;gap:15px}
-.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-.quick-btn{display:flex;align-items:center;gap:9px;padding:12px 9px;background:#0b2438;border:1px solid var(--border);border-radius:10px;text-align:left;color:#e4efff}
-.quick-btn span:first-child{font-size:21px;color:var(--orange)}
-.activity{display:flex;gap:11px;padding:12px 0;border-bottom:1px solid var(--border)}
-.activity:last-child{border-bottom:0}
-.activity-icon{width:34px;height:34px;border-radius:9px;background:#12344a;display:grid;place-items:center;flex-shrink:0}
-.activity strong{font-size:12px}
-.activity small{display:block;color:var(--muted);margin-top:5px;overflow-wrap:anywhere}
-.activity time{margin-left:auto;color:var(--muted);font-size:10px;white-space:nowrap}
-.lower-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.9fr);gap:15px;margin-top:17px}
-.table-wrap{overflow:auto}
-table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:12px}
-th,td{text-align:left;padding:12px 10px;border-bottom:1px solid #142d41}
-th{color:#9db5ce;font-weight:600;background:#081a2a}
-td{color:#e2edfb}
+header{position:sticky;top:0;z-index:10;background:#0a1724ee;
+backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.header-inner{max-width:1500px;margin:auto;padding:15px 20px;
+display:flex;justify-content:space-between;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:11px}
+.logo{width:42px;height:42px;display:grid;place-items:center;
+border-radius:12px;background:var(--orange);color:#fff;font-size:21px;font-weight:900}
+.brand h1{font-size:19px;margin:0}
+.brand small{display:block;color:var(--muted);margin-top:3px}
+main{max-width:1500px;margin:auto;padding:22px 18px 60px}
+.card{background:var(--panel);border:1px solid var(--line);
+border-radius:var(--radius);padding:18px;margin-bottom:17px;min-width:0}
+h2{font-size:19px;margin:0 0 14px}
+h3{font-size:15px;margin:0 0 10px}
+p{line-height:1.5}
+.muted,small{color:var(--muted)}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 6px}
+input,select{background:var(--panel2);color:var(--text);
+border:1px solid var(--line);border-radius:9px;padding:11px;width:100%;min-width:0}
+input:focus,select:focus{outline:2px solid #ff741755;border-color:var(--orange)}
+button{border:0;border-radius:9px;padding:10px 13px;font-weight:700}
+.primary{background:var(--orange);color:#fff}
+.secondary{background:#294057;color:#fff;border:1px solid #3c566d}
+.blue{background:var(--blue);color:#fff}
+.good{background:#176b4e;color:#fff}
+.danger{background:#7f2835;color:#fff}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.metric{padding:15px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;min-width:0}
+.metric span{display:block;font-size:12px;color:var(--muted);margin-bottom:9px}
+.metric b{display:block;font-size:clamp(18px,2vw,26px);overflow-wrap:anywhere}
+.metric small{display:block;margin-top:7px;font-size:12px}
+.positive{color:var(--green)}
+.negative{color:var(--red)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.tabs button{background:#20364a;color:var(--muted)}
+.tabs button.active{background:var(--orange);color:white}
+.notice{padding:12px 14px;border-radius:10px;margin:12px 0;
+background:#102b3b;border:1px solid var(--line);overflow-wrap:anywhere}
+.notice.error{background:#421f2a;border-color:#8b3948}
+.notice.success{background:#123c30;border-color:#24775b}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}
+table{width:100%;border-collapse:collapse;min-width:700px}
+th,td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);font-size:13px}
+th{color:#c6d7e7;background:#102131;position:sticky;top:0}
+td{overflow-wrap:anywhere}
 tr:last-child td{border-bottom:0}
-.id-cell{color:#ff9b42;font-weight:800}
-.empty{padding:25px;text-align:center;color:var(--muted)}
-.quick-stats-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border)}
-.quick-stats-row:last-child{border-bottom:0}
-.quick-stats-row strong{margin-left:auto}
-.section{display:none}
-.section.active{display:block}
-.section-intro{margin-bottom:18px}
-.section-actions{display:flex;gap:9px;flex-wrap:wrap}
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:15px 0}
-.toolbar input,.toolbar select{background:#061625;color:white;border:1px solid var(--border);border-radius:9px;padding:10px}
-.toolbar input{min-width:220px;flex:1}
-.notice{padding:12px 14px;border-radius:10px;background:#10283b;color:#bcd7f0;margin-bottom:14px;overflow-wrap:anywhere}
-.notice.error{background:#431e27;color:#ffb0b9}
-.notice.success{background:#073e32;color:#83f1ce}
-.editor-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.editor-grid .field{margin:0}
-.panel + .panel{margin-top:15px}
-footer{margin:18px 0 0;padding:15px 0;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:11px}
-#toast{position:fixed;bottom:22px;right:22px;max-width:min(440px,calc(100vw - 40px));z-index:9999;background:#12324a;border:1px solid #2c5878;border-radius:12px;padding:14px 18px;box-shadow:0 8px 30px #0008;display:none}
-#toast.error{background:#4a2029;border-color:#803d49}
-#toast.success{background:#073d32;border-color:#167b64}
-#mobileMenu{display:none}
-@media(max-width:1250px){.stats{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-main{grid-template-columns:1fr}.right-stack{grid-template-columns:repeat(2,minmax(0,1fr))}.right-stack .panel:last-child{grid-column:1/-1}}
-@media(max-width:850px){.sidebar{width:74px;padding:14px 9px}.brand{padding:5px 7px 24px}.brand-name,.brand .tagline,.nav button .nav-label,.side-footer{display:none}.brand-symbol{font-size:30px}.nav button{justify-content:center;padding:13px 4px}.nav button .ico{font-size:21px}.topbar,main{margin-left:74px}.topbar{padding:10px 12px}.admin-chip{display:none}main{padding:18px 12px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.map-layout{grid-template-columns:1fr}.active-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}.active-row{padding:9px}.lower-grid{grid-template-columns:1fr}.editor-grid{grid-template-columns:1fr 1fr}}
-@media(max-width:520px){.stats{gap:8px}.stat{padding:11px;gap:8px}.stat-icon{width:35px;height:35px;font-size:18px}.stat-value{font-size:17px}.stat-label{font-size:11px}.welcome{align-items:flex-start}.date-label{font-size:10px}.right-stack{grid-template-columns:1fr}.right-stack .panel:last-child{grid-column:auto}.active-list{grid-template-columns:1fr 1fr}.editor-grid{grid-template-columns:1fr}.brand{justify-content:center}.topbar{gap:8px}.search-input{font-size:12px;padding:11px}footer{flex-direction:column}.quick-grid{gap:6px}.quick-btn{font-size:11px}}
+.pill{display:inline-block;border-radius:999px;padding:4px 8px;
+font-size:11px;font-weight:800;background:#294057}
+.pill.good{background:#15573f;color:#a7f4d4}
+.pill.warn{background:#64451d;color:#ffe0a4}
+.pill.bad{background:#672b36;color:#ffc3cb}
+.item{padding:13px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.item p{margin:6px 0;color:var(--muted);font-size:13px}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:end}
+.filters .actions{grid-column:1/-1}
+.fare-row{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;
+align-items:end;padding:12px 0;border-bottom:1px solid var(--line)}
+.empty{padding:24px;text-align:center;color:var(--muted)}
+details{border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0}
+summary{cursor:pointer;font-weight:700}
+#loginCard{max-width:440px;margin:7vh auto}
+#loginCard input{margin-bottom:5px}
+#loginMessage{overflow-wrap:anywhere}
+.footer-note{font-size:12px;color:var(--muted);line-height:1.6;margin-top:15px}
+.report-title{display:none}
+@media(max-width:950px){
+ .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .filters{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .three{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:600px){
+ main{padding:13px 10px 40px}
+ .card{padding:13px}
+ .header-inner{padding:12px}
+ .brand h1{font-size:16px}
+ .two,.three,.filters{grid-template-columns:1fr}
+ .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .metric{padding:11px}
+ .metric b{font-size:18px}
+ .fare-row{grid-template-columns:1fr 1fr}
+ .fare-row button{grid-column:1/-1}
+}
+@media print{
+ body{background:#fff!important;color:#111!important}
+ header,.no-print,#loginCard,#dashboardSection,#operationsSection,
+ #faresSection,#driversSection,#vehiclesSection,#ridesSection,
+ #passengersSection,#auditSection{display:none!important}
+ #app,#reportsSection{display:block!important}
+ main{max-width:none;padding:0}
+ .card,.metric,details{background:#fff!important;color:#111!important;
+ border:1px solid #ccc!important;break-inside:avoid}
+ .metric span,.muted,small,.footer-note{color:#444!important}
+ .grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .table-wrap{overflow:visible;border-color:#ccc}
+ table{min-width:0;width:100%}
+ th,td{color:#111!important;background:#fff!important;border-color:#ddd;
+ font-size:9pt;padding:6px}
+ .report-title{display:block}
+ .no-print{display:none!important}
+ a{color:#111}
+}
 </style>
 </head>
 
 <body>
-<div id="loginScreen">
-  <form class="login-card" id="loginForm">
-    <div class="logo"><span>R</span>ryd<span>.</span></div>
-    <div class="tagline">Move your way. · Administrator access</div>
-    <h2>Welcome back</h2>
-    <p class="muted">Sign in using your existing Rryd admin account.</p>
-    <label class="field">Email address<input id="loginEmail" type="email" autocomplete="username" required></label>
-    <label class="field">Password<input id="loginPassword" type="password" autocomplete="current-password" required></label>
-    <button class="btn btn-orange" id="loginButton" style="width:100%;padding:13px">Sign in to Admin Portal</button>
-    <button type="button" class="link-btn" id="forgotButton" style="margin-top:14px">Forgot password?</button>
-    <div id="loginMessage" class="notice hidden" style="margin-top:14px"></div>
-    <div id="resetBox" class="hidden">
-      <label class="field">New password<input id="newPassword" type="password" minlength="8"></label>
-      <button type="button" id="savePasswordButton" class="btn btn-orange" style="width:100%">Set new password</button>
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <div class="logo">R</div>
+      <div>
+        <h1>Rryd Admin</h1>
+        <small>Operations & business intelligence</small>
+      </div>
     </div>
-  </form>
-</div>
-
-<div id="app">
-<aside class="sidebar">
-  <div class="brand"><div class="brand-symbol">🚘</div><div><div class="brand-name">Rryd<span>.</span></div><div class="tagline" style="margin:0">Move your way.</div></div></div>
-  <nav class="nav" id="navigation">
-    <button class="active" data-page="dashboard"><span class="ico">▦</span><span class="nav-label">Dashboard</span></button>
-    <button data-page="tracking"><span class="ico">⌖</span><span class="nav-label">Live Tracking</span></button>
-    <button data-page="drivers"><span class="ico">♙</span><span class="nav-label">Drivers</span></button>
-    <button data-page="vehicles"><span class="ico">🚘</span><span class="nav-label">Vehicles</span></button>
-    <button data-page="rides"><span class="ico">🚕</span><span class="nav-label">Rides</span></button>
-    <button data-page="fares"><span class="ico">▤</span><span class="nav-label">Fare Settings</span></button>
-    <button data-page="passengers"><span class="ico">♧</span><span class="nav-label">Passengers</span></button>
-    <button data-page="earnings"><span class="ico">▣</span><span class="nav-label">Earnings & Reports</span></button>
-    <button data-page="safety"><span class="ico">◆</span><span class="nav-label">Safety Centre</span></button>
-    <button data-page="audit"><span class="ico">☷</span><span class="nav-label">Audit Logs</span></button>
-  </nav>
-  <div class="side-footer">🏔 Nepal<br><strong style="color:white">Rryd Admin Panel</strong><br>Live operations<br><br>Better rides. A smarter Nepal.</div>
-</aside>
-
-<header class="topbar">
-  <div class="search-wrap"><input class="search-input" id="globalSearch" placeholder="⌕  Search by name, phone, ID, or location..."></div>
-  <div class="top-actions"><button class="btn" id="refreshButton" title="Refresh data">↻</button><button class="btn" id="logoutButton">Sign out</button><div class="admin-chip">Administrator<br><small id="adminEmail"></small></div></div>
+    <div class="actions">
+      <button class="secondary" id="refreshBtn" disabled>Refresh</button>
+      <button class="danger" id="logoutBtn" disabled>Log out</button>
+    </div>
+  </div>
 </header>
 
 <main>
-<div id="globalNotice" class="notice hidden"></div>
+<section id="loginCard" class="card">
+  <h2>Admin login</h2>
+  <p class="muted">Sign in with your authorized Rryd administrator account.</p>
+  <form id="loginForm">
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username" required>
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" required>
+    <button class="primary" style="width:100%;margin-top:15px">Log in</button>
+  </form>
+  <div id="loginMessage" class="notice hidden"></div>
+  <p class="footer-note">Admin access is checked against your Supabase profile. A successful login alone does not grant admin access.</p>
+</section>
 
-<section class="section active" id="page-dashboard">
-  <div class="welcome"><div><h1>👋 Good day, Admin!</h1><div class="sub">Here's what's happening with Rryd today.</div></div><div class="date-label" id="todayDate"></div></div>
-  <div class="stats">
-    <div class="stat"><div class="stat-icon orange">🚕</div><div><div class="stat-label">Total Rides</div><div class="stat-value" id="totalRides">—</div><div class="stat-change">All recorded rides</div></div></div>
-    <div class="stat"><div class="stat-icon blue">◷</div><div><div class="stat-label">Active Rides</div><div class="stat-value" id="activeRides">—</div><div class="stat-change">Live operations</div></div></div>
-    <div class="stat"><div class="stat-icon green">♙</div><div><div class="stat-label">Online Drivers</div><div class="stat-value" id="onlineDrivers">—</div><div class="stat-change">Current driver status</div></div></div>
-    <div class="stat"><div class="stat-icon red">◷</div><div><div class="stat-label">Pending Approvals</div><div class="stat-value" id="pendingApprovals">—</div><div class="stat-change">Drivers awaiting review</div></div></div>
-    <div class="stat"><div class="stat-icon cyan">▣</div><div><div class="stat-label">Completed Fare Total</div><div class="stat-value" id="totalEarnings">—</div><div class="stat-change">Based on completed rides</div></div></div>
+<div id="app" class="hidden">
+  <div id="globalMessage" class="notice hidden"></div>
+
+  <div class="tabs no-print" id="mainTabs">
+    <button class="active" data-section="dashboardSection">Dashboard</button>
+    <button data-section="reportsSection">Earnings & Reports</button>
+    <button data-section="driversSection">Drivers</button>
+    <button data-section="vehiclesSection">Vehicles</button>
+    <button data-section="faresSection">Fare Rules</button>
+    <button data-section="ridesSection">Rides</button>
+    <button data-section="passengersSection">Passengers</button>
+    <button data-section="auditSection">Audit / Data</button>
   </div>
 
-  <div class="grid-main">
-    <div>
-      <div class="panel tracking-panel">
-        <div class="panel-head"><div class="panel-title"><span class="ico">⌖</span> Live Driver Tracking <span class="pill">Map</span></div><button class="link-btn" data-goto="tracking">View all →</button></div>
-        <div class="map-layout"><div id="map"></div><div class="active-list" id="activeRideList"><div class="empty">Loading rides…</div></div></div>
+  <section id="dashboardSection">
+    <div class="card">
+      <div class="row">
+        <div><h2>Business overview</h2><p class="muted">Figures from records currently visible to this admin account.</p></div>
+        <span class="pill" id="lastUpdated">Not loaded</span>
       </div>
-      <div class="lower-grid">
-        <div class="panel"><div class="panel-head"><div class="panel-title"><span class="ico">🚕</span> Recent Rides</div><button class="link-btn" data-goto="rides">View all →</button></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>Passenger</th><th>Driver</th><th>Route</th><th>Status</th><th>Fare</th></tr></thead><tbody id="recentRides"></tbody></table></div></div>
-        <div class="panel"><div class="panel-head"><div class="panel-title"><span class="ico">▤</span> Fare Rules</div><button class="link-btn" data-goto="fares">View all →</button></div><div class="table-wrap"><table><thead><tr><th>Vehicle</th><th>Base</th><th>Per km</th><th>Commission</th></tr></thead><tbody id="dashboardFares"></tbody></table></div></div>
+      <div class="grid">
+        <div class="metric"><span>All rides</span><b id="dashRides">—</b></div>
+        <div class="metric"><span>Completed rides</span><b id="dashCompleted">—</b></div>
+        <div class="metric"><span>Registered drivers</span><b id="dashDrivers">—</b></div>
+        <div class="metric"><span>Registered passengers</span><b id="dashPassengers">—</b></div>
+        <div class="metric"><span>Gross completed fares</span><b id="dashGross">—</b><small>Before commission split</small></div>
+        <div class="metric"><span>Platform commission</span><b id="dashCommission">—</b><small>Before tax</small></div>
+        <div class="metric"><span>Driver earnings</span><b id="dashDriverEarnings">—</b><small>Based on stored earnings or fare split</small></div>
+        <div class="metric"><span>Pending driver approvals</span><b id="dashPending">—</b></div>
       </div>
     </div>
-    <div class="right-stack">
-      <div class="panel"><div class="panel-head"><div class="panel-title"><span class="ico">ϟ</span> Quick Actions</div></div><div class="panel-body quick-grid">
-        <button class="quick-btn" data-goto="drivers"><span>♙</span><span>Review Drivers</span></button>
-        <button class="quick-btn" data-goto="vehicles"><span>🚘</span><span>Review Vehicles</span></button>
-        <button class="quick-btn" data-goto="fares"><span>▤</span><span>Update Fare Rules</span></button>
-        <button class="quick-btn" data-goto="earnings"><span>▣</span><span>View Reports</span></button>
-      </div></div>
-      <div class="panel"><div class="panel-head"><div class="panel-title"><span class="ico">♧</span> Recent Activity</div><button class="link-btn" data-goto="audit">View all →</button></div><div class="panel-body" id="recentActivity"><div class="empty">Loading activity…</div></div></div>
-      <div class="panel"><div class="panel-head"><div class="panel-title"><span class="ico">▥</span> Quick Stats</div></div><div class="panel-body">
-        <div class="quick-stats-row">Completed rides today <strong id="completedToday">—</strong></div>
-        <div class="quick-stats-row">Cancelled rides <strong id="cancelledRides">—</strong></div>
-        <div class="quick-stats-row">Total drivers <strong id="totalDrivers">—</strong></div>
-        <div class="quick-stats-row">Total passengers <strong id="totalPassengers">—</strong></div>
-        <div class="quick-stats-row">Vehicles <strong id="totalVehicles">—</strong></div>
-      </div></div>
+    <div class="card">
+      <h2>Quick actions</h2>
+      <div class="actions">
+        <button class="primary" data-go="reportsSection">Open earnings reports</button>
+        <button class="secondary" data-go="driversSection">Review drivers</button>
+        <button class="secondary" data-go="vehiclesSection">Review vehicles</button>
+        <button class="secondary" data-go="ridesSection">View rides</button>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<section class="section" id="page-tracking">
-  <div class="welcome"><div><h1>Live Driver Tracking</h1><div class="sub">Latest driver locations shared with Rryd.</div></div><button class="btn" data-refresh>Refresh map</button></div>
-  <div class="panel"><div class="panel-head"><h2>Driver Map</h2><span class="muted">GPS updates depend on driver permissions and connectivity</span></div><div id="bigMap" style="height:540px;background:#10263a"></div></div>
-  <div class="panel"><div class="panel-head"><h2>Driver Locations</h2></div><div class="table-wrap"><table><thead><tr><th>Driver</th><th>Phone</th><th>Online</th><th>Latitude</th><th>Longitude</th><th>Updated</th></tr></thead><tbody id="trackingTable"></tbody></table></div></div>
-</section>
+  <section id="reportsSection" class="hidden">
+    <div class="card">
+      <div class="row">
+        <div><h2>Earnings & growth reports</h2><p class="muted">Real completed-ride data. Tax is excluded from every report.</p></div>
+        <span class="pill" id="reportStatus">Ready to calculate</span>
+      </div>
+      <div class="filters no-print">
+        <div>
+          <label for="period">Reporting period</label>
+          <select id="period">
+            <option value="today">Today</option>
+            <option value="7d" selected>Last 7 days</option>
+            <option value="15d">Last 15 days</option>
+            <option value="month">Last 1 month</option>
+            <option value="year">Last 1 year</option>
+            <option value="custom">Custom dates</option>
+            <option value="all">All available records</option>
+          </select>
+        </div>
+        <div><label for="startDate">Start date</label><input type="date" id="startDate"></div>
+        <div><label for="endDate">End date</label><input type="date" id="endDate"></div>
+        <div>
+          <label for="reportDriver">Driver breakdown</label>
+          <select id="reportDriver"><option value="all">All drivers</option></select>
+        </div>
+        <div class="actions">
+          <button class="primary" id="generateReportBtn">Generate report</button>
+          <button class="secondary" id="csvBtn">Download CSV</button>
+          <button class="secondary" id="printBtn">Print / Save PDF</button>
+        </div>
+      </div>
+      <p class="footer-note">Period dates use Nepal local time. The selected end date is included. The comparison uses the same length of time immediately before the selected period.</p>
+    </div>
 
-<section class="section" id="page-drivers">
-  <div class="welcome"><div><h1>Driver Management</h1><div class="sub">Review driver verification, status and account safety.</div></div><button class="btn" data-refresh>Refresh</button></div>
-  <div class="toolbar"><input id="driverSearch" placeholder="Search driver name, email, or phone"><select id="driverFilter"><option value="all">All drivers</option><option value="pending">Pending verification</option><option value="verified">Verified</option><option value="online">Online</option><option value="suspended">Suspended</option></select></div>
-  <div class="panel"><div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Verified</th><th>Online</th><th>Suspended</th><th>Actions</th></tr></thead><tbody id="driversTable"></tbody></table></div></div>
-</section>
+    <div id="reportPrintable">
+      <div class="card">
+        <h2 class="report-title">Rryd — Business Earnings Report</h2>
+        <p id="reportRange" class="muted">Generate a report to display the selected dates.</p>
+        <div class="grid">
+          <div class="metric"><span>Gross ride value</span><b id="repGross">—</b><small>Completed fares</small></div>
+          <div class="metric"><span>Platform commission</span><b id="repCommission">—</b><small>Company earnings before tax</small></div>
+          <div class="metric"><span>Driver net earnings</span><b id="repDriverNet">—</b><small>Driver share before personal taxes</small></div>
+          <div class="metric"><span>Completed rides</span><b id="repRideCount">—</b></div>
+          <div class="metric"><span>Average fare</span><b id="repAverage">—</b></div>
+          <div class="metric"><span>Gross growth</span><b id="growthGross">—</b><small id="growthGrossDetail"></small></div>
+          <div class="metric"><span>Company earnings growth</span><b id="growthCompany">—</b><small id="growthCompanyDetail"></small></div>
+          <div class="metric"><span>Driver earnings growth</span><b id="growthDriver">—</b><small id="growthDriverDetail"></small></div>
+        </div>
+        <div class="notice" id="reportNotes">
+          Earnings are calculated from completed rides. No tax is added or deducted.
+        </div>
+      </div>
 
-<section class="section" id="page-vehicles">
-  <div class="welcome"><div><h1>Vehicle Management</h1><div class="sub">Review registered vehicles and approval status.</div></div><button class="btn" data-refresh>Refresh</button></div>
-  <div class="toolbar"><input id="vehicleSearch" placeholder="Search vehicle, plate, model, driver"><select id="vehicleFilter"><option value="all">All vehicles</option><option value="pending">Pending</option><option value="approved">Approved</option></select></div>
-  <div class="panel"><div class="table-wrap"><table><thead><tr><th>ID</th><th>Driver</th><th>Vehicle</th><th>Plate</th><th>Model</th><th>Approval</th><th>Actions</th></tr></thead><tbody id="vehiclesTable"></tbody></table></div></div>
-</section>
+      <div class="card">
+        <h2>Driver earnings breakdown</h2>
+        <p class="muted">Expand an individual driver to inspect their completed rides.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Driver</th><th>Completed rides</th><th>Gross fares</th><th>Platform commission</th><th>Driver earnings</th></tr></thead>
+            <tbody id="driverReportRows"><tr><td colspan="5">Generate a report first.</td></tr></tbody>
+          </table>
+        </div>
+        <div id="driverDetails"></div>
+      </div>
 
-<section class="section" id="page-rides">
-  <div class="welcome"><div><h1>Ride Management</h1><div class="sub">Review routes, fares, payment status and ride lifecycle.</div></div><button class="btn" data-refresh>Refresh</button></div>
-  <div class="toolbar"><input id="rideSearch" placeholder="Search ride ID, passenger, driver, route"><select id="rideFilter"><option value="all">All statuses</option><option>requested</option><option>accepted</option><option>arriving</option><option>started</option><option>completed</option><option>cancelled</option></select><button class="btn" id="exportRides">Export CSV</button></div>
-  <div class="panel"><div class="table-wrap"><table><thead><tr><th>ID</th><th>Passenger</th><th>Driver</th><th>Pickup</th><th>Destination</th><th>Vehicle</th><th>Distance</th><th>Fare</th><th>Payment</th><th>Status</th><th>Action</th></tr></thead><tbody id="ridesTable"></tbody></table></div></div>
-</section>
+      <div class="card">
+        <h2>Daily growth detail</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Date</th><th>Completed rides</th><th>Gross fares</th><th>Company commission</th><th>Driver earnings</th></tr></thead>
+            <tbody id="dailyReportRows"><tr><td colspan="5">Generate a report first.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
 
-<section class="section" id="page-fares">
-  <div class="welcome"><div><h1>Fare Settings</h1><div class="sub">Edit the active vehicle fare rules stored in Supabase.</div></div><button class="btn" data-refresh>Refresh</button></div>
-  <div class="notice">Changes affect future fare calculations only. Confirm your fare policy before saving.</div>
-  <div class="panel"><div class="table-wrap"><table><thead><tr><th>Vehicle</th><th>Base fare (NPR)</th><th>Per km (NPR)</th><th>Commission (%)</th><th>Active</th><th>Save</th></tr></thead><tbody id="faresTable"></tbody></table></div></div>
-</section>
+  <section id="driversSection" class="hidden">
+    <div class="card">
+      <div class="row"><h2>Driver approvals & management</h2><button class="secondary" id="reloadDriversBtn">Reload</button></div>
+      <p class="muted">Driver approval uses the secure approve_driver RPC. This page does not change roles directly.</p>
+      <div id="driversList"><div class="empty">Loading drivers…</div></div>
+    </div>
+  </section>
 
-<section class="section" id="page-passengers">
-  <div class="welcome"><div><h1>Passenger Management</h1><div class="sub">Registered passenger accounts and account status.</div></div><button class="btn" data-refresh>Refresh</button></div>
-  <div class="toolbar"><input id="passengerSearch" placeholder="Search passenger name, email, phone"></div>
-  <div class="panel"><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Verified</th><th>Suspended</th><th>Created</th><th>Action</th></tr></thead><tbody id="passengersTable"></tbody></table></div></div>
-</section>
+  <section id="vehiclesSection" class="hidden">
+    <div class="card">
+      <div class="row"><h2>Vehicle approvals</h2><button class="secondary" id="reloadVehiclesBtn">Reload</button></div>
+      <p class="muted">Vehicles should only be approved for verified, active drivers.</p>
+      <div id="vehiclesList"><div class="empty">Loading vehicles…</div></div>
+    </div>
+  </section>
 
-<section class="section" id="page-earnings">
-  <div class="welcome"><div><h1>Earnings & Reports</h1><div class="sub">Revenue summaries calculated from completed ride records.</div></div><button class="btn" id="exportEarnings">Export CSV</button></div>
-  <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
-    <div class="stat"><div><div class="stat-label">Completed Fare Total</div><div class="stat-value" id="reportFare">NPR 0</div></div></div>
-    <div class="stat"><div><div class="stat-label">Driver Earnings</div><div class="stat-value" id="reportDriver">NPR 0</div></div></div>
-    <div class="stat"><div><div class="stat-label">Platform Earnings</div><div class="stat-value" id="reportAdmin">NPR 0</div></div></div>
-    <div class="stat"><div><div class="stat-label">Completed Rides</div><div class="stat-value" id="reportCompleted">0</div></div></div>
-  </div>
-  <div class="panel"><div class="panel-head"><h2>Completed Ride Revenue</h2></div><div class="table-wrap"><table><thead><tr><th>Ride</th><th>Date</th><th>Fare</th><th>Driver Earnings</th><th>Platform Earnings</th><th>Payment</th></tr></thead><tbody id="earningsTable"></tbody></table></div></div>
-</section>
+  <section id="faresSection" class="hidden">
+    <div class="card">
+      <div class="row"><h2>Fare rules</h2><button class="secondary" id="reloadFaresBtn">Reload</button></div>
+      <p class="muted">Uses the fare_rules table and its base_fare, per_km_fare and platform_commission_percent columns.</p>
+      <div id="faresList"><div class="empty">Loading fare rules…</div></div>
+      <div class="footer-note">If the database uses different column names or restricts fare-rule updates, the page will show the actual Supabase error rather than pretending the change succeeded.</div>
+    </div>
+  </section>
 
-<section class="section" id="page-safety">
-  <div class="welcome"><div><h1>Safety Centre</h1><div class="sub">Review suspended accounts and active ride incidents.</div></div><button class="btn" data-refresh>Refresh</button></div>
-  <div class="panel"><div class="panel-head"><h2>Suspended Accounts</h2></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Role</th><th>Reason</th><th>Actions</th></tr></thead><tbody id="safetyTable"></tbody></table></div></div>
-  <div class="panel"><div class="panel-head"><h2>Active Rides</h2></div><div class="table-wrap"><table><thead><tr><th>Ride</th><th>Passenger</th><th>Driver</th><th>Route</th><th>Status</th><th>Safety Action</th></tr></thead><tbody id="safetyRides"></tbody></table></div></div>
-</section>
+  <section id="ridesSection" class="hidden">
+    <div class="card">
+      <div class="row"><h2>Ride management</h2><button class="secondary" id="reloadRidesBtn">Reload</button></div>
+      <div class="filters no-print">
+        <div><label for="rideStatusFilter">Status</label><select id="rideStatusFilter">
+          <option value="all">All statuses</option><option>requested</option><option>accepted</option>
+          <option>arriving</option><option>started</option><option>completed</option><option>cancelled</option>
+        </select></div>
+        <div><label for="rideSearch">Search locations / IDs</label><input id="rideSearch" placeholder="Search rides"></div>
+        <div class="actions"><button class="primary" id="filterRidesBtn">Apply filters</button></div>
+      </div>
+      <div id="ridesList"><div class="empty">Loading rides…</div></div>
+    </div>
+  </section>
 
-<section class="section" id="page-audit">
-  <div class="welcome"><div><h1>Audit Logs</h1><div class="sub">Review administrative actions recorded in the audit table.</div></div><button class="btn" data-refresh>Refresh</button></div>
-  <div class="panel"><div class="table-wrap"><table><thead><tr><th>Time</th><th>Admin</th><th>Action</th><th>Target</th><th>Details</th></tr></thead><tbody id="auditTable"></tbody></table></div></div>
-</section>
+  <section id="passengersSection" class="hidden">
+    <div class="card">
+      <div class="row"><h2>Passenger accounts</h2><button class="secondary" id="reloadPassengersBtn">Reload</button></div>
+      <div id="passengersList"><div class="empty">Loading passengers…</div></div>
+    </div>
+  </section>
 
-<footer><span><strong style="color:var(--orange)">Rryd.</strong> Move your way.</span><span>Nepal · Rryd Admin Portal</span><span id="systemStatus">Connecting to Supabase…</span></footer>
-</main>
+  <section id="auditSection" class="hidden">
+    <div class="card">
+      <h2>Data status & audit information</h2>
+      <p class="muted">This panel reports data availability and refresh status. It does not invent audit events or claim to provide a complete audit log unless an audit table exists and can be read.</p>
+      <div id="dataStatus"></div>
+    </div>
+  </section>
 </div>
-<div id="toast"></div>
+</main>
 
 <script>
-'use strict';
+"use strict";
 
-const SUPABASE_URL = 'https://kqtvuorasqyzjbnlkkxs.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_0YO71GOwynEf3ithOtFfxg_z6YL-LKG';
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
-});
+/* Rryd Supabase configuration */
+const SUPABASE_URL = "https://kqtvuorasqyzjbnlkkxs.supabase.co";
+const SUPABASE_KEY = "sb_publishable_zZFJiy0YWZgOXFesVuAQcA_wd7rleMb";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const $ = id => document.getElementById(id);
-const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({
-  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-}[c]));
-const money = value => 'NPR ' + Math.round(Number(value || 0)).toLocaleString('en-IN');
-const dateText = value => value ? new Date(value).toLocaleString() : '—';
-const boolText = value => value ? 'Yes' : 'No';
-const activeStatuses = ['requested','accepted','arriving','started'];
 let currentUser = null;
-let profiles = [], rides = [], vehicles = [], fareRules = [], auditLogs = [];
-let map = null, bigMap = null, markers = [], bigMarkers = [];
-let refreshTimer = null, toastTimer = null;
+let currentProfile = null;
+let allRides = [];
+let allDrivers = [];
+let allPassengers = [];
+let allVehicles = [];
+let allFareRules = [];
+let currentReport = null;
+let refreshTimer = null;
 
-function toast(message, type='') {
-  const el=$('toast'); el.textContent=message; el.className=type; el.style.display='block';
-  clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.style.display='none',4500);
+const money = value => "NPR " + Math.round(Number(value || 0)).toLocaleString("en-NP");
+const rawMoney = value => Number(value || 0).toLocaleString("en-NP", {
+  minimumFractionDigits:2, maximumFractionDigits:2
+});
+const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({
+  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+}[ch]));
+const number = value => Number.isFinite(Number(value)) ? Number(value) : 0;
+const dateText = value => {
+  if (!value) return "—";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString("en-NP");
+};
+const localDateKey = value => {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone:"Asia/Kathmandu", year:"numeric", month:"2-digit", day:"2-digit"
+  }).format(d);
+};
+function localTodayKey(){ return localDateKey(new Date()); }
+function dateKeyToLocalStart(key){ return new Date(key + "T00:00:00+05:45"); }
+function dateKeyToLocalEnd(key){ return new Date(key + "T23:59:59.999+05:45"); }
+function shiftDateKey(key, days){
+  const d = dateKeyToLocalStart(key);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0,10);
 }
-function notice(message,type='') {
-  const el=$('globalNotice'); el.textContent=message;
-  el.className='notice '+type; el.classList.remove('hidden');
+function showMessage(message, type="info", target="globalMessage"){
+  const el = $(target);
+  if (!el) return;
+  el.textContent = message;
+  el.className = "notice" + (type==="error" ? " error" : type==="success" ? " success" : "");
+  el.classList.remove("hidden");
 }
-function hideNotice(){ $('globalNotice').classList.add('hidden'); }
-function showLoginMessage(message,type='error'){
-  const el=$('loginMessage');el.textContent=message;el.className='notice '+type;
-  el.classList.remove('hidden');
+function hideMessage(target){
+  const el = $(target);
+  if (el) el.classList.add("hidden");
 }
-function profileById(id){return profiles.find(p=>p.id===id)||{}}
-function displayName(profile){return profile.full_name||profile.name||profile.email||'Unknown'}
-function roleName(profile){return String(profile.role||'').toLowerCase()}
-function vehicleName(type){return ({bike:'Bike',car:'Car',tuk_tuk:'Tuk Tuk',tuktuk:'Tuk Tuk'})[String(type||'').toLowerCase()]||type||'—'}
-function statusPill(status){
-  const s=String(status||'unknown').toLowerCase();
-  return `<span class="pill ${esc(s)}">${esc(s.replaceAll('_',' '))}</span>`;
+function statusPill(value){
+  const s = String(value || "unknown").toLowerCase();
+  const cls = ["completed","approved","active"].includes(s) ? "good" :
+    ["pending","requested","accepted","arriving","started"].includes(s) ? "warn" :
+    ["cancelled","rejected","suspended"].includes(s) ? "bad" : "";
+  return `<span class="pill ${cls}">${esc(value || "Unknown")}</span>`;
 }
-function td(value){return `<td>${esc(value ?? '—')}</td>`}
-function emptyRow(cols,message='No records found.'){return `<tr><td colspan="${cols}" class="empty">${esc(message)}</td></tr>`}
-function csvDownload(filename, rows){
-  if(!rows.length){toast('There is no data to export.','error');return}
-  const csv=rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
-  const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'}));
-  const a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
-}
-function gotoPage(page){
-  if(!$('page-'+page))return;
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  $('page-'+page).classList.add('active');
-  document.querySelectorAll('#navigation button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
-  if(page==='tracking')setTimeout(()=>{if(bigMap)bigMap.invalidateSize();},100);
-  if(page==='dashboard')setTimeout(()=>{if(map)map.invalidateSize();},100);
-}
-async function checkAdmin(user){
-  const {data,error}=await db.from('profiles').select('id,role,is_suspended').eq('id',user.id).maybeSingle();
-  if(error)throw new Error('Unable to verify administrator profile: '+error.message);
-  if(!data || String(data.role||'').toLowerCase()!=='admin' || data.is_suspended===true)
-    throw new Error('This account does not have active administrator access.');
-  return data;
-}
-async function enterAdmin(user){
-  try{
-    await checkAdmin(user);
-    currentUser=user;
-    $('loginScreen').style.display='none';$('app').style.display='block';
-    $('adminEmail').textContent=user.email||'Admin';
-    $('systemStatus').textContent='Connected to Supabase';
-    hideNotice();
-    await refreshAll();
-    if(refreshTimer)clearInterval(refreshTimer);
-    refreshTimer=setInterval(()=>{if(currentUser)refreshAll(true)},30000);
-  }catch(error){
-    $('app').style.display='none';$('loginScreen').style.display='grid';
-    showLoginMessage(error.message);
-  }
-}
-async function loadTable(table,columns='*'){
-  const {data,error}=await db.from(table).select(columns);
-  if(error)throw new Error(table+': '+error.message);
-  return data||[];
-}
-async function refreshAll(silent=false){
-  if(!currentUser)return;
-  try{
-    const results=await Promise.allSettled([
-      loadTable('profiles'),
-      loadTable('rides'),
-      loadTable('vehicles'),
-      loadTable('fare_rules'),
-      loadTable('rydo_admin_audit_logs')
-    ]);
-    const labels=['profiles','rides','vehicles','fare rules','audit logs'];
-    const setters=[v=>profiles=v,v=>rides=v,v=>vehicles=v,v=>fareRules=v,v=>auditLogs=v];
-    const errors=[];
-    results.forEach((r,i)=>{
-      if(r.status==='fulfilled')setters[i](r.value);
-      else errors.push(labels[i]+': '+r.reason.message);
-    });
-    renderAll();
-    if(errors.length){
-      $('systemStatus').textContent='Some data could not load';
-      if(!silent)notice(errors.join(' | '),'error');
-    }else{
-      $('systemStatus').textContent='● System Online · '+new Date().toLocaleTimeString();
-      if(!silent)hideNotice();
-    }
-    if(!silent)toast('Rryd data refreshed.','success');
-  }catch(error){
-    if(!silent)notice(error.message,'error');
-    $('systemStatus').textContent='Data refresh failed';
-  }
-}
-function renderAll(){
-  renderDashboard();renderDrivers();renderVehicles();renderRides();renderFares();
-  renderPassengers();renderEarnings();renderTracking();renderSafety();renderAudit();
-  renderMaps();
-}
-function renderDashboard(){
-  const completed=rides.filter(r=>r.status==='completed');
-  const active=rides.filter(r=>activeStatuses.includes(r.status));
-  const online=profiles.filter(p=>roleName(p)==='driver'&&p.is_online&&!p.is_suspended);
-  const pending=profiles.filter(p=>roleName(p)==='driver'&&!p.is_verified&&!p.is_suspended);
-  const fareTotal=completed.reduce((s,r)=>s+Number(r.final_fare??r.actual_fare??r.fare??r.estimated_fare??0),0);
-  $('totalRides').textContent=rides.length.toLocaleString();
-  $('activeRides').textContent=active.length.toLocaleString();
-  $('onlineDrivers').textContent=online.length.toLocaleString();
-  $('pendingApprovals').textContent=pending.length.toLocaleString();
-  $('totalEarnings').textContent=money(fareTotal);
-  $('completedToday').textContent=completed.filter(r=>new Date(r.completed_at||r.created_at).toDateString()===new Date().toDateString()).length;
-  $('cancelledRides').textContent=rides.filter(r=>r.status==='cancelled').length;
-  $('totalDrivers').textContent=profiles.filter(p=>roleName(p)==='driver').length;
-  $('totalPassengers').textContent=profiles.filter(p=>roleName(p)==='passenger').length;
-  $('totalVehicles').textContent=vehicles.length;
-  $('todayDate').innerHTML=esc(new Date().toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long',year:'numeric'}))+'<br>'+esc(new Date().toLocaleTimeString());
-  $('recentRides').innerHTML=rides.slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,7).map(r=>{
-    const p=profileById(r.passenger_id),d=profileById(r.driver_id);
-    return `<tr><td class="id-cell">#${esc(r.id)}</td>${td(displayName(p))}${td(r.driver_id?displayName(d):'Unassigned')}${td((r.pickup_location||'—')+' → '+(r.destination||'—'))}<td>${statusPill(r.status)}</td>${td(money(r.final_fare??r.actual_fare??r.fare??r.estimated_fare))}</tr>`;
-  }).join('')||emptyRow(6);
-  $('dashboardFares').innerHTML=fareRules.map(f=>`<tr>${td(vehicleName(f.vehicle_type))}${td(money(f.base_fare))}${td(money(f.per_km_fare))}${td((f.platform_commission_percent??f.commission_percent??0)+'%')}</tr>`).join('')||emptyRow(4);
-  $('activeRideList').innerHTML=active.slice(0,6).map(r=>`<div class="active-row" data-ride="${esc(r.id)}"><div class="ride-row-title"><span>#${esc(r.id)}</span>${statusPill(r.status)}</div><div class="route-small">${esc(r.pickup_location||'Pickup')} → ${esc(r.destination||'Destination')}</div></div>`).join('')||'<div class="empty">No active rides</div>';
-  $('recentActivity').innerHTML=auditLogs.slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,5).map(a=>`<div class="activity"><div class="activity-icon">⚡</div><div><strong>${esc(a.action||a.action_type||'Admin action')}</strong><small>${esc(a.details||a.description||a.target_id||'')}</small></div><time>${esc(dateText(a.created_at))}</time></div>`).join('')||'<div class="empty">No audit activity recorded.</div>';
-}
-function renderDrivers(){
-  const q=($('driverSearch')?.value||$('globalSearch').value).toLowerCase();
-  const filter=$('driverFilter')?.value||'all';
-  const list=profiles.filter(p=>roleName(p)==='driver').filter(p=>{
-    const match=[p.full_name,p.email,p.phone,p.id].some(v=>String(v||'').toLowerCase().includes(q));
-    const status=filter==='pending'?!p.is_verified:filter==='verified'?!!p.is_verified:filter==='online'?!!p.is_online:filter==='suspended'?!!p.is_suspended:true;
-    return match&&status;
-  });
-  $('driversTable').innerHTML=list.map(p=>`<tr>${td(displayName(p))}${td(p.phone)}${td(p.email)}${td(boolText(p.is_verified))}${td(boolText(p.is_online))}${td(boolText(p.is_suspended))}<td><button class="btn btn-green" data-action="verify-driver" data-id="${esc(p.id)}">${p.is_verified?'Revoke':'Approve'}</button> <button class="btn ${p.is_suspended?'btn-green':'btn-danger'}" data-action="suspend-profile" data-id="${esc(p.id)}">${p.is_suspended?'Unsuspend':'Suspend'}</button></td></tr>`).join('')||emptyRow(7);
-}
-function renderVehicles(){
-  const q=($('vehicleSearch')?.value||'').toLowerCase(),f=$('vehicleFilter')?.value||'all';
-  const list=vehicles.filter(v=>{
-    const p=profileById(v.driver_id||v.profile_id);
-    return [v.id,v.vehicle_type,v.plate_number,v.vehicle_number,v.registration_number,v.model,displayName(p)].some(x=>String(x||'').toLowerCase().includes(q))&&(f==='all'||(f==='approved'?!!v.is_approved:!v.is_approved));
-  });
-  $('vehiclesTable').innerHTML=list.map(v=>`<tr>${td(v.id)}${td(displayName(profileById(v.driver_id||v.profile_id)))}${td(vehicleName(v.vehicle_type))}${td(v.plate_number||v.vehicle_number||v.registration_number)}${td(v.model)}${td(boolText(v.is_approved))}<td><button class="btn ${v.is_approved?'btn-danger':'btn-green'}" data-action="verify-vehicle" data-id="${esc(v.id)}">${v.is_approved?'Revoke':'Approve'}</button></td></tr>`).join('')||emptyRow(7);
-}
-function renderRides(){
-  const q=($('rideSearch')?.value||$('globalSearch').value).toLowerCase(),f=$('rideFilter')?.value||'all';
-  const list=rides.filter(r=>{
-    const p=profileById(r.passenger_id),d=profileById(r.driver_id);
-    return (f==='all'||r.status===f)&&[r.id,displayName(p),displayName(d),r.pickup_location,r.destination,r.status,r.vehicle_type].some(x=>String(x||'').toLowerCase().includes(q));
-  }).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
-  $('ridesTable').innerHTML=list.map(r=>`<tr>${td('#'+r.id)}${td(displayName(profileById(r.passenger_id)))}${td(r.driver_id?displayName(profileById(r.driver_id)):'Unassigned')}${td(r.pickup_location)}${td(r.destination)}${td(vehicleName(r.vehicle_type))}${td(r.distance_km==null?'—':Number(r.distance_km).toFixed(2)+' km')}${td(money(r.final_fare??r.actual_fare??r.fare??r.estimated_fare))}${td((r.payment_method||'—')+' / '+(r.payment_status||'—'))}<td>${statusPill(r.status)}</td><td>${activeStatuses.includes(r.status)?`<button class="btn btn-danger" data-action="cancel-ride" data-id="${esc(r.id)}">Cancel</button>`:'—'}</td></tr>`).join('')||emptyRow(11);
-}
-function renderFares(){
-  $('faresTable').innerHTML=fareRules.map(f=>`<tr data-fare-id="${esc(f.id)}"><td>${esc(vehicleName(f.vehicle_type))}</td><td><input aria-label="Base fare" type="number" min="0" step=".01" value="${esc(f.base_fare)}" class="fare-base" style="width:100px;background:#061625;color:white;border:1px solid #18364d;padding:8px;border-radius:6px"></td><td><input aria-label="Per km fare" type="number" min="0" step=".01" value="${esc(f.per_km_fare)}" class="fare-km" style="width:100px;background:#061625;color:white;border:1px solid #18364d;padding:8px;border-radius:6px"></td><td><input aria-label="Commission percent" type="number" min="0" max="100" step=".01" value="${esc(f.platform_commission_percent??f.commission_percent??15)}" class="fare-commission" style="width:85px;background:#061625;color:white;border:1px solid #18364d;padding:8px;border-radius:6px"></td><td>${boolText(f.is_active)}</td><td><button class="btn btn-orange" data-action="save-fare" data-id="${esc(f.id)}">Save</button></td></tr>`).join('')||emptyRow(6);
-}
-function renderPassengers(){
-  const q=($('passengerSearch')?.value||$('globalSearch').value).toLowerCase();
-  const list=profiles.filter(p=>roleName(p)==='passenger').filter(p=>[p.full_name,p.email,p.phone,p.id].some(x=>String(x||'').toLowerCase().includes(q)));
-  $('passengersTable').innerHTML=list.map(p=>`<tr>${td(displayName(p))}${td(p.email)}${td(p.phone)}${td(boolText(p.is_verified))}${td(boolText(p.is_suspended))}${td(dateText(p.created_at))}<td><button class="btn ${p.is_suspended?'btn-green':'btn-danger'}" data-action="suspend-profile" data-id="${esc(p.id)}">${p.is_suspended?'Unsuspend':'Suspend'}</button></td></tr>`).join('')||emptyRow(7);
-}
-function renderEarnings(){
-  const list=rides.filter(r=>r.status==='completed').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
-  const total=list.reduce((s,r)=>s+Number(r.final_fare??r.actual_fare??r.fare??0),0);
-  const driver=list.reduce((s,r)=>s+Number(r.driver_earnings||0),0);
-  const platform=list.reduce((s,r)=>s+Number(r.admin_earnings||0),0);
-  $('reportFare').textContent=money(total);$('reportDriver').textContent=money(driver);$('reportAdmin').textContent=money(platform);$('reportCompleted').textContent=list.length;
-  $('earningsTable').innerHTML=list.slice(0,300).map(r=>`<tr>${td('#'+r.id)}${td(dateText(r.created_at))}${td(money(r.final_fare??r.actual_fare??r.fare))}${td(money(r.driver_earnings))}${td(money(r.admin_earnings))}${td((r.payment_method||'—')+' / '+(r.payment_status||'—'))}</tr>`).join('')||emptyRow(6);
-}
-function renderTracking(){
-  const drivers=profiles.filter(p=>roleName(p)==='driver'&&p.current_latitude!=null&&p.current_longitude!=null);
-  $('trackingTable').innerHTML=drivers.map(p=>`<tr>${td(displayName(p))}${td(p.phone)}${td(p.is_online?'Online':'Offline')}${td(p.current_latitude)}${td(p.current_longitude)}${td(dateText(p.location_updated_at))}</tr>`).join('')||emptyRow(6,'No driver GPS locations available.');
-}
-function renderSafety(){
-  const list=profiles.filter(p=>p.is_suspended);
-  $('safetyTable').innerHTML=list.map(p=>`<tr>${td(displayName(p))}${td(p.phone)}${td(p.role)}${td(p.suspension_reason||'—')}<td><button class="btn btn-green" data-action="suspend-profile" data-id="${esc(p.id)}">Unsuspend</button></td></tr>`).join('')||emptyRow(5,'No suspended accounts.');
-  const active=rides.filter(r=>activeStatuses.includes(r.status));
-  $('safetyRides').innerHTML=active.map(r=>`<tr>${td('#'+r.id)}${td(displayName(profileById(r.passenger_id)))}${td(r.driver_id?displayName(profileById(r.driver_id)):'Unassigned')}${td((r.pickup_location||'—')+' → '+(r.destination||'—'))}<td>${statusPill(r.status)}</td><td><button class="btn btn-danger" data-action="cancel-ride" data-id="${esc(r.id)}">Cancel ride</button></td></tr>`).join('')||emptyRow(6);
-}
-function renderAudit(){
-  $('auditTable').innerHTML=auditLogs.slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,500).map(a=>`<tr>${td(dateText(a.created_at))}${td(a.admin_id||a.user_id||a.actor_id||'—')}${td(a.action||a.action_type)}${td(a.target_id||a.entity_id||'—')}${td(a.details||a.description||JSON.stringify(a.metadata||{}))}</tr>`).join('')||emptyRow(5,'No audit records available or table access is restricted.');
-}
-function makeMap(id){
-  if(!window.L||!$(id))return null;
-  const m=L.map(id).setView([27.7172,85.3240],12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(m);
+function failIf(error){ if(error) throw error; }
+function rpcErrorHint(error){
+  const m = error?.message || String(error);
+  if (/schema cache|could not find the function|function .* does not exist/i.test(m))
+    return m + " — check the RPC name, parameter name/type and run NOTIFY pgrst, 'reload schema' in Supabase SQL Editor.";
+  if (/row-level security|permission denied|admin permission/i.test(m))
+    return m + " — check the admin profile and Supabase RLS/RPC permissions.";
   return m;
 }
-function drawMarkers(m,arr){
-  if(!m)return;
-  arr.forEach(marker=>m.removeLayer(marker));arr.length=0;
-  profiles.filter(p=>roleName(p)==='driver'&&p.current_latitude!=null&&p.current_longitude!=null).forEach(p=>{
-    const lat=Number(p.current_latitude),lng=Number(p.current_longitude);
-    if(!Number.isFinite(lat)||!Number.isFinite(lng))return;
-    const marker=L.marker([lat,lng]).addTo(m).bindPopup(`<strong>${esc(displayName(p))}</strong><br>${esc(p.is_online?'Online':'Offline')}<br>${esc(p.phone||'')}`);
-    arr.push(marker);
-  });
+function setBusy(button, busy, label){
+  if (!button) return;
+  if (busy) {
+    button.dataset.oldText = button.textContent;
+    button.disabled = true;
+    if(label) button.textContent = label;
+  } else {
+    button.disabled = false;
+    if(button.dataset.oldText) button.textContent = button.dataset.oldText;
+  }
 }
-function renderMaps(){
-  if(!map)map=makeMap('map');
-  if(!bigMap)bigMap=makeMap('bigMap');
-  drawMarkers(map,markers);drawMarkers(bigMap,bigMarkers);
+
+async function fetchProfile(userId){
+  const {data,error} = await supabaseClient.from("profiles")
+    .select("*").eq("id", userId).maybeSingle();
+  failIf(error);
+  return data;
 }
-async function audit(action,targetId,details){
+async function boot(){
+  const {data:{session},error} = await supabaseClient.auth.getSession();
+  failIf(error);
+  if(!session){
+    showLogin();
+    return;
+  }
+  currentUser = session.user;
   try{
-    const {error}=await db.from('rydo_admin_audit_logs').insert({
-      admin_id:currentUser.id,action,target_id:String(targetId??''),details:String(details??'')
-    });
-    if(error)console.warn('Audit log insert:',error.message);
-  }catch(e){console.warn('Audit log:',e.message)}
-}
-async function doAction(button){
-  const action=button.dataset.action,id=button.dataset.id;
-  if(!action||!id)return;
-  if(action==='cancel-ride'){
-    const ride=rides.find(r=>String(r.id)===String(id));
-    if(!ride||!activeStatuses.includes(ride.status)){toast('This ride is no longer active. Refresh and try again.','error');return}
-    if(!confirm(`Cancel ride #${id}? This will notify the passenger and assigned driver if notifications are configured.`))return;
-    button.disabled=true;
-    try{
-      const {error}=await db.rpc('admin_cancel_ride',{p_ride_id:Number(id)});
-      if(error)throw error;
-      await audit('admin_cancel_ride',id,'Admin cancelled ride');
-      toast('Ride cancellation completed.','success');await refreshAll(true);
-    }catch(e){toast('Could not cancel ride: '+e.message,'error')}
-    finally{button.disabled=false}
-    return;
-  }
-  if(action==='verify-driver'){
-    const p=profiles.find(x=>String(x.id)===String(id));if(!p)return;
-    if(!confirm(`${p.is_verified?'Revoke verification from':'Approve'} ${displayName(p)}?`))return;
-    button.disabled=true;
-    try{
-      if(!p.is_verified){
-        const {error}=await db.rpc('approve_driver',{p_driver_id:id});
-        if(error)throw error;
-      }else{
-        const {error}=await db.from('profiles').update({is_verified:false}).eq('id',id);
-        if(error)throw error;
-      }
-      await audit(p.is_verified?'driver_verification_revoked':'driver_approved',id,displayName(p));
-      toast('Driver status updated.','success');await refreshAll(true);
-    }catch(e){toast('Driver update failed: '+e.message,'error')}
-    finally{button.disabled=false}
-    return;
-  }
-  if(action==='verify-vehicle'){
-    const v=vehicles.find(x=>String(x.id)===String(id));if(!v)return;
-    if(!confirm(`${v.is_approved?'Revoke approval from':'Approve'} vehicle #${id}?`))return;
-    button.disabled=true;
-    try{
-      if(!v.is_approved){
-        const {error}=await db.rpc('approve_vehicle',{p_vehicle_id:Number(id)});
-        if(error)throw error;
-      }else{
-        const {error}=await db.from('vehicles').update({is_approved:false}).eq('id',id);
-        if(error)throw error;
-      }
-      await audit(v.is_approved?'vehicle_approval_revoked':'vehicle_approved',id,'Vehicle approval updated');
-      toast('Vehicle status updated.','success');await refreshAll(true);
-    }catch(e){toast('Vehicle update failed: '+e.message,'error')}
-    finally{button.disabled=false}
-    return;
-  }
-  if(action==='suspend-profile'){
-    const p=profiles.find(x=>String(x.id)===String(id));if(!p)return;
-    if(!confirm(`${p.is_suspended?'Unsuspend':'Suspend'} ${displayName(p)}?`))return;
-    button.disabled=true;
-    try{
-      const update=p.is_suspended
-        ? {is_suspended:false,suspension_reason:null,suspended_at:null}
-        : {is_suspended:true,suspension_reason:'Suspended by administrator',suspended_at:new Date().toISOString()};
-      const {error}=await db.from('profiles').update(update).eq('id',id);
-      if(error)throw error;
-      await audit(p.is_suspended?'account_unsuspended':'account_suspended',id,displayName(p));
-      toast('Account status updated.','success');await refreshAll(true);
-    }catch(e){toast('Account update failed: '+e.message,'error')}
-    finally{button.disabled=false}
-    return;
-  }
-  if(action==='save-fare'){
-    const row=button.closest('tr'),rule=fareRules.find(f=>String(f.id)===String(id));
-    if(!row||!rule)return;
-    const base=Number(row.querySelector('.fare-base').value);
-    const km=Number(row.querySelector('.fare-km').value);
-    const commission=Number(row.querySelector('.fare-commission').value);
-    if(![base,km,commission].every(Number.isFinite)||base<0||km<0||commission<0||commission>100){
-      toast('Enter valid non-negative fares and commission between 0 and 100.','error');return;
+    currentProfile = await fetchProfile(currentUser.id);
+    if(!currentProfile || currentProfile.role !== "admin"){
+      await supabaseClient.auth.signOut();
+      currentUser = null;
+      currentProfile = null;
+      showLogin("This account is not authorized as an admin. Check the role in public.profiles.");
+      return;
     }
-    const update={base_fare:base,per_km_fare:km,is_active:rule.is_active};
-    if(Object.hasOwn(rule,'platform_commission_percent'))update.platform_commission_percent=commission;
-    else update.commission_percent=commission;
-    button.disabled=true;
-    try{
-      const {error}=await db.from('fare_rules').update(update).eq('id',id);
-      if(error)throw error;
-      await audit('fare_rule_updated',id,`${rule.vehicle_type}: base ${base}, per km ${km}, commission ${commission}%`);
-      toast('Fare rule saved.','success');await refreshAll(true);
-    }catch(e){toast('Fare update failed: '+e.message,'error')}
-    finally{button.disabled=false}
+    $("loginCard").classList.add("hidden");
+    $("app").classList.remove("hidden");
+    $("refreshBtn").disabled = false;
+    $("logoutBtn").disabled = false;
+    await refreshAll();
+    if(refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(() => {
+      if(currentUser) refreshAll().catch(err => showMessage(rpcErrorHint(err),"error"));
+    }, 60000);
+  }catch(error){
+    showLogin(rpcErrorHint(error));
   }
 }
-
-$('loginForm').addEventListener('submit',async e=>{
+function showLogin(message){
+  $("app").classList.add("hidden");
+  $("loginCard").classList.remove("hidden");
+  $("refreshBtn").disabled = true;
+  $("logoutBtn").disabled = true;
+  if(message) showMessage(message,"error","loginMessage");
+}
+$("loginForm").addEventListener("submit", async e=>{
   e.preventDefault();
-  $('loginButton').disabled=true;
+  hideMessage("loginMessage");
+  const btn = $("loginForm").querySelector("button");
+  setBusy(btn,true,"Signing in…");
   try{
-    const {data,error}=await db.auth.signInWithPassword({email:$('loginEmail').value.trim(),password:$('loginPassword').value});
-    if(error)throw error;
-    await enterAdmin(data.user);
-  }catch(e){showLoginMessage(e.message)}
-  finally{$('loginButton').disabled=false}
+    const {data,error} = await supabaseClient.auth.signInWithPassword({
+      email:$("email").value.trim(), password:$("password").value
+    });
+    failIf(error);
+    currentUser = data.user;
+    currentProfile = await fetchProfile(currentUser.id);
+    if(!currentProfile || currentProfile.role !== "admin"){
+      await supabaseClient.auth.signOut();
+      currentUser = null;
+      currentProfile = null;
+      throw new Error("This account is not an admin. Login was cancelled.");
+    }
+    await boot();
+  }catch(error){
+    showMessage(rpcErrorHint(error),"error","loginMessage");
+  }finally{setBusy(btn,false);}
 });
-$('forgotButton').addEventListener('click',async()=>{
-  const email=$('loginEmail').value.trim();
-  if(!email){showLoginMessage('Enter your email address first.');return}
-  try{
-    const redirect=location.origin+location.pathname+'?mode=reset';
-    const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:redirect});
-    if(error)throw error;
-    showLoginMessage('If the account exists, a password reset link has been sent. Check your email.','success');
-  }catch(e){showLoginMessage(e.message)}
+$("logoutBtn").addEventListener("click", async()=>{
+  if(!confirm("Log out of Rryd admin?")) return;
+  if(refreshTimer) clearInterval(refreshTimer);
+  await supabaseClient.auth.signOut();
+  currentUser = null;
+  currentProfile = null;
+  showLogin();
 });
-$('savePasswordButton').addEventListener('click',async()=>{
-  const password=$('newPassword').value;
-  if(password.length<8){showLoginMessage('Use a password with at least 8 characters.');return}
-  try{
-    const {error}=await db.auth.updateUser({password});
-    if(error)throw error;
-    showLoginMessage('Password updated. You can now sign in.','success');
-    $('resetBox').classList.add('hidden');
-  }catch(e){showLoginMessage(e.message)}
-});
-$('logoutButton').addEventListener('click',async()=>{
-  if(!confirm('Sign out of the Rryd Admin Portal?'))return;
-  if(refreshTimer)clearInterval(refreshTimer);
-  await db.auth.signOut();currentUser=null;$('app').style.display='none';$('loginScreen').style.display='grid';
-});
-$('refreshButton').addEventListener('click',()=>refreshAll());
-document.querySelectorAll('[data-refresh]').forEach(b=>b.addEventListener('click',()=>refreshAll()));
-document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>gotoPage(b.dataset.goto)));
-$('navigation').addEventListener('click',e=>{
-  const b=e.target.closest('button[data-page]');if(b)gotoPage(b.dataset.page);
-});
-document.addEventListener('click',e=>{
-  const b=e.target.closest('button[data-action]');if(b)doAction(b);
-  const r=e.target.closest('[data-ride]');if(r)gotoPage('rides');
-});
-['driverSearch','driverFilter','vehicleSearch','vehicleFilter','rideSearch','rideFilter','passengerSearch'].forEach(id=>{
-  $(id).addEventListener('input',()=>{
-    if(id.startsWith('driver'))renderDrivers();
-    if(id.startsWith('vehicle'))renderVehicles();
-    if(id.startsWith('ride'))renderRides();
-    if(id==='passengerSearch')renderPassengers();
-  });
-});
-$('globalSearch').addEventListener('input',()=>{
-  renderDrivers();renderRides();renderPassengers();
-});
-$('exportRides').addEventListener('click',()=>csvDownload('rryd-rides.csv',[
-  ['ID','Passenger','Driver','Pickup','Destination','Vehicle','Distance KM','Fare','Payment Method','Payment Status','Status','Created'],
-  ...rides.map(r=>[r.id,displayName(profileById(r.passenger_id)),displayName(profileById(r.driver_id)),r.pickup_location,r.destination,r.vehicle_type,r.distance_km,r.final_fare??r.actual_fare??r.fare,r.payment_method,r.payment_status,r.status,r.created_at])
-]));
-$('exportEarnings').addEventListener('click',()=>csvDownload('rryd-earnings.csv',[
-  ['Ride ID','Created','Fare','Driver Earnings','Platform Earnings','Payment Method','Payment Status'],
-  ...rides.filter(r=>r.status==='completed').map(r=>[r.id,r.created_at,r.final_fare??r.actual_fare??r.fare,r.driver_earnings,r.admin_earnings,r.payment_method,r.payment_status])
-]));
+$("refreshBtn").addEventListener("click",()=>refreshAll().catch(e=>showMessage(rpcErrorHint(e),"error")));
 
-db.auth.onAuthStateChange((event,session)=>{
-  if(event==='PASSWORD_RECOVERY'){$('loginScreen').style.display='grid';$('resetBox').classList.remove('hidden')}
-  if(event==='SIGNED_OUT'){
-    currentUser=null;if(refreshTimer)clearInterval(refreshTimer);
-    $('app').style.display='none';$('loginScreen').style.display='grid';
+function switchSection(id){
+  document.querySelectorAll("#app > section").forEach(el=>el.classList.add("hidden"));
+  $(id)?.classList.remove("hidden");
+  document.querySelectorAll("#mainTabs button").forEach(b=>b.classList.toggle("active",b.dataset.section===id));
+  if(id==="reportsSection") generateReport().catch(e=>showMessage(rpcErrorHint(e),"error"));
+}
+document.querySelectorAll("#mainTabs button").forEach(b=>b.addEventListener("click",()=>switchSection(b.dataset.section)));
+document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>switchSection(b.dataset.go)));
+
+async function selectAllRows(table, select="*"){
+  const {data,error} = await supabaseClient.from(table).select(select);
+  failIf(error);
+  return data || [];
+}
+async function refreshAll(){
+  if(!currentUser) return;
+  showMessage("Refreshing live Supabase data…");
+  const results = await Promise.allSettled([
+    selectAllRows("rides"),
+    selectAllRows("profiles"),
+    selectAllRows("vehicles"),
+    selectAllRows("fare_rules")
+  ]);
+  const errors = [];
+  if(results[0].status==="fulfilled") allRides = results[0].value;
+  else errors.push("rides: "+results[0].reason.message);
+  if(results[1].status==="fulfilled"){
+    const profiles=results[1].value;
+    allDrivers=profiles.filter(p=>p.role==="driver");
+    allPassengers=profiles.filter(p=>p.role==="passenger");
+  }else errors.push("profiles: "+results[1].reason.message);
+  if(results[2].status==="fulfilled") allVehicles=results[2].value;
+  else errors.push("vehicles: "+results[2].reason.message);
+  if(results[3].status==="fulfilled") allFareRules=results[3].value;
+  else errors.push("fare_rules: "+results[3].reason.message);
+
+  renderDashboard();
+  renderDrivers();
+  renderVehicles();
+  renderFares();
+  renderRides();
+  renderPassengers();
+  renderDataStatus(errors);
+  updateDriverSelect();
+  $("lastUpdated").textContent = "Updated " + new Date().toLocaleTimeString("en-NP");
+
+  if(errors.length){
+    showMessage("Some data could not be loaded: "+errors.join(" | "),"error");
+  }else{
+    showMessage("Live data refreshed successfully.","success");
+    setTimeout(()=>hideMessage("globalMessage"),2500);
   }
-  if(session?.user&&!currentUser)setTimeout(()=>enterAdmin(session.user),0);
+  if(!$("reportsSection").classList.contains("hidden")) await generateReport();
+}
+function rideFare(r){
+  return number(r.final_fare ?? r.actual_fare ?? r.fare ?? r.estimated_fare);
+}
+function rideCommission(r){
+  const fare = rideFare(r);
+  if(r.admin_earnings !== undefined && r.admin_earnings !== null) return number(r.admin_earnings);
+  const rule = allFareRules.find(f=>f.vehicle_type===r.vehicle_type);
+  const pct = rule && rule.platform_commission_percent!=null
+    ? number(rule.platform_commission_percent) : 15;
+  return fare * pct / 100;
+}
+function rideDriverEarnings(r){
+  if(r.driver_earnings !== undefined && r.driver_earnings !== null) return number(r.driver_earnings);
+  return rideFare(r) - rideCommission(r);
+}
+function isCompleted(r){return String(r.status||"").toLowerCase()==="completed";}
+function rideTimestamp(r){return r.completed_at || r.updated_at || r.created_at;}
+function renderDashboard(){
+  const completed=allRides.filter(isCompleted);
+  $("dashRides").textContent=allRides.length.toLocaleString("en-NP");
+  $("dashCompleted").textContent=completed.length.toLocaleString("en-NP");
+  $("dashDrivers").textContent=allDrivers.length.toLocaleString("en-NP");
+  $("dashPassengers").textContent=allPassengers.length.toLocaleString("en-NP");
+  $("dashGross").textContent=money(completed.reduce((s,r)=>s+rideFare(r),0));
+  $("dashCommission").textContent=money(completed.reduce((s,r)=>s+rideCommission(r),0));
+  $("dashDriverEarnings").textContent=money(completed.reduce((s,r)=>s+rideDriverEarnings(r),0));
+  $("dashPending").textContent=allDrivers.filter(d=>!d.is_verified&&!d.is_suspended).length.toLocaleString("en-NP");
+}
+
+/* Reporting */
+function defaultPeriodDates(period){
+  const end=localTodayKey();
+  let start=end;
+  if(period==="7d") start=shiftDateKey(end,-6);
+  if(period==="15d") start=shiftDateKey(end,-14);
+  if(period==="month"){
+    const d=dateKeyToLocalStart(end); d.setUTCMonth(d.getUTCMonth()-1);
+    start=localDateKey(d);
+  }
+  if(period==="year"){
+    const d=dateKeyToLocalStart(end); d.setUTCFullYear(d.getUTCFullYear()-1);
+    start=localDateKey(d);
+  }
+  if(period==="all") start="2000-01-01";
+  return {start,end};
+}
+function applyPeriodDefaults(){
+  const period=$("period").value;
+  if(period==="custom") return;
+  const dates=defaultPeriodDates(period);
+  $("startDate").value=dates.start;
+  $("endDate").value=dates.end;
+}
+$("period").addEventListener("change",()=>{
+  applyPeriodDefaults();
+  if($("period").value!=="custom") generateReport().catch(e=>showMessage(rpcErrorHint(e),"error"));
 });
-(async()=>{
-  $('todayDate').textContent=new Date().toLocaleDateString();
-  const params=new URLSearchParams(location.search);
-  if(params.get('mode')==='reset')$('resetBox').classList.remove('hidden');
+$("generateReportBtn").addEventListener("click",()=>generateReport().catch(e=>showMessage(rpcErrorHint(e),"error")));
+$("csvBtn").addEventListener("click",downloadReportCSV);
+$("printBtn").addEventListener("click",()=>window.print());
+$("startDate").addEventListener("change",()=>{$("period").value="custom";});
+$("endDate").addEventListener("change",()=>{$("period").value="custom";});
+
+function calculateTotals(rows){
+  const done=rows.filter(isCompleted);
+  const gross=done.reduce((s,r)=>s+rideFare(r),0);
+  const company=done.reduce((s,r)=>s+rideCommission(r),0);
+  const driver=done.reduce((s,r)=>s+rideDriverEarnings(r),0);
+  return {rides:done.length,gross,company,driver,average:done.length?gross/done.length:0};
+}
+function growthPercent(current,previous){
+  if(previous===0) return current===0 ? 0 : null;
+  return ((current-previous)/Math.abs(previous))*100;
+}
+function growthLabel(current,previous){
+  const g=growthPercent(current,previous);
+  if(g===null) return current===0 ? "0%" : "New";
+  return (g>0?"+":"") + g.toFixed(1)+"%";
+}
+function renderGrowth(id,detailId,current,previous){
+  const g=growthPercent(current,previous);
+  $(id).textContent=growthLabel(current,previous);
+  $(id).classList.remove("positive","negative");
+  if(g!==null && g>0) $(id).classList.add("positive");
+  if(g!==null && g<0) $(id).classList.add("negative");
+  $(detailId).textContent="Previous period: "+money(previous);
+}
+function inDateRange(r,start,end){
+  const key=localDateKey(rideTimestamp(r));
+  return key && key>=start && key<=end;
+}
+function driverName(id){
+  const d=allDrivers.find(x=>String(x.id)===String(id));
+  return d ? (d.full_name || d.phone || ("Driver "+String(id).slice(0,8))) : (id ? "Driver "+String(id).slice(0,8) : "Unassigned");
+}
+async function generateReport(){
+  if(!currentUser) return;
+  const start=$("startDate").value;
+  const end=$("endDate").value;
+  if(!start || !end) throw new Error("Choose both report dates.");
+  if(start>end) throw new Error("Start date must be on or before end date.");
+  $("reportStatus").textContent="Calculating…";
+  const selectedDriver=$("reportDriver").value;
+  const periodRows=allRides.filter(r=>inDateRange(r,start,end));
+  const scopedRows=selectedDriver==="all" ? periodRows :
+    periodRows.filter(r=>String(r.driver_id||"")===String(selectedDriver));
+  const totals=calculateTotals(scopedRows);
+
+  const startDate=dateKeyToLocalStart(start);
+  const endDate=dateKeyToLocalEnd(end);
+  const days=Math.max(1,Math.round((endDate-startDate)/86400000)+1);
+  const prevEnd=shiftDateKey(start,-1);
+  const prevStart=shiftDateKey(prevEnd,-days+1);
+  const prevRows=allRides.filter(r=>inDateRange(r,prevStart,prevEnd));
+  const prevScoped=selectedDriver==="all" ? prevRows :
+    prevRows.filter(r=>String(r.driver_id||"")===String(selectedDriver));
+  const previous=calculateTotals(prevScoped);
+
+  currentReport={start,end,prevStart,prevEnd,selectedDriver,rows:scopedRows,totals,previous};
+  $("reportRange").textContent=`Reporting period: ${start} through ${end} · Comparison: ${prevStart} through ${prevEnd} · ${selectedDriver==="all"?"All drivers":driverName(selectedDriver)}`;
+  $("repGross").textContent=money(totals.gross);
+  $("repCommission").textContent=money(totals.company);
+  $("repDriverNet").textContent=money(totals.driver);
+  $("repRideCount").textContent=totals.rides.toLocaleString("en-NP");
+  $("repAverage").textContent=money(totals.average);
+  renderGrowth("growthGross","growthGrossDetail",totals.gross,previous.gross);
+  renderGrowth("growthCompany","growthCompanyDetail",totals.company,previous.company);
+  renderGrowth("growthDriver","growthDriverDetail",totals.driver,previous.driver);
+
+  const notes=[];
+  notes.push("Only rides with status completed are counted.");
+  notes.push("Company earnings are calculated from admin_earnings when present; otherwise the platform commission percentage in fare_rules is used.");
+  notes.push("Driver earnings use driver_earnings when present; otherwise gross fare minus the calculated commission is used.");
+  notes.push("Tax is excluded. These figures are operational calculations, not audited accounts.");
+  if(scopedRows.some(r=>!r.driver_id)) notes.push("Some rides have no driver_id and may appear under Unassigned.");
+  if(scopedRows.some(r=>!r.completed_at && !r.updated_at)) notes.push("Some records lack completion/update timestamps; created_at is used as a fallback.");
+  $("reportNotes").textContent=notes.join(" ");
+
+  renderDriverReport(scopedRows);
+  renderDailyReport(scopedRows,start,end);
+  $("reportStatus").textContent="Report generated";
+}
+function renderDriverReport(rows){
+  const completed=rows.filter(isCompleted);
+  const map=new Map();
+  completed.forEach(r=>{
+    const id=String(r.driver_id||"unassigned");
+    if(!map.has(id)) map.set(id,{id,name:driverName(r.driver_id),rides:[],gross:0,commission:0,driver:0});
+    const d=map.get(id);
+    d.rides.push(r);d.gross+=rideFare(r);d.commission+=rideCommission(r);d.driver+=rideDriverEarnings(r);
+  });
+  const list=[...map.values()].sort((a,b)=>b.driver-a.driver);
+  $("driverReportRows").innerHTML=list.length ? list.map(d=>`
+    <tr>
+      <td>${esc(d.name)}</td><td>${d.rides.length}</td><td>${money(d.gross)}</td>
+      <td>${money(d.commission)}</td><td><b>${money(d.driver)}</b></td>
+    </tr>`).join("") : `<tr><td colspan="5">No completed rides in this period.</td></tr>`;
+  $("driverDetails").innerHTML=list.map((d,i)=>`
+    <details><summary>${esc(d.name)} — ${money(d.driver)} driver earnings (${d.rides.length} rides)</summary>
+      <div class="table-wrap" style="margin-top:12px"><table>
+      <thead><tr><th>Ride ID</th><th>Date</th><th>Vehicle</th><th>Gross fare</th><th>Company commission</th><th>Driver earnings</th></tr></thead>
+      <tbody>${d.rides.map(r=>`<tr><td>${esc(r.id)}</td><td>${esc(dateText(rideTimestamp(r)))}</td>
+      <td>${esc(r.vehicle_type||"—")}</td><td>${money(rideFare(r))}</td>
+      <td>${money(rideCommission(r))}</td><td>${money(rideDriverEarnings(r))}</td></tr>`).join("")}</tbody>
+      </table></div>
+    </details>`).join("") || `<p class="empty">No driver earnings to display.</p>`;
+}
+function renderDailyReport(rows,start,end){
+  const daily=new Map();
+  let key=start;
+  let safety=0;
+  while(key<=end && safety++<3700){
+    daily.set(key,{date:key,rides:0,gross:0,company:0,driver:0});
+    key=shiftDateKey(key,1);
+  }
+  rows.filter(isCompleted).forEach(r=>{
+    const date=localDateKey(rideTimestamp(r));
+    if(!daily.has(date)) daily.set(date,{date,rides:0,gross:0,company:0,driver:0});
+    const d=daily.get(date);
+    d.rides++;d.gross+=rideFare(r);d.company+=rideCommission(r);d.driver+=rideDriverEarnings(r);
+  });
+  const values=[...daily.values()].sort((a,b)=>b.date.localeCompare(a.date));
+  $("dailyReportRows").innerHTML=values.length ? values.map(d=>`
+    <tr><td>${esc(d.date)}</td><td>${d.rides}</td><td>${money(d.gross)}</td>
+    <td>${money(d.company)}</td><td>${money(d.driver)}</td></tr>`).join("") :
+    `<tr><td colspan="5">No data for this period.</td></tr>`;
+}
+function updateDriverSelect(){
+  const select=$("reportDriver");
+  const old=select.value;
+  select.innerHTML=`<option value="all">All drivers</option>`+allDrivers.map(d=>
+    `<option value="${esc(d.id)}">${esc(d.full_name||d.phone||d.id)}</option>`).join("");
+  if([...select.options].some(o=>o.value===old)) select.value=old;
+}
+function csvCell(value){
+  let s=String(value ?? "");
+  if(/^[=+\-@]/.test(s)) s="'"+s;
+  return '"'+s.replace(/"/g,'""')+'"';
+}
+function downloadBlob(filename,content,type){
+  const blob=new Blob([content],{type});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;a.download=filename;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function downloadReportCSV(){
+  if(!currentReport){showMessage("Generate a report before downloading.","error");return;}
+  const {start,end,prevStart,prevEnd,selectedDriver,rows,totals,previous}=currentReport;
+  const lines=[
+    ["Rryd Business Earnings Report"],
+    ["Period",start+" to "+end],
+    ["Comparison period",prevStart+" to "+prevEnd],
+    ["Driver",selectedDriver==="all"?"All drivers":driverName(selectedDriver)],
+    ["Tax","Excluded"],
+    [],
+    ["Metric","Current period","Previous period"],
+    ["Gross completed fares",totals.gross,previous.gross],
+    ["Platform commission / company earnings before tax",totals.company,previous.company],
+    ["Driver earnings",totals.driver,previous.driver],
+    ["Completed rides",totals.rides,previous.rides],
+    ["Average fare",totals.average,previous.average],
+    [],
+    ["Driver","Completed rides","Gross fares","Platform commission","Driver earnings"]
+  ];
+  const byDriver=new Map();
+  rows.filter(isCompleted).forEach(r=>{
+    const id=String(r.driver_id||"unassigned");
+    if(!byDriver.has(id)) byDriver.set(id,{name:driverName(r.driver_id),rides:0,gross:0,company:0,driver:0});
+    const d=byDriver.get(id);d.rides++;d.gross+=rideFare(r);d.company+=rideCommission(r);d.driver+=rideDriverEarnings(r);
+  });
+  [...byDriver.values()].forEach(d=>lines.push([d.name,d.rides,d.gross,d.company,d.driver]));
+  lines.push([],["Daily detail"],["Date","Completed rides","Gross fares","Platform commission","Driver earnings"]);
+  const daily=new Map();
+  rows.filter(isCompleted).forEach(r=>{
+    const k=localDateKey(rideTimestamp(r));
+    if(!daily.has(k))daily.set(k,{date:k,rides:0,gross:0,company:0,driver:0});
+    const d=daily.get(k);d.rides++;d.gross+=rideFare(r);d.company+=rideCommission(r);d.driver+=rideDriverEarnings(r);
+  });
+  [...daily.values()].sort((a,b)=>a.date.localeCompare(b.date)).forEach(d=>
+    lines.push([d.date,d.rides,d.gross,d.company,d.driver]));
+  lines.push([],["Ride-level detail"],["Ride ID","Date","Driver","Status","Vehicle","Gross fare","Company commission","Driver earnings"]);
+  rows.forEach(r=>lines.push([
+    r.id,rideTimestamp(r),driverName(r.driver_id),r.status,r.vehicle_type,
+    rideFare(r),rideCommission(r),rideDriverEarnings(r)
+  ]));
+  downloadBlob(`rryd-earnings-${start}-to-${end}.csv`,
+    "\uFEFF"+lines.map(row=>row.map(csvCell).join(",")).join("\r\n"),"text/csv;charset=utf-8");
+}
+$("reloadDriversBtn").onclick=()=>refreshAll().catch(e=>showMessage(rpcErrorHint(e),"error"));
+$("reloadVehiclesBtn").onclick=()=>refreshAll().catch(e=>showMessage(rpcErrorHint(e),"error"));
+$("reloadFaresBtn").onclick=()=>refreshAll().catch(e=>showMessage(rpcErrorHint(e),"error"));
+$("reloadRidesBtn").onclick=()=>refreshAll().catch(e=>showMessage(rpcErrorHint(e),"error"));
+$("reloadPassengersBtn").onclick=()=>refreshAll().catch(e=>showMessage(rpcErrorHint(e),"error"));
+
+/* Driver approval */
+function renderDrivers(){
+  const list=[...allDrivers].sort((a,b)=>Number(!!a.is_verified)-Number(!!b.is_verified));
+  $("driversList").innerHTML=list.length?list.map(d=>`
+    <div class="item">
+      <div class="row"><b>${esc(d.full_name||"Unnamed driver")}</b>${statusPill(d.is_suspended?"suspended":d.is_verified?"approved":"pending")}</div>
+      <p>Phone: ${esc(d.phone||"—")} · ${d.is_online?"Online":"Offline"} · ID: ${esc(d.id)}</p>
+      <div class="actions">
+        ${!d.is_verified&&!d.is_suspended?`<button class="primary" onclick="approveDriver('${esc(d.id)}',this)">Approve driver</button>`:""}
+        ${d.is_verified?`<span class="pill good">Verified</span>`:""}
+      </div>
+    </div>`).join(""):`<div class="empty">No driver profiles found.</div>`;
+}
+window.approveDriver=async(id,button)=>{
+  if(!confirm("Approve this driver? Make sure their identity and licence have been checked."))return;
+  setBusy(button,true,"Approving…");
   try{
-    const {data,error}=await db.auth.getSession();
-    if(error)throw error;
-    if(data.session?.user)await enterAdmin(data.session.user);
-  }catch(e){showLoginMessage('Session check failed: '+e.message)}
-})();
+    const {data,error}=await supabaseClient.rpc("approve_driver",{p_driver_id:id});
+    failIf(error);
+    showMessage("Driver approval request completed. RPC result: "+JSON.stringify(data),"success");
+    await refreshAll();
+  }catch(e){showMessage("Driver approval failed: "+rpcErrorHint(e),"error");}
+  finally{setBusy(button,false);}
+};
+
+/* Vehicle approval */
+function renderVehicles(){
+  const list=[...allVehicles].sort((a,b)=>Number(!!a.is_approved)-Number(!!b.is_approved));
+  $("vehiclesList").innerHTML=list.length?list.map(v=>{
+    const driver=allDrivers.find(d=>String(d.id)===String(v.driver_id));
+    const canApprove=!!driver&&!!driver.is_verified&&!driver.is_suspended;
+    return `<div class="item">
+      <div class="row"><b>${esc(v.vehicle_type||"Vehicle")} · ${esc(v.vehicle_number||"No registration")}</b>${statusPill(v.is_approved?"approved":"pending")}</div>
+      <p>Model: ${esc(v.vehicle_model||"—")} · Color: ${esc(v.vehicle_color||"—")}</p>
+      <p>Driver: ${esc(driver?.full_name||v.driver_id||"Unknown")} · ${canApprove?"Verified and active driver":"Driver must be verified and active first"}</p>
+      <div class="actions">${!v.is_approved&&canApprove?
+        `<button class="primary" onclick="approveVehicle('${esc(v.id)}',this)">Approve vehicle</button>`:
+        v.is_approved?`<span class="pill good">Approved</span>`:""}</div>
+    </div>`;
+  }).join(""):`<div class="empty">No vehicles were returned by Supabase. Check the vehicles table and row-level security.</div>`;
+}
+window.approveVehicle=async(id,button)=>{
+  if(!confirm("Approve this vehicle for a verified, active driver?"))return;
+  setBusy(button,true,"Approving…");
+  try{
+    const {data,error}=await supabaseClient.rpc("approve_vehicle",{p_vehicle_id:Number(id)});
+    failIf(error);
+    showMessage("Vehicle approval completed. RPC result: "+JSON.stringify(data),"success");
+    await refreshAll();
+  }catch(e){showMessage("Vehicle approval failed: "+rpcErrorHint(e),"error");}
+  finally{setBusy(button,false);}
+};
+
+/* Fare rules */
+function renderFares(){
+  const rows=allFareRules;
+  $("faresList").innerHTML=rows.length?rows.map((f,i)=>`
+    <div class="fare-row">
+      <div><b>${esc(f.vehicle_type)}</b><div class="muted">${f.is_active===false?"Inactive":"Active"} · Commission ${number(f.platform_commission_percent)}%</div></div>
+      <div><label>Base fare (NPR)</label><input type="number" min="0" step="0.01" id="fareBase${i}" value="${number(f.base_fare)}"></div>
+      <div><label>Fare per km (NPR)</label><input type="number" min="0" step="0.01" id="fareKm${i}" value="${number(f.per_km_fare)}"></div>
+      <div><label>Commission (%)</label><input type="number" min="0" max="100" step="0.1" id="fareCommission${i}" value="${number(f.platform_commission_percent)}">
+      <button class="primary" style="margin-top:8px;width:100%" onclick="saveFareRule(${i},this)">Save</button></div>
+    </div>`).join(""):`<div class="empty">No rows in fare_rules, or the table could not be read. Check Supabase permissions.</div>`;
+}
+window.saveFareRule=async(index,button)=>{
+  const f=allFareRules[index];
+  if(!f)return;
+  const base=Number($("fareBase"+index).value);
+  const km=Number($("fareKm"+index).value);
+  const commission=Number($("fareCommission"+index).value);
+  if(!Number.isFinite(base)||!Number.isFinite(km)||!Number.isFinite(commission)||base<0||km<0||commission<0||commission>100){
+    showMessage("Enter valid non-negative fare values and a commission from 0 to 100.","error");return;
+  }
+  if(!confirm(`Save ${f.vehicle_type} fare rule? This may affect future bookings.`))return;
+  setBusy(button,true,"Saving…");
+  try{
+    const {error}=await supabaseClient.from("fare_rules").update({
+      base_fare:base,per_km_fare:km,platform_commission_percent:commission
+    }).eq("id",f.id);
+    failIf(error);
+    showMessage("Fare rule saved.","success");
+    await refreshAll();
+  }catch(e){showMessage("Fare save failed: "+rpcErrorHint(e),"error");}
+  finally{setBusy(button,false);}
+};
+
+/* Ride list */
+function renderRides(){
+  const status=$("rideStatusFilter").value;
+  const q=$("rideSearch").value.trim().toLowerCase();
+  const list=[...allRides].filter(r=>(status==="all"||r.status===status)&&
+    (!q||[r.id,r.pickup_location,r.destination,r.vehicle_type,r.status,r.payment_method,r.driver_id,r.passenger_id]
+      .some(v=>String(v??"").toLowerCase().includes(q))))
+    .sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+  $("ridesList").innerHTML=list.length?`<div class="table-wrap"><table>
+    <thead><tr><th>Ride ID</th><th>Status</th><th>Passenger</th><th>Driver</th><th>Route</th><th>Vehicle</th><th>Fare</th><th>Payment</th><th>Created</th></tr></thead>
+    <tbody>${list.map(r=>`<tr><td>${esc(r.id)}</td><td>${statusPill(r.status)}</td>
+    <td>${esc(r.passenger_id||"—")}</td><td>${esc(driverName(r.driver_id))}</td>
+    <td>${esc(r.pickup_location||"—")} → ${esc(r.destination||"—")}</td>
+    <td>${esc(r.vehicle_type||"—")}</td><td>${money(rideFare(r))}</td>
+    <td>${esc(r.payment_method||"—")} · ${esc(r.payment_status||"—")}</td>
+    <td>${esc(dateText(r.created_at))}</td></tr>`).join("")}</tbody></table></div>`:
+    `<div class="empty">No rides match these filters.</div>`;
+}
+$("filterRidesBtn").onclick=renderRides;
+$("rideStatusFilter").onchange=renderRides;
+$("rideSearch").oninput=renderRides;
+
+/* Passenger list */
+function renderPassengers(){
+  $("passengersList").innerHTML=allPassengers.length?`<div class="table-wrap"><table>
+    <thead><tr><th>Name</th><th>Phone</th><th>Verified</th><th>Suspended</th><th>Created</th><th>Profile ID</th></tr></thead>
+    <tbody>${allPassengers.map(p=>`<tr><td>${esc(p.full_name||"—")}</td>
+    <td>${esc(p.phone||"—")}</td><td>${p.is_verified?"Yes":"No"}</td>
+    <td>${p.is_suspended?"Yes":"No"}</td><td>${esc(dateText(p.created_at))}</td><td>${esc(p.id)}</td></tr>`).join("")}</tbody></table></div>`:
+    `<div class="empty">No passenger profiles were returned by Supabase.</div>`;
+}
+function renderDataStatus(errors){
+  const checks=[
+    ["Authenticated admin",currentProfile?.role==="admin"?"Confirmed":"Not confirmed"],
+    ["Rides loaded",allRides.length+" records"],
+    ["Driver profiles loaded",allDrivers.length+" records"],
+    ["Passenger profiles loaded",allPassengers.length+" records"],
+    ["Vehicles loaded",allVehicles.length+" records"],
+    ["Fare rules loaded",allFareRules.length+" records"],
+    ["Last refresh",new Date().toLocaleString("en-NP")]
+  ];
+  $("dataStatus").innerHTML=checks.map(([a,b])=>`<div class="item"><div class="row"><b>${esc(a)}</b><span>${esc(b)}</span></div></div>`).join("")+
+    (errors.length?`<div class="notice error">Errors: ${esc(errors.join(" | "))}</div>`:
+      `<div class="notice success">All requested data sources loaded without a reported query error.</div>`);
+}
+
+/* Set default report dates and initialize session */
+applyPeriodDefaults();
+supabaseClient.auth.onAuthStateChange((event,session)=>{
+  if(event==="SIGNED_OUT"){
+    if(refreshTimer)clearInterval(refreshTimer);
+    currentUser=null;currentProfile=null;showLogin();
+  }
+});
+boot().catch(e=>showLogin(rpcErrorHint(e)));
 </script>
 </body>
 </html>
