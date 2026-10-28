@@ -3,772 +3,688 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#08111b">
-<title>Rryd | Admin Operations Center</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#061321">
+<title>Rryd | Admin Portal</title>
+
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <style>
-:root{--bg:#08111b;--panel:#142638;--text:#f3f7fb;--muted:#a8bacb;--orange:#ff7417;--blue:#36a9ff;--red:#ff5366;--green:#36d399;--border:#2b4054}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px Arial,sans-serif}
-header{padding:16px 20px;background:#101e2c;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
-h1{font-size:23px;margin:0}h2{font-size:20px;margin:0 0 12px}h3{font-size:16px}
-main{padding:15px;max-width:1500px;margin:auto}.panel{background:var(--panel);border:1px solid var(--border);padding:15px;border-radius:12px;margin-bottom:14px}
-.hidden{display:none!important}.muted,small{color:var(--muted)}
-button,input,select{font:inherit;border-radius:8px;padding:10px;border:1px solid var(--border)}
-button{cursor:pointer;background:var(--orange);color:#111;font-weight:bold;border:0;margin:3px}
-button.blue{background:var(--blue)}button.red{background:var(--red)}button.green{background:var(--green)}button:disabled{opacity:.5;cursor:wait}
-input,select{background:#081521;color:var(--text);max-width:100%}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}.row input,.row select{flex:1;min-width:140px}
-.auth{max-width:440px;margin:40px auto}.status{padding:11px;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;margin-bottom:12px}
-.error{background:#421d2a;color:#ffb4bc}.success{background:#153629;color:#a8f0c3}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px}
-.stat{padding:14px;background:#0d1b29;border:1px solid var(--border);border-radius:10px}.stat strong{display:block;font-size:24px;margin-top:8px}
-nav{display:flex;gap:5px;flex-wrap:wrap;margin:12px 0}nav button{background:#253b50;color:white}nav button.active{background:var(--orange);color:#111}
-.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:650px;font-size:13px}
-th,td{text-align:left;padding:9px;border-bottom:1px solid var(--border);overflow-wrap:anywhere}
-th{color:#ffc08f;background:#0d1b29}td button{font-size:12px;padding:7px}
-#map{height:430px;border-radius:10px;background:#0b1927}.danger{color:#ff8795}.good{color:var(--green)}
-label{display:block;margin:8px 0 4px}
-@media(max-width:600px){main{padding:8px}.panel{padding:10px}header{padding:12px}#map{height:350px}}
+:root{--bg:#04111e;--panel:#071a2b;--panel2:#0b2033;--border:#18364d;--text:#f3f7ff;--muted:#91a9c4;--orange:#ff7417;--green:#00d6a0;--blue:#168bff;--red:#ff5366;--purple:#a76bff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px Inter,Arial,sans-serif}
+button,input,select{font:inherit}
+button{cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
+a{color:inherit;text-decoration:none}
+.hidden{display:none!important}
+#loginScreen{min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(ellipse at top,#133453,#04111e 65%)}
+.login-card{width:min(420px,100%);padding:32px;background:var(--panel);border:1px solid var(--border);border-radius:22px;box-shadow:0 25px 80px #0008}
+.logo{font-size:38px;font-weight:900;letter-spacing:-2px}
+.logo span{color:var(--orange)}
+.tagline{color:var(--muted);margin:4px 0 26px}
+.field{display:grid;gap:7px;margin:15px 0;color:#b9cce1}
+.field input,.field select,.search-input{width:100%;background:#061625;border:1px solid var(--border);color:var(--text);border-radius:10px;padding:13px;outline:none}
+.field input:focus,.search-input:focus{border-color:var(--orange)}
+.btn{border:1px solid var(--border);background:#10283c;color:var(--text);padding:10px 14px;border-radius:10px}
+.btn:hover{filter:brightness(1.15)}
+.btn-orange{background:var(--orange);border-color:var(--orange);color:white;font-weight:750}
+.btn-outline{border-color:var(--orange);color:#ff9a58;background:transparent}
+.btn-danger{background:#4a1c2a;border-color:#753044;color:#ff9aa6}
+.btn-green{background:#073e38;border-color:#087a65;color:#67f5d0}
+#app{display:none;min-height:100vh}
+.sidebar{position:fixed;inset:0 auto 0 0;width:252px;background:#041321;border-right:1px solid var(--border);padding:20px 14px;display:flex;flex-direction:column;z-index:500;overflow:auto}
+.brand{padding:0 10px 24px;display:flex;align-items:center;gap:10px}
+.brand-symbol{font-size:37px;color:var(--orange)}
+.brand-name{font-size:36px;font-weight:900;letter-spacing:-2px}
+.brand-name span{color:var(--orange)}
+.brand small{display:block;color:#c3d1e0;font-size:12px;letter-spacing:0}
+.nav{display:grid;gap:7px}
+.nav button{display:flex;align-items:center;gap:13px;padding:13px 14px;border:0;border-radius:10px;background:transparent;color:#d7e5f4;text-align:left}
+.nav button .ico{width:22px;font-size:19px;text-align:center}
+.nav button.active,.nav button:hover{background:linear-gradient(100deg,#ff7417,#f05a08);color:white}
+.side-footer{margin-top:auto;padding:18px 14px;border:1px solid var(--border);border-radius:12px;background:linear-gradient(155deg,#102940,#071524);color:var(--muted);line-height:1.8}
+.topbar{height:72px;margin-left:252px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;padding:12px 24px;background:#061523;position:sticky;top:0;z-index:400}
+.search-wrap{flex:1;max-width:650px;position:relative}
+.search-input{border-radius:30px;padding:12px 18px}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:12px}
+.admin-chip{padding:9px 13px;border-left:1px solid var(--border);color:var(--muted)}
+main{margin-left:252px;padding:25px 24px 18px;max-width:1900px}
+.welcome{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:20px}
+h1{font-size:23px;margin:0 0 6px}
+h2{font-size:16px;margin:0}
+.sub,.muted{color:var(--muted)}
+.date-label{text-align:right;color:#c6d6e8;line-height:1.6}
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.stat{border:1px solid var(--border);background:linear-gradient(145deg,#0a2032,#061625);border-radius:12px;padding:16px;display:flex;gap:13px;align-items:center;min-width:0}
+.stat-icon{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;font-size:23px;flex-shrink:0}
+.orange{background:#59391f;color:#ff9b43}.blue{background:#103d78;color:#70b8ff}.green{background:#075342;color:#7af3d0}.red{background:#542b25;color:#ffb08a}.cyan{background:#10466a;color:#74d9ff}
+.stat-label{color:#c1d3e8;font-size:12px;margin-bottom:7px}
+.stat-value{font-size:21px;font-weight:800;white-space:nowrap}
+.stat-change{color:var(--green);font-size:12px;margin-top:7px}
+.grid-main{display:grid;grid-template-columns:minmax(0,1.85fr) minmax(280px,.95fr);gap:18px}
+.panel{border:1px solid var(--border);border-radius:13px;background:linear-gradient(145deg,#081c2d,#061522);overflow:hidden;min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:15px;border-bottom:1px solid var(--border)}
+.panel-title{display:flex;align-items:center;gap:10px;font-weight:750;font-size:15px}
+.panel-title .ico{font-size:21px;color:var(--orange)}
+.panel-body{padding:14px}
+.link-btn{border:0;background:transparent;color:#70bdff;padding:5px}
+.tracking-panel{margin-bottom:17px}
+.map-layout{display:grid;grid-template-columns:minmax(0,1fr) 224px;min-height:350px}
+#map{height:350px;min-width:0;background:#10263a}
+.active-list{padding:10px;background:#061625}
+.active-row{padding:11px 4px;border-bottom:1px solid var(--border);cursor:pointer}
+.active-row:hover{background:#10283a}
+.active-row:last-child{border-bottom:0}
+.ride-row-title{display:flex;justify-content:space-between;gap:8px;font-weight:750;margin-bottom:6px}
+.route-small{font-size:11px;color:var(--muted);overflow-wrap:anywhere}
+.pill{display:inline-block;border-radius:20px;padding:4px 9px;font-size:11px;white-space:nowrap;background:#183b62;color:#8ecaff}
+.pill.requested{background:#533a1c;color:#ffbf72}
+.pill.completed{background:#07533f;color:#6df0bf}
+.pill.cancelled{background:#51232b;color:#ff98a4}
+.pill.started,.pill.accepted,.pill.arriving,.pill.in_progress{background:#153d68;color:#8ecaff}
+.right-stack{display:grid;align-content:start;gap:15px}
+.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.quick-btn{display:flex;align-items:center;gap:9px;padding:12px 9px;background:#0b2438;border:1px solid var(--border);border-radius:10px;text-align:left;color:#e4efff}
+.quick-btn span:first-child{font-size:21px;color:var(--orange)}
+.activity{display:flex;gap:11px;padding:12px 0;border-bottom:1px solid var(--border)}
+.activity:last-child{border-bottom:0}
+.activity-icon{width:34px;height:34px;border-radius:9px;background:#12344a;display:grid;place-items:center;flex-shrink:0}
+.activity strong{font-size:12px}
+.activity small{display:block;color:var(--muted);margin-top:5px;overflow-wrap:anywhere}
+.activity time{margin-left:auto;color:var(--muted);font-size:10px;white-space:nowrap}
+.lower-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.9fr);gap:15px;margin-top:17px}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:12px}
+th,td{text-align:left;padding:12px 10px;border-bottom:1px solid #142d41}
+th{color:#9db5ce;font-weight:600;background:#081a2a}
+td{color:#e2edfb}
+tr:last-child td{border-bottom:0}
+.id-cell{color:#ff9b42;font-weight:800}
+.empty{padding:25px;text-align:center;color:var(--muted)}
+.quick-stats-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border)}
+.quick-stats-row:last-child{border-bottom:0}
+.quick-stats-row strong{margin-left:auto}
+.section{display:none}
+.section.active{display:block}
+.section-intro{margin-bottom:18px}
+.section-actions{display:flex;gap:9px;flex-wrap:wrap}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:15px 0}
+.toolbar input,.toolbar select{background:#061625;color:white;border:1px solid var(--border);border-radius:9px;padding:10px}
+.toolbar input{min-width:220px;flex:1}
+.notice{padding:12px 14px;border-radius:10px;background:#10283b;color:#bcd7f0;margin-bottom:14px;overflow-wrap:anywhere}
+.notice.error{background:#431e27;color:#ffb0b9}
+.notice.success{background:#073e32;color:#83f1ce}
+.editor-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.editor-grid .field{margin:0}
+.panel + .panel{margin-top:15px}
+footer{margin:18px 0 0;padding:15px 0;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:11px}
+#toast{position:fixed;bottom:22px;right:22px;max-width:min(440px,calc(100vw - 40px));z-index:9999;background:#12324a;border:1px solid #2c5878;border-radius:12px;padding:14px 18px;box-shadow:0 8px 30px #0008;display:none}
+#toast.error{background:#4a2029;border-color:#803d49}
+#toast.success{background:#073d32;border-color:#167b64}
+#mobileMenu{display:none}
+@media(max-width:1250px){.stats{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-main{grid-template-columns:1fr}.right-stack{grid-template-columns:repeat(2,minmax(0,1fr))}.right-stack .panel:last-child{grid-column:1/-1}}
+@media(max-width:850px){.sidebar{width:74px;padding:14px 9px}.brand{padding:5px 7px 24px}.brand-name,.brand .tagline,.nav button .nav-label,.side-footer{display:none}.brand-symbol{font-size:30px}.nav button{justify-content:center;padding:13px 4px}.nav button .ico{font-size:21px}.topbar,main{margin-left:74px}.topbar{padding:10px 12px}.admin-chip{display:none}main{padding:18px 12px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.map-layout{grid-template-columns:1fr}.active-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}.active-row{padding:9px}.lower-grid{grid-template-columns:1fr}.editor-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.stats{gap:8px}.stat{padding:11px;gap:8px}.stat-icon{width:35px;height:35px;font-size:18px}.stat-value{font-size:17px}.stat-label{font-size:11px}.welcome{align-items:flex-start}.date-label{font-size:10px}.right-stack{grid-template-columns:1fr}.right-stack .panel:last-child{grid-column:auto}.active-list{grid-template-columns:1fr 1fr}.editor-grid{grid-template-columns:1fr}.brand{justify-content:center}.topbar{gap:8px}.search-input{font-size:12px;padding:11px}footer{flex-direction:column}.quick-grid{gap:6px}.quick-btn{font-size:11px}}
 </style>
 </head>
+
 <body>
-<header>
-  <h1><span style="color:var(--orange)">RRYD</span> Admin Center</h1>
-  <span id="identity" class="muted">Administrator sign-in required</span>
-</header>
-<main>
-<div id="notice" class="status hidden"></div>
-
-<section id="auth" class="panel auth">
-  <h2 id="authTitle">Admin login</h2>
-  <form id="loginForm">
-    <label for="email">Email</label>
-    <input id="email" type="email" autocomplete="username" required style="width:100%">
-    <label for="password">Password</label>
-    <div class="row">
-      <input id="password" type="password" autocomplete="current-password" required style="flex:1">
-      <button type="button" class="blue" id="showPass">Show</button>
+<div id="loginScreen">
+  <form class="login-card" id="loginForm">
+    <div class="logo"><span>R</span>ryd<span>.</span></div>
+    <div class="tagline">Move your way. · Administrator access</div>
+    <h2>Welcome back</h2>
+    <p class="muted">Sign in using your existing Rryd admin account.</p>
+    <label class="field">Email address<input id="loginEmail" type="email" autocomplete="username" required></label>
+    <label class="field">Password<input id="loginPassword" type="password" autocomplete="current-password" required></label>
+    <button class="btn btn-orange" id="loginButton" style="width:100%;padding:13px">Sign in to Admin Portal</button>
+    <button type="button" class="link-btn" id="forgotButton" style="margin-top:14px">Forgot password?</button>
+    <div id="loginMessage" class="notice hidden" style="margin-top:14px"></div>
+    <div id="resetBox" class="hidden">
+      <label class="field">New password<input id="newPassword" type="password" minlength="8"></label>
+      <button type="button" id="savePasswordButton" class="btn btn-orange" style="width:100%">Set new password</button>
     </div>
-    <button type="submit" id="loginButton">Login</button>
-    <button type="button" class="blue" id="forgot">Forgot password</button>
   </form>
-  <div id="resetBox" class="hidden">
-    <p class="muted">Enter your email above to receive a password-reset link.</p>
-    <button type="button" id="sendReset">Send reset email</button>
-    <form id="newPassForm" class="hidden">
-      <label for="newPass">New password</label>
-      <input id="newPass" type="password" minlength="8" required style="width:100%">
-      <label for="confirmPass">Confirm new password</label>
-      <input id="confirmPass" type="password" minlength="8" required style="width:100%">
-      <button type="submit">Save new password</button>
-    </form>
-  </div>
-</section>
-
-<section id="app" class="hidden">
-<div class="panel">
-  <div class="row">
-    <span id="signedIn" class="muted"></span>
-    <button id="refresh">Refresh all</button>
-    <button id="logout" class="red">Log out</button>
-  </div>
-  <nav id="nav">
-    <button class="active" data-page="dashboard">Dashboard</button>
-    <button data-page="tracking">Live tracking</button>
-    <button data-page="drivers">Drivers</button>
-    <button data-page="vehicles">Vehicles</button>
-    <button data-page="rides">Rides</button>
-    <button data-page="fares">Fare settings</button>
-    <button data-page="passengers">Passengers</button>
-    <button data-page="earnings">Earnings / CSV</button>
-    <button data-page="safety">Safety centre</button>
-    <button data-page="audit">Audit logs</button>
-  </nav>
-  <small>Administrator actions are verified server-side. Database RLS policies still apply to normal table operations.</small>
 </div>
 
-<section id="page-dashboard" class="page">
-  <div class="panel"><h2>Dashboard</h2><div id="stats" class="stats"></div></div>
-  <div class="panel"><h3>System status</h3><div id="system"></div><div id="alerts"></div></div>
-  <div class="panel"><h3>Recent rides</h3><div id="recent"></div></div>
-</section>
+<div id="app">
+<aside class="sidebar">
+  <div class="brand"><div class="brand-symbol">🚘</div><div><div class="brand-name">Rryd<span>.</span></div><div class="tagline" style="margin:0">Move your way.</div></div></div>
+  <nav class="nav" id="navigation">
+    <button class="active" data-page="dashboard"><span class="ico">▦</span><span class="nav-label">Dashboard</span></button>
+    <button data-page="tracking"><span class="ico">⌖</span><span class="nav-label">Live Tracking</span></button>
+    <button data-page="drivers"><span class="ico">♙</span><span class="nav-label">Drivers</span></button>
+    <button data-page="vehicles"><span class="ico">🚘</span><span class="nav-label">Vehicles</span></button>
+    <button data-page="rides"><span class="ico">🚕</span><span class="nav-label">Rides</span></button>
+    <button data-page="fares"><span class="ico">▤</span><span class="nav-label">Fare Settings</span></button>
+    <button data-page="passengers"><span class="ico">♧</span><span class="nav-label">Passengers</span></button>
+    <button data-page="earnings"><span class="ico">▣</span><span class="nav-label">Earnings & Reports</span></button>
+    <button data-page="safety"><span class="ico">◆</span><span class="nav-label">Safety Centre</span></button>
+    <button data-page="audit"><span class="ico">☷</span><span class="nav-label">Audit Logs</span></button>
+  </nav>
+  <div class="side-footer">🏔 Nepal<br><strong style="color:white">Rryd Admin Panel</strong><br>Live operations<br><br>Better rides. A smarter Nepal.</div>
+</aside>
 
-<section id="page-tracking" class="page hidden">
-  <div class="panel">
-    <h2>Live driver tracking</h2>
-    <p class="muted">Uses saved GPS coordinates from driver profiles. It cannot show a live position if the driver portal is not updating location.</p>
-    <div class="row">
-      <button id="trackStart">Start live updates</button>
-      <button id="trackStop" class="blue">Stop</button>
-      <button id="trackRefresh" class="blue">Refresh now</button>
-      <select id="trackFilter"><option value="all">All GPS drivers</option><option value="online">Online only</option><option value="stale">Stale GPS only</option></select>
+<header class="topbar">
+  <div class="search-wrap"><input class="search-input" id="globalSearch" placeholder="⌕  Search by name, phone, ID, or location..."></div>
+  <div class="top-actions"><button class="btn" id="refreshButton" title="Refresh data">↻</button><button class="btn" id="logoutButton">Sign out</button><div class="admin-chip">Administrator<br><small id="adminEmail"></small></div></div>
+</header>
+
+<main>
+<div id="globalNotice" class="notice hidden"></div>
+
+<section class="section active" id="page-dashboard">
+  <div class="welcome"><div><h1>👋 Good day, Admin!</h1><div class="sub">Here's what's happening with Rryd today.</div></div><div class="date-label" id="todayDate"></div></div>
+  <div class="stats">
+    <div class="stat"><div class="stat-icon orange">🚕</div><div><div class="stat-label">Total Rides</div><div class="stat-value" id="totalRides">—</div><div class="stat-change">All recorded rides</div></div></div>
+    <div class="stat"><div class="stat-icon blue">◷</div><div><div class="stat-label">Active Rides</div><div class="stat-value" id="activeRides">—</div><div class="stat-change">Live operations</div></div></div>
+    <div class="stat"><div class="stat-icon green">♙</div><div><div class="stat-label">Online Drivers</div><div class="stat-value" id="onlineDrivers">—</div><div class="stat-change">Current driver status</div></div></div>
+    <div class="stat"><div class="stat-icon red">◷</div><div><div class="stat-label">Pending Approvals</div><div class="stat-value" id="pendingApprovals">—</div><div class="stat-change">Drivers awaiting review</div></div></div>
+    <div class="stat"><div class="stat-icon cyan">▣</div><div><div class="stat-label">Completed Fare Total</div><div class="stat-value" id="totalEarnings">—</div><div class="stat-change">Based on completed rides</div></div></div>
+  </div>
+
+  <div class="grid-main">
+    <div>
+      <div class="panel tracking-panel">
+        <div class="panel-head"><div class="panel-title"><span class="ico">⌖</span> Live Driver Tracking <span class="pill">Map</span></div><button class="link-btn" data-goto="tracking">View all →</button></div>
+        <div class="map-layout"><div id="map"></div><div class="active-list" id="activeRideList"><div class="empty">Loading rides…</div></div></div>
+      </div>
+      <div class="lower-grid">
+        <div class="panel"><div class="panel-head"><div class="panel-title"><span class="ico">🚕</span> Recent Rides</div><button class="link-btn" data-goto="rides">View all →</button></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>Passenger</th><th>Driver</th><th>Route</th><th>Status</th><th>Fare</th></tr></thead><tbody id="recentRides"></tbody></table></div></div>
+        <div class="panel"><div class="panel-head"><div class="panel-title"><span class="ico">▤</span> Fare Rules</div><button class="link-btn" data-goto="fares">View all →</button></div><div class="table-wrap"><table><thead><tr><th>Vehicle</th><th>Base</th><th>Per km</th><th>Commission</th></tr></thead><tbody id="dashboardFares"></tbody></table></div></div>
+      </div>
     </div>
-    <div id="trackStatus" class="status">Tracking stopped.</div>
-    <div id="map"></div><h3>Driver locations</h3><div id="trackTable"></div>
-  </div>
-  <div class="panel"><h3>Active rides</h3><div id="activeRides"></div></div>
-</section>
-
-<section id="page-drivers" class="page hidden">
-  <div class="panel">
-    <h2>Driver management</h2>
-    <div class="row"><input id="driverSearch" placeholder="Search name, phone or ID"><select id="driverFilter"><option value="all">All drivers</option><option value="pending">Awaiting verification</option><option value="verified">Verified</option></select></div>
-    <div id="drivers"></div>
-  </div>
-</section>
-
-<section id="page-vehicles" class="page hidden">
-  <div class="panel"><h2>Vehicle approvals</h2><div id="vehicles"></div></div>
-</section>
-
-<section id="page-rides" class="page hidden">
-  <div class="panel">
-    <h2>Ride management</h2>
-    <div class="row"><input id="rideSearch" placeholder="Search ID, passenger, pickup, destination"><select id="rideFilter"><option value="all">All statuses</option><option value="requested">Requested</option><option value="accepted">Accepted</option><option value="arriving">Arriving</option><option value="started">Started</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div>
-    <div id="rides"></div>
-  </div>
-  <div class="panel"><h3>Selected ride details</h3><div id="rideDetails">Choose a ride to inspect its details.</div></div>
-</section>
-
-<section id="page-fares" class="page hidden">
-  <div class="panel"><h2>Fare rules</h2><p class="muted">Fare changes apply only if the passenger booking page reads these active rules.</p><div id="fares"></div></div>
-</section>
-
-<section id="page-passengers" class="page hidden">
-  <div class="panel"><h2>Passenger accounts</h2><input id="passSearch" placeholder="Search passenger name, phone or ID" style="width:100%"><div id="passengers"></div></div>
-</section>
-
-<section id="page-earnings" class="page hidden">
-  <div class="panel">
-    <h2>Earnings and reports</h2><div id="earningStats" class="stats"></div>
-    <button id="csvRides">Export all rides CSV</button>
-    <button id="csvDone" class="blue">Export completed rides CSV</button>
-    <button id="csvDrivers" class="blue">Export drivers CSV</button>
-    <div id="earningTable"></div>
+    <div class="right-stack">
+      <div class="panel"><div class="panel-head"><div class="panel-title"><span class="ico">ϟ</span> Quick Actions</div></div><div class="panel-body quick-grid">
+        <button class="quick-btn" data-goto="drivers"><span>♙</span><span>Review Drivers</span></button>
+        <button class="quick-btn" data-goto="vehicles"><span>🚘</span><span>Review Vehicles</span></button>
+        <button class="quick-btn" data-goto="fares"><span>▤</span><span>Update Fare Rules</span></button>
+        <button class="quick-btn" data-goto="earnings"><span>▣</span><span>View Reports</span></button>
+      </div></div>
+      <div class="panel"><div class="panel-head"><div class="panel-title"><span class="ico">♧</span> Recent Activity</div><button class="link-btn" data-goto="audit">View all →</button></div><div class="panel-body" id="recentActivity"><div class="empty">Loading activity…</div></div></div>
+      <div class="panel"><div class="panel-head"><div class="panel-title"><span class="ico">▥</span> Quick Stats</div></div><div class="panel-body">
+        <div class="quick-stats-row">Completed rides today <strong id="completedToday">—</strong></div>
+        <div class="quick-stats-row">Cancelled rides <strong id="cancelledRides">—</strong></div>
+        <div class="quick-stats-row">Total drivers <strong id="totalDrivers">—</strong></div>
+        <div class="quick-stats-row">Total passengers <strong id="totalPassengers">—</strong></div>
+        <div class="quick-stats-row">Vehicles <strong id="totalVehicles">—</strong></div>
+      </div></div>
+    </div>
   </div>
 </section>
 
-<section id="page-safety" class="page hidden">
-  <div class="panel"><h2>Safety and operational alerts</h2><p class="muted">This page is an operational review tool, not a staffed emergency dispatch service.</p><div id="safety"></div></div>
+<section class="section" id="page-tracking">
+  <div class="welcome"><div><h1>Live Driver Tracking</h1><div class="sub">Latest driver locations shared with Rryd.</div></div><button class="btn" data-refresh>Refresh map</button></div>
+  <div class="panel"><div class="panel-head"><h2>Driver Map</h2><span class="muted">GPS updates depend on driver permissions and connectivity</span></div><div id="bigMap" style="height:540px;background:#10263a"></div></div>
+  <div class="panel"><div class="panel-head"><h2>Driver Locations</h2></div><div class="table-wrap"><table><thead><tr><th>Driver</th><th>Phone</th><th>Online</th><th>Latitude</th><th>Longitude</th><th>Updated</th></tr></thead><tbody id="trackingTable"></tbody></table></div></div>
 </section>
 
-<section id="page-audit" class="page hidden">
-  <div class="panel"><h2>Audit logs</h2><div class="row"><input id="auditSearch" placeholder="Search action, target or admin"><button id="auditRefresh">Refresh logs</button><button id="csvAudit" class="blue">Export audit CSV</button></div><div id="audit"></div></div>
+<section class="section" id="page-drivers">
+  <div class="welcome"><div><h1>Driver Management</h1><div class="sub">Review driver verification, status and account safety.</div></div><button class="btn" data-refresh>Refresh</button></div>
+  <div class="toolbar"><input id="driverSearch" placeholder="Search driver name, email, or phone"><select id="driverFilter"><option value="all">All drivers</option><option value="pending">Pending verification</option><option value="verified">Verified</option><option value="online">Online</option><option value="suspended">Suspended</option></select></div>
+  <div class="panel"><div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Verified</th><th>Online</th><th>Suspended</th><th>Actions</th></tr></thead><tbody id="driversTable"></tbody></table></div></div>
 </section>
+
+<section class="section" id="page-vehicles">
+  <div class="welcome"><div><h1>Vehicle Management</h1><div class="sub">Review registered vehicles and approval status.</div></div><button class="btn" data-refresh>Refresh</button></div>
+  <div class="toolbar"><input id="vehicleSearch" placeholder="Search vehicle, plate, model, driver"><select id="vehicleFilter"><option value="all">All vehicles</option><option value="pending">Pending</option><option value="approved">Approved</option></select></div>
+  <div class="panel"><div class="table-wrap"><table><thead><tr><th>ID</th><th>Driver</th><th>Vehicle</th><th>Plate</th><th>Model</th><th>Approval</th><th>Actions</th></tr></thead><tbody id="vehiclesTable"></tbody></table></div></div>
 </section>
+
+<section class="section" id="page-rides">
+  <div class="welcome"><div><h1>Ride Management</h1><div class="sub">Review routes, fares, payment status and ride lifecycle.</div></div><button class="btn" data-refresh>Refresh</button></div>
+  <div class="toolbar"><input id="rideSearch" placeholder="Search ride ID, passenger, driver, route"><select id="rideFilter"><option value="all">All statuses</option><option>requested</option><option>accepted</option><option>arriving</option><option>started</option><option>completed</option><option>cancelled</option></select><button class="btn" id="exportRides">Export CSV</button></div>
+  <div class="panel"><div class="table-wrap"><table><thead><tr><th>ID</th><th>Passenger</th><th>Driver</th><th>Pickup</th><th>Destination</th><th>Vehicle</th><th>Distance</th><th>Fare</th><th>Payment</th><th>Status</th><th>Action</th></tr></thead><tbody id="ridesTable"></tbody></table></div></div>
+</section>
+
+<section class="section" id="page-fares">
+  <div class="welcome"><div><h1>Fare Settings</h1><div class="sub">Edit the active vehicle fare rules stored in Supabase.</div></div><button class="btn" data-refresh>Refresh</button></div>
+  <div class="notice">Changes affect future fare calculations only. Confirm your fare policy before saving.</div>
+  <div class="panel"><div class="table-wrap"><table><thead><tr><th>Vehicle</th><th>Base fare (NPR)</th><th>Per km (NPR)</th><th>Commission (%)</th><th>Active</th><th>Save</th></tr></thead><tbody id="faresTable"></tbody></table></div></div>
+</section>
+
+<section class="section" id="page-passengers">
+  <div class="welcome"><div><h1>Passenger Management</h1><div class="sub">Registered passenger accounts and account status.</div></div><button class="btn" data-refresh>Refresh</button></div>
+  <div class="toolbar"><input id="passengerSearch" placeholder="Search passenger name, email, phone"></div>
+  <div class="panel"><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Verified</th><th>Suspended</th><th>Created</th><th>Action</th></tr></thead><tbody id="passengersTable"></tbody></table></div></div>
+</section>
+
+<section class="section" id="page-earnings">
+  <div class="welcome"><div><h1>Earnings & Reports</h1><div class="sub">Revenue summaries calculated from completed ride records.</div></div><button class="btn" id="exportEarnings">Export CSV</button></div>
+  <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+    <div class="stat"><div><div class="stat-label">Completed Fare Total</div><div class="stat-value" id="reportFare">NPR 0</div></div></div>
+    <div class="stat"><div><div class="stat-label">Driver Earnings</div><div class="stat-value" id="reportDriver">NPR 0</div></div></div>
+    <div class="stat"><div><div class="stat-label">Platform Earnings</div><div class="stat-value" id="reportAdmin">NPR 0</div></div></div>
+    <div class="stat"><div><div class="stat-label">Completed Rides</div><div class="stat-value" id="reportCompleted">0</div></div></div>
+  </div>
+  <div class="panel"><div class="panel-head"><h2>Completed Ride Revenue</h2></div><div class="table-wrap"><table><thead><tr><th>Ride</th><th>Date</th><th>Fare</th><th>Driver Earnings</th><th>Platform Earnings</th><th>Payment</th></tr></thead><tbody id="earningsTable"></tbody></table></div></div>
+</section>
+
+<section class="section" id="page-safety">
+  <div class="welcome"><div><h1>Safety Centre</h1><div class="sub">Review suspended accounts and active ride incidents.</div></div><button class="btn" data-refresh>Refresh</button></div>
+  <div class="panel"><div class="panel-head"><h2>Suspended Accounts</h2></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Role</th><th>Reason</th><th>Actions</th></tr></thead><tbody id="safetyTable"></tbody></table></div></div>
+  <div class="panel"><div class="panel-head"><h2>Active Rides</h2></div><div class="table-wrap"><table><thead><tr><th>Ride</th><th>Passenger</th><th>Driver</th><th>Route</th><th>Status</th><th>Safety Action</th></tr></thead><tbody id="safetyRides"></tbody></table></div></div>
+</section>
+
+<section class="section" id="page-audit">
+  <div class="welcome"><div><h1>Audit Logs</h1><div class="sub">Review administrative actions recorded in the audit table.</div></div><button class="btn" data-refresh>Refresh</button></div>
+  <div class="panel"><div class="table-wrap"><table><thead><tr><th>Time</th><th>Admin</th><th>Action</th><th>Target</th><th>Details</th></tr></thead><tbody id="auditTable"></tbody></table></div></div>
+</section>
+
+<footer><span><strong style="color:var(--orange)">Rryd.</strong> Move your way.</span><span>Nepal · Rryd Admin Portal</span><span id="systemStatus">Connecting to Supabase…</span></footer>
 </main>
+</div>
+<div id="toast"></div>
 
 <script>
-(() => {
 'use strict';
 
 const SUPABASE_URL = 'https://kqtvuorasqyzjbnlkkxs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_0YO71GOwynEf3ithOtFfxg_z6YL-LKG';
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
+});
+
 const $ = id => document.getElementById(id);
-
-let user = null;
-let profiles = [], rides = [], vehicles = [], fares = [], logs = [];
-let map = null, markers = {};
-let tracking = false, timer = null, busy = false, selectedRide = null;
-let channel = null;
-
-const esc = value => String(value ?? '—').replace(/[&<>"']/g, ch => ({
+const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({
   '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-}[ch]));
-const value = (row, ...keys) => {
-  for (const key of keys) if (row && row[key] !== undefined && row[key] !== null && row[key] !== '') return row[key];
-  return '—';
-};
-const money = n => 'NPR ' + (Number(n) || 0).toLocaleString(undefined,{maximumFractionDigits:2});
-const date = v => v ? esc(new Date(v).toLocaleString()) : '—';
-const activeStatus = s => ['requested','accepted','arriving','started'].includes(String(s || '').toLowerCase());
+}[c]));
+const money = value => 'NPR ' + Math.round(Number(value || 0)).toLocaleString('en-IN');
+const dateText = value => value ? new Date(value).toLocaleString() : '—';
+const boolText = value => value ? 'Yes' : 'No';
+const activeStatuses = ['requested','accepted','arriving','started'];
+let currentUser = null;
+let profiles = [], rides = [], vehicles = [], fareRules = [], auditLogs = [];
+let map = null, bigMap = null, markers = [], bigMarkers = [];
+let refreshTimer = null, toastTimer = null;
 
-function notice(message, type='error') {
-  $('notice').textContent = message;
-  $('notice').className = 'status ' + type;
-  window.scrollTo({top:0,behavior:'smooth'});
+function toast(message, type='') {
+  const el=$('toast'); el.textContent=message; el.className=type; el.style.display='block';
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.style.display='none',4500);
 }
-function clearNotice() { $('notice').className = 'status hidden'; }
-
-function makeTable(id, columns, rows) {
-  const target = $(id);
-  if (!rows || !rows.length) {
-    target.innerHTML = '<p class="muted">No records found. Data may be empty or blocked by database permissions.</p>';
-    return;
-  }
-  target.innerHTML = '<div class="tablewrap"><table><thead><tr>' +
-    columns.map(c => '<th>' + c[0] + '</th>').join('') +
-    '</tr></thead><tbody>' +
-    rows.map(r => '<tr>' + columns.map(c => '<td>' + (c[2] ? c[2](r) : esc(r[c[1]])) + '</td>').join('') + '</tr>').join('') +
-    '</tbody></table></div>';
+function notice(message,type='') {
+  const el=$('globalNotice'); el.textContent=message;
+  el.className='notice '+type; el.classList.remove('hidden');
 }
-
-async function fetchRows(tableName, order='created_at', limit=1500) {
-  let query = db.from(tableName).select('*').limit(limit);
-  if (order) query = query.order(order,{ascending:false});
-  const {data,error} = await query;
-  if (error) throw new Error(tableName + ': ' + error.message);
-  return data || [];
+function hideNotice(){ $('globalNotice').classList.add('hidden'); }
+function showLoginMessage(message,type='error'){
+  const el=$('loginMessage');el.textContent=message;el.className='notice '+type;
+  el.classList.remove('hidden');
 }
-
-/*
- * Admin verification does not call the missing public.rydo_is_admin RPC.
- * The database's private.is_admin() helper is not directly exposed as a
- * normal client RPC. This client-side check verifies the user's profile;
- * privileged operations must still be protected by database authorization.
- */
-async function checkAdmin() {
-  const {data:{user: currentUser}, error: authError} = await db.auth.getUser();
-  if (authError || !currentUser) throw new Error('Please sign in first.');
-
-  const {data: profile, error} = await db
-    .from('profiles')
-    .select('id,role,is_suspended')
-    .eq('id',currentUser.id)
-    .maybeSingle();
-
-  if (error) throw new Error('Admin profile verification failed: ' + error.message);
-  if (!profile || profile.role !== 'admin' || profile.is_suspended === true) {
-    throw new Error('This account is not an authorized active Rryd administrator.');
-  }
-  return currentUser;
+function profileById(id){return profiles.find(p=>p.id===id)||{}}
+function displayName(profile){return profile.full_name||profile.name||profile.email||'Unknown'}
+function roleName(profile){return String(profile.role||'').toLowerCase()}
+function vehicleName(type){return ({bike:'Bike',car:'Car',tuk_tuk:'Tuk Tuk',tuktuk:'Tuk Tuk'})[String(type||'').toLowerCase()]||type||'—'}
+function statusPill(status){
+  const s=String(status||'unknown').toLowerCase();
+  return `<span class="pill ${esc(s)}">${esc(s.replaceAll('_',' '))}</span>`;
 }
-
-async function audit(action, tableName, id, details={}) {
-  if (!user) return;
-  const {error} = await db.from('rydo_admin_audit_logs').insert({
-    admin_id:user.id,
-    action,
-    target_table:tableName,
-    target_id:String(id ?? ''),
-    details
-  });
-  if (error) console.warn('Audit log insert failed:',error.message);
-}
-
-async function enterAdmin(currentUser) {
-  try {
-    user = await checkAdmin();
-    $('auth').classList.add('hidden');
-    $('app').classList.remove('hidden');
-    $('identity').textContent = 'Administrator';
-    $('signedIn').textContent = 'Signed in: ' + (user.email || currentUser.email || user.id);
-    await refreshAll();
-  } catch (error) {
-    user = null;
-    await db.auth.signOut();
-    $('app').classList.add('hidden');
-    $('auth').classList.remove('hidden');
-    notice(error.message);
-  }
-}
-
-async function refreshAll() {
-  clearNotice();
-  $('system').textContent = 'Loading Supabase data…';
-  const requests = await Promise.allSettled([
-    fetchRows('profiles'),
-    fetchRows('rides'),
-    fetchRows('vehicles'),
-    fetchRows('fare_rules','vehicle_type',100),
-    fetchRows('rydo_admin_audit_logs')
-  ]);
-  const labels = ['profiles','rides','vehicles','fare rules','audit logs'];
-  const errors = [];
-
-  requests.forEach((result,index) => {
-    if (result.status === 'fulfilled') {
-      if (index===0) profiles=result.value;
-      if (index===1) rides=result.value;
-      if (index===2) vehicles=result.value;
-      if (index===3) fares=result.value;
-      if (index===4) logs=result.value;
-    } else {
-      errors.push(labels[index] + ': ' + result.reason.message);
-    }
-  });
-
-  renderAll();
-  $('system').textContent = errors.length ? errors.join('\n') : 'All requested tables loaded successfully.';
-  if (errors.length) notice('Some sections could not load. Review the system status panel for exact errors.');
-}
-
-function renderAll() {
-  const drivers = profiles.filter(p=>p.role==='driver');
-  const passengers = profiles.filter(p=>p.role==='passenger');
-  const completed = rides.filter(r=>r.status==='completed');
-  const active = rides.filter(r=>activeStatus(r.status));
-  const stale = drivers.filter(d=>d.is_online && (!d.location_updated_at || Date.now()-new Date(d.location_updated_at).getTime()>120000));
-
-  $('stats').innerHTML = [
-    ['Profiles',profiles.length],['Passengers',passengers.length],['Drivers',drivers.length],
-    ['Verified drivers',drivers.filter(d=>d.is_verified).length],
-    ['Online drivers',drivers.filter(d=>d.is_online).length],
-    ['Vehicles',vehicles.length],['Approved vehicles',vehicles.filter(v=>v.is_approved).length],
-    ['All rides',rides.length],['Active rides',active.length],['Completed rides',completed.length],
-    ['Requested rides',rides.filter(r=>r.status==='requested').length]
-  ].map(s=>'<div class="stat">'+s[0]+'<strong>'+s[1]+'</strong></div>').join('');
-
-  $('alerts').innerHTML =
-    'Pending driver verification: <b>'+drivers.filter(d=>!d.is_verified).length+
-    '</b> · Requested rides: <b>'+rides.filter(r=>r.status==='requested').length+
-    '</b> · Online drivers with stale GPS: <b>'+stale.length+'</b>';
-
-  makeTable('recent',[
-    ['ID','id'],['Status','status'],
-    ['Pickup','',r=>esc(value(r,'pickup_location','pickup'))],
-    ['Destination','',r=>esc(value(r,'destination','destination_location'))],
-    ['Fare','',r=>money(r.final_fare ?? r.fare ?? r.estimated_fare)],
-    ['Created','',r=>date(r.created_at)]
-  ],rides.slice(0,10));
-
-  renderDrivers(); renderVehicles(); renderRides(); renderFares();
-  renderPassengers(); renderEarnings(); renderSafety(); renderAudit(); renderActiveRides();
-}
-
-function renderDrivers() {
-  const search = $('driverSearch').value.toLowerCase();
-  const filter = $('driverFilter').value;
-  const rows = profiles.filter(p=>p.role==='driver' &&
-    [p.full_name,p.phone,p.id].join(' ').toLowerCase().includes(search) &&
-    (filter==='all' || (filter==='verified' ? p.is_verified : !p.is_verified)));
-
-  makeTable('drivers',[
-    ['Name','full_name'],['Phone','phone'],['ID','id'],
-    ['Verified','',p=>p.is_verified?'Yes':'No'],
-    ['Online','',p=>p.is_online?'Yes':'No'],
-    ['Suspended','',p=>p.is_suspended?'Yes':'No'],
-    ['Action','',p=>'<button data-driver="'+esc(p.id)+'" data-value="'+(!p.is_verified)+'">'+(p.is_verified?'Revoke verification':'Approve driver')+'</button>'],
-    ['Account','',p=>'<button class="red" data-suspend="'+esc(p.id)+'" data-value="'+(!p.is_suspended)+'">'+(p.is_suspended?'Unsuspend':'Suspend')+'</button>']
-  ],rows);
-}
-
-function renderVehicles() {
-  makeTable('vehicles',[
-    ['ID','id'],['Driver ID','driver_id'],['Type','vehicle_type'],
-    ['Plate','vehicle_number'],['Model','model'],
-    ['Approved','',v=>v.is_approved?'Yes':'No'],
-    ['Action','',v=>'<button data-vehicle="'+esc(v.id)+'" data-value="'+(!v.is_approved)+'">'+(v.is_approved?'Unapprove':'Approve')+'</button>']
-  ],vehicles);
-}
-
-function renderRides() {
-  const search=$('rideSearch').value.toLowerCase();
-  const filter=$('rideFilter').value;
-  const rows=rides.filter(r=>
-    [r.id,r.passenger_id,r.driver_id,value(r,'pickup_location','pickup'),value(r,'destination','destination_location')]
-      .join(' ').toLowerCase().includes(search) &&
-    (filter==='all'||String(r.status).toLowerCase()===filter)
-  );
-
-  makeTable('rides',[
-    ['ID','id'],
-    ['Status','status'],
-    ['Passenger','passenger_id'],
-    ['Driver','driver_id'],
-    ['Pickup','',r=>esc(value(r,'pickup_location','pickup'))],
-    ['Destination','',r=>esc(value(r,'destination','destination_location'))],
-    ['Vehicle','vehicle_type'],
-    ['Fare','',r=>money(r.final_fare??r.fare??r.estimated_fare)],
-    ['Created','',r=>date(r.created_at)],
-    ['Details','',r=>'<button class="blue" data-details="'+esc(r.id)+'">View</button>'],
-    ['Cancel','',r=>activeStatus(r.status)?'<button class="red" data-cancel="'+esc(r.id)+'">Cancel</button>':'—']
-  ],rows);
-}
-
-function showRideDetails(id) {
-  const r=rides.find(x=>String(x.id)===String(id));
-  if(!r) { $('rideDetails').textContent='Ride not found. Refresh and try again.'; return; }
-  selectedRide=r;
-  $('rideDetails').innerHTML =
-    '<p><b>Ride ID:</b> '+esc(r.id)+'</p>'+
-    '<p><b>Status:</b> '+esc(r.status)+'</p>'+
-    '<p><b>Passenger:</b> '+esc(r.passenger_id)+'</p>'+
-    '<p><b>Driver:</b> '+esc(r.driver_id)+'</p>'+
-    '<p><b>Pickup:</b> '+esc(value(r,'pickup_location','pickup'))+'</p>'+
-    '<p><b>Destination:</b> '+esc(value(r,'destination','destination_location'))+'</p>'+
-    '<p><b>Vehicle:</b> '+esc(r.vehicle_type)+'</p>'+
-    '<p><b>Distance:</b> '+esc(r.distance_km)+' km</p>'+
-    '<p><b>Estimated fare:</b> '+money(r.estimated_fare)+'</p>'+
-    '<p><b>Final/stored fare:</b> '+money(r.final_fare??r.fare)+'</p>'+
-    '<p><b>Driver earnings:</b> '+money(r.driver_earnings)+'</p>'+
-    '<p><b>Platform earnings:</b> '+money(r.admin_earnings)+'</p>'+
-    '<p><b>Payment:</b> '+esc(r.payment_method)+' / '+esc(r.payment_status)+'</p>'+
-    '<p><b>Created:</b> '+date(r.created_at)+'</p>'+
-    '<p><b>Accepted:</b> '+date(r.accepted_at)+'</p>'+
-    '<p><b>Started:</b> '+date(r.started_at)+'</p>'+
-    '<p><b>Completed:</b> '+date(r.completed_at)+'</p>'+
-    '<p><b>Cancelled:</b> '+date(r.cancelled_at)+'</p>';
-}
-
-function renderFares() {
-  makeTable('fares',[
-    ['Vehicle','vehicle_type'],
-    ['Base fare','',r=>'<input type="number" min="0" step=".01" id="base-'+esc(r.id)+'" value="'+esc(r.base_fare)+'">'],
-    ['Per km','',r=>'<input type="number" min="0" step=".01" id="km-'+esc(r.id)+'" value="'+esc(r.per_km_fare)+'">'],
-    ['Commission %','',r=>'<input type="number" min="0" max="100" step=".01" id="com-'+esc(r.id)+'" value="'+esc(value(r,'platform_commission_percent','commission_percent')==='—'?15:value(r,'platform_commission_percent','commission_percent'))+'">'],
-    ['Active','',r=>r.is_active?'Yes':'No'],
-    ['Save','',r=>'<button data-fare="'+esc(r.id)+'">Save</button>']
-  ],fares);
-}
-
-function renderPassengers() {
-  const search=$('passSearch').value.toLowerCase();
-  makeTable('passengers',[
-    ['Name','full_name'],['Phone','phone'],['ID','id'],
-    ['Verified','',p=>p.is_verified?'Yes':'No'],
-    ['Suspended','',p=>p.is_suspended?'Yes':'No'],
-    ['Created','',p=>date(p.created_at)]
-  ],profiles.filter(p=>p.role==='passenger'&&[p.full_name,p.phone,p.id].join(' ').toLowerCase().includes(search)));
-}
-
-function renderEarnings() {
-  const completed=rides.filter(r=>r.status==='completed');
-  const sum=key=>completed.reduce((total,r)=>total+Number(r[key]||0),0);
-  const faresTotal=completed.reduce((total,r)=>total+Number(r.final_fare??r.fare??r.estimated_fare??0),0);
-
-  $('earningStats').innerHTML=[
-    ['Completed rides',completed.length],['Recorded fares',money(faresTotal)],
-    ['Platform earnings',money(sum('admin_earnings'))],
-    ['Driver earnings',money(sum('driver_earnings'))]
-  ].map(x=>'<div class="stat">'+x[0]+'<strong>'+x[1]+'</strong></div>').join('');
-
-  makeTable('earningTable',[
-    ['Ride','id'],['Fare','',r=>money(r.final_fare??r.fare??r.estimated_fare)],
-    ['Driver earnings','',r=>money(r.driver_earnings)],
-    ['Platform earnings','',r=>money(r.admin_earnings)],
-    ['Payment status','payment_status'],['Method','payment_method'],
-    ['Date','',r=>date(r.created_at)]
-  ],completed);
-}
-
-function renderSafety() {
-  const drivers=profiles.filter(p=>p.role==='driver');
-  const stale=drivers.filter(d=>d.is_online&&(!d.location_updated_at||Date.now()-new Date(d.location_updated_at).getTime()>120000));
-  $('safety').innerHTML='<div class="stats">'+
-    '<div class="stat">Pending drivers<strong>'+drivers.filter(d=>!d.is_verified).length+'</strong></div>'+
-    '<div class="stat">Online stale GPS<strong>'+stale.length+'</strong></div>'+
-    '<div class="stat">Cancelled rides<strong>'+rides.filter(r=>r.status==='cancelled').length+'</strong></div>'+
-    '<div class="stat">Suspended profiles<strong>'+profiles.filter(p=>p.is_suspended).length+'</strong></div>'+
-    '</div><h3>Stale online driver GPS</h3>'+
-    (stale.length?'<ul>'+stale.map(d=>'<li>'+esc(d.full_name||d.id)+' — '+date(d.location_updated_at)+'</li>').join('')+'</ul>':'<p>No stale online driver GPS found.</p>')+
-    '<p class="muted">This page does not automatically contact emergency services.</p>';
-}
-
-function renderActiveRides() {
-  makeTable('activeRides',[
-    ['ID','id'],['Status','status'],['Passenger','passenger_id'],['Driver','driver_id'],
-    ['Pickup','',r=>esc(value(r,'pickup_location','pickup'))],
-    ['Destination','',r=>esc(value(r,'destination','destination_location'))],
-    ['Created','',r=>date(r.created_at)]
-  ],rides.filter(r=>activeStatus(r.status)));
-}
-
-function renderAudit() {
-  const search=($('auditSearch')?.value||'').toLowerCase();
-  makeTable('audit',[
-    ['Date','',r=>date(r.created_at)],['Admin','admin_id'],['Action','action'],
-    ['Table','target_table'],['Target','target_id'],
-    ['Details','',r=>esc(JSON.stringify(r.details||{}))]
-  ],logs.filter(r=>[r.admin_id,r.action,r.target_table,r.target_id,JSON.stringify(r.details||{})].join(' ').toLowerCase().includes(search)));
-}
-
-async function performAction(successMessage, callback) {
-  if(busy) return;
-  busy=true;
-  clearNotice();
-  try {
-    await callback();
-    await refreshAll();
-    notice(successMessage,'success');
-  } catch(error) {
-    console.error(error);
-    notice(error.message||String(error));
-  } finally {
-    busy=false;
-  }
-}
-
-async function updateDriver(id, verified) {
-  if(!confirm((verified?'Approve':'Revoke verification for')+' this driver?')) return;
-  await performAction('Driver record updated.',async()=>{
-    const {error}=await db.from('profiles').update({is_verified:verified}).eq('id',id).eq('role','driver');
-    if(error) throw error;
-    await audit(verified?'approve_driver':'unverify_driver','profiles',id,{is_verified:verified});
-  });
-}
-
-async function suspendProfile(id, suspended) {
-  if(!confirm((suspended?'Suspend':'Unsuspend')+' this profile?')) return;
-  await performAction('Profile status updated.',async()=>{
-    const {error}=await db.from('profiles').update({is_suspended:suspended}).eq('id',id);
-    if(error) throw error;
-    await audit(suspended?'suspend_profile':'unsuspend_profile','profiles',id,{is_suspended:suspended});
-  });
-}
-
-async function updateVehicle(id, approved) {
-  if(!confirm((approved?'Approve':'Unapprove')+' this vehicle?')) return;
-  await performAction('Vehicle record updated.',async()=>{
-    const {error}=await db.from('vehicles').update({is_approved:approved}).eq('id',id);
-    if(error) throw error;
-    await audit(approved?'approve_vehicle':'unapprove_vehicle','vehicles',id,{is_approved:approved});
-  });
-}
-
-async function cancelRide(id) {
-  const ride=rides.find(r=>String(r.id)===String(id));
-  if(!ride) { notice('Ride not found. Refresh and try again.'); return; }
-  if(!activeStatus(ride.status)) { notice('This ride is already closed or cannot be cancelled.'); return; }
-  const reason=prompt('Reason for cancelling ride '+id+':');
-  if(reason===null) return;
-  if(!reason.trim()) { notice('Please enter a cancellation reason.'); return; }
-  if(!confirm('Cancel ride '+id+'? This action will change its status.')) return;
-
-  await performAction('Ride cancelled successfully.',async()=>{
-    /*
-     * Use the dedicated admin RPC; do not update rides.status directly.
-     */
-    const {data,error}=await db.rpc('admin_cancel_ride',{p_ride_id:Number(id)});
-    if(error) throw new Error('Admin cancellation failed: '+error.message);
-    if(data!==true) throw new Error('The database did not confirm cancellation.');
-    await audit('admin_cancel_ride','rides',id,{reason:reason.trim()});
-  });
-}
-
-async function saveFare(id) {
-  const base=Number($('base-'+id).value);
-  const km=Number($('km-'+id).value);
-  const commission=Number($('com-'+id).value);
-  if(![base,km,commission].every(Number.isFinite)||base<0||km<0||commission<0||commission>100) {
-    notice('Enter valid fare values and commission from 0 to 100%.'); return;
-  }
-  if(!confirm('Save this fare rule?')) return;
-  await performAction('Fare rule saved.',async()=>{
-    const rule=fares.find(r=>String(r.id)===String(id));
-    if(!rule) throw new Error('Fare rule not found. Refresh and try again.');
-    const update={base_fare:base,per_km_fare:km};
-    update[Object.hasOwn(rule,'platform_commission_percent')?'platform_commission_percent':'commission_percent']=commission;
-    const {error}=await db.from('fare_rules').update(update).eq('id',id);
-    if(error) throw error;
-    await audit('update_fare_rule','fare_rules',id,{base_fare:base,per_km_fare:km,commission_percent:commission});
-  });
-}
-
-function exportCSV(filename, rows) {
-  if(!rows.length) { notice('No records to export.'); return; }
-  const keys=[...new Set(rows.flatMap(row=>Object.keys(row)))];
-  const cell=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
-  const csv=[keys.map(cell).join(','),...rows.map(row=>keys.map(k=>cell(typeof row[k]==='object'?JSON.stringify(row[k]):row[k])).join(','))].join('\r\n');
-  const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));
+function td(value){return `<td>${esc(value ?? '—')}</td>`}
+function emptyRow(cols,message='No records found.'){return `<tr><td colspan="${cols}" class="empty">${esc(message)}</td></tr>`}
+function csvDownload(filename, rows){
+  if(!rows.length){toast('There is no data to export.','error');return}
+  const csv=rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'}));
   const a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
 }
-
-function initMap() {
-  if(map) { setTimeout(()=>map.invalidateSize(),100); return; }
-  if(!window.L) throw new Error('Map library failed to load. Check your internet connection.');
-  map=L.map('map').setView([27.7172,85.3240],12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    maxZoom:19,attribution:'&copy; OpenStreetMap contributors'
-  }).addTo(map);
+function gotoPage(page){
+  if(!$('page-'+page))return;
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  $('page-'+page).classList.add('active');
+  document.querySelectorAll('#navigation button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
+  if(page==='tracking')setTimeout(()=>{if(bigMap)bigMap.invalidateSize();},100);
+  if(page==='dashboard')setTimeout(()=>{if(map)map.invalidateSize();},100);
 }
-
-async function refreshTracking() {
-  if(!user) return;
-  try {
-    initMap();
-    const {data,error}=await db.from('profiles')
-      .select('id,full_name,phone,is_online,is_verified,current_latitude,current_longitude,location_updated_at')
-      .eq('role','driver').not('current_latitude','is',null).not('current_longitude','is',null);
-    if(error) throw error;
-    let rows=data||[];
-    const filter=$('trackFilter').value;
-    if(filter==='online') rows=rows.filter(d=>d.is_online);
-    if(filter==='stale') rows=rows.filter(d=>!d.location_updated_at||Date.now()-new Date(d.location_updated_at).getTime()>120000);
-
-    const seen=new Set();
-    for(const d of rows) {
-      const lat=Number(d.current_latitude),lng=Number(d.current_longitude);
-      if(!Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180) continue;
-      seen.add(d.id);
-      const fresh=d.location_updated_at&&Date.now()-new Date(d.location_updated_at).getTime()<=120000;
-      const popup='<b>'+esc(d.full_name||'Driver')+'</b><br>Online: '+(d.is_online?'Yes':'No')+'<br>GPS: '+(fresh?'Recent':'Stale/unknown')+'<br>'+date(d.location_updated_at);
-      if(!markers[d.id]) markers[d.id]=L.marker([lat,lng]).addTo(map);
-      markers[d.id].setLatLng([lat,lng]).setPopupContent(popup).setOpacity(fresh?1:.45);
+async function checkAdmin(user){
+  const {data,error}=await db.from('profiles').select('id,role,is_suspended').eq('id',user.id).maybeSingle();
+  if(error)throw new Error('Unable to verify administrator profile: '+error.message);
+  if(!data || String(data.role||'').toLowerCase()!=='admin' || data.is_suspended===true)
+    throw new Error('This account does not have active administrator access.');
+  return data;
+}
+async function enterAdmin(user){
+  try{
+    await checkAdmin(user);
+    currentUser=user;
+    $('loginScreen').style.display='none';$('app').style.display='block';
+    $('adminEmail').textContent=user.email||'Admin';
+    $('systemStatus').textContent='Connected to Supabase';
+    hideNotice();
+    await refreshAll();
+    if(refreshTimer)clearInterval(refreshTimer);
+    refreshTimer=setInterval(()=>{if(currentUser)refreshAll(true)},30000);
+  }catch(error){
+    $('app').style.display='none';$('loginScreen').style.display='grid';
+    showLoginMessage(error.message);
+  }
+}
+async function loadTable(table,columns='*'){
+  const {data,error}=await db.from(table).select(columns);
+  if(error)throw new Error(table+': '+error.message);
+  return data||[];
+}
+async function refreshAll(silent=false){
+  if(!currentUser)return;
+  try{
+    const results=await Promise.allSettled([
+      loadTable('profiles'),
+      loadTable('rides'),
+      loadTable('vehicles'),
+      loadTable('fare_rules'),
+      loadTable('rydo_admin_audit_logs')
+    ]);
+    const labels=['profiles','rides','vehicles','fare rules','audit logs'];
+    const setters=[v=>profiles=v,v=>rides=v,v=>vehicles=v,v=>fareRules=v,v=>auditLogs=v];
+    const errors=[];
+    results.forEach((r,i)=>{
+      if(r.status==='fulfilled')setters[i](r.value);
+      else errors.push(labels[i]+': '+r.reason.message);
+    });
+    renderAll();
+    if(errors.length){
+      $('systemStatus').textContent='Some data could not load';
+      if(!silent)notice(errors.join(' | '),'error');
+    }else{
+      $('systemStatus').textContent='● System Online · '+new Date().toLocaleTimeString();
+      if(!silent)hideNotice();
     }
-    for(const id of Object.keys(markers)) if(!seen.has(id)) { map.removeLayer(markers[id]); delete markers[id]; }
-
-    makeTable('trackTable',[
-      ['Driver','full_name'],['Online','',d=>d.is_online?'Yes':'No'],
-      ['Verified','',d=>d.is_verified?'Yes':'No'],
-      ['Coordinates','',d=>'<button data-focus="'+esc(d.id)+'">'+esc(d.current_latitude)+', '+esc(d.current_longitude)+'</button>'],
-      ['Updated','',d=>date(d.location_updated_at)]
-    ],rows);
-    $('trackStatus').textContent='Map refreshed '+new Date().toLocaleTimeString()+'. Drivers shown: '+rows.length;
-  } catch(error) {
-    $('trackStatus').textContent='Tracking error: '+error.message;
+    if(!silent)toast('Rryd data refreshed.','success');
+  }catch(error){
+    if(!silent)notice(error.message,'error');
+    $('systemStatus').textContent='Data refresh failed';
+  }
+}
+function renderAll(){
+  renderDashboard();renderDrivers();renderVehicles();renderRides();renderFares();
+  renderPassengers();renderEarnings();renderTracking();renderSafety();renderAudit();
+  renderMaps();
+}
+function renderDashboard(){
+  const completed=rides.filter(r=>r.status==='completed');
+  const active=rides.filter(r=>activeStatuses.includes(r.status));
+  const online=profiles.filter(p=>roleName(p)==='driver'&&p.is_online&&!p.is_suspended);
+  const pending=profiles.filter(p=>roleName(p)==='driver'&&!p.is_verified&&!p.is_suspended);
+  const fareTotal=completed.reduce((s,r)=>s+Number(r.final_fare??r.actual_fare??r.fare??r.estimated_fare??0),0);
+  $('totalRides').textContent=rides.length.toLocaleString();
+  $('activeRides').textContent=active.length.toLocaleString();
+  $('onlineDrivers').textContent=online.length.toLocaleString();
+  $('pendingApprovals').textContent=pending.length.toLocaleString();
+  $('totalEarnings').textContent=money(fareTotal);
+  $('completedToday').textContent=completed.filter(r=>new Date(r.completed_at||r.created_at).toDateString()===new Date().toDateString()).length;
+  $('cancelledRides').textContent=rides.filter(r=>r.status==='cancelled').length;
+  $('totalDrivers').textContent=profiles.filter(p=>roleName(p)==='driver').length;
+  $('totalPassengers').textContent=profiles.filter(p=>roleName(p)==='passenger').length;
+  $('totalVehicles').textContent=vehicles.length;
+  $('todayDate').innerHTML=esc(new Date().toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long',year:'numeric'}))+'<br>'+esc(new Date().toLocaleTimeString());
+  $('recentRides').innerHTML=rides.slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,7).map(r=>{
+    const p=profileById(r.passenger_id),d=profileById(r.driver_id);
+    return `<tr><td class="id-cell">#${esc(r.id)}</td>${td(displayName(p))}${td(r.driver_id?displayName(d):'Unassigned')}${td((r.pickup_location||'—')+' → '+(r.destination||'—'))}<td>${statusPill(r.status)}</td>${td(money(r.final_fare??r.actual_fare??r.fare??r.estimated_fare))}</tr>`;
+  }).join('')||emptyRow(6);
+  $('dashboardFares').innerHTML=fareRules.map(f=>`<tr>${td(vehicleName(f.vehicle_type))}${td(money(f.base_fare))}${td(money(f.per_km_fare))}${td((f.platform_commission_percent??f.commission_percent??0)+'%')}</tr>`).join('')||emptyRow(4);
+  $('activeRideList').innerHTML=active.slice(0,6).map(r=>`<div class="active-row" data-ride="${esc(r.id)}"><div class="ride-row-title"><span>#${esc(r.id)}</span>${statusPill(r.status)}</div><div class="route-small">${esc(r.pickup_location||'Pickup')} → ${esc(r.destination||'Destination')}</div></div>`).join('')||'<div class="empty">No active rides</div>';
+  $('recentActivity').innerHTML=auditLogs.slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,5).map(a=>`<div class="activity"><div class="activity-icon">⚡</div><div><strong>${esc(a.action||a.action_type||'Admin action')}</strong><small>${esc(a.details||a.description||a.target_id||'')}</small></div><time>${esc(dateText(a.created_at))}</time></div>`).join('')||'<div class="empty">No audit activity recorded.</div>';
+}
+function renderDrivers(){
+  const q=($('driverSearch')?.value||$('globalSearch').value).toLowerCase();
+  const filter=$('driverFilter')?.value||'all';
+  const list=profiles.filter(p=>roleName(p)==='driver').filter(p=>{
+    const match=[p.full_name,p.email,p.phone,p.id].some(v=>String(v||'').toLowerCase().includes(q));
+    const status=filter==='pending'?!p.is_verified:filter==='verified'?!!p.is_verified:filter==='online'?!!p.is_online:filter==='suspended'?!!p.is_suspended:true;
+    return match&&status;
+  });
+  $('driversTable').innerHTML=list.map(p=>`<tr>${td(displayName(p))}${td(p.phone)}${td(p.email)}${td(boolText(p.is_verified))}${td(boolText(p.is_online))}${td(boolText(p.is_suspended))}<td><button class="btn btn-green" data-action="verify-driver" data-id="${esc(p.id)}">${p.is_verified?'Revoke':'Approve'}</button> <button class="btn ${p.is_suspended?'btn-green':'btn-danger'}" data-action="suspend-profile" data-id="${esc(p.id)}">${p.is_suspended?'Unsuspend':'Suspend'}</button></td></tr>`).join('')||emptyRow(7);
+}
+function renderVehicles(){
+  const q=($('vehicleSearch')?.value||'').toLowerCase(),f=$('vehicleFilter')?.value||'all';
+  const list=vehicles.filter(v=>{
+    const p=profileById(v.driver_id||v.profile_id);
+    return [v.id,v.vehicle_type,v.plate_number,v.vehicle_number,v.registration_number,v.model,displayName(p)].some(x=>String(x||'').toLowerCase().includes(q))&&(f==='all'||(f==='approved'?!!v.is_approved:!v.is_approved));
+  });
+  $('vehiclesTable').innerHTML=list.map(v=>`<tr>${td(v.id)}${td(displayName(profileById(v.driver_id||v.profile_id)))}${td(vehicleName(v.vehicle_type))}${td(v.plate_number||v.vehicle_number||v.registration_number)}${td(v.model)}${td(boolText(v.is_approved))}<td><button class="btn ${v.is_approved?'btn-danger':'btn-green'}" data-action="verify-vehicle" data-id="${esc(v.id)}">${v.is_approved?'Revoke':'Approve'}</button></td></tr>`).join('')||emptyRow(7);
+}
+function renderRides(){
+  const q=($('rideSearch')?.value||$('globalSearch').value).toLowerCase(),f=$('rideFilter')?.value||'all';
+  const list=rides.filter(r=>{
+    const p=profileById(r.passenger_id),d=profileById(r.driver_id);
+    return (f==='all'||r.status===f)&&[r.id,displayName(p),displayName(d),r.pickup_location,r.destination,r.status,r.vehicle_type].some(x=>String(x||'').toLowerCase().includes(q));
+  }).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  $('ridesTable').innerHTML=list.map(r=>`<tr>${td('#'+r.id)}${td(displayName(profileById(r.passenger_id)))}${td(r.driver_id?displayName(profileById(r.driver_id)):'Unassigned')}${td(r.pickup_location)}${td(r.destination)}${td(vehicleName(r.vehicle_type))}${td(r.distance_km==null?'—':Number(r.distance_km).toFixed(2)+' km')}${td(money(r.final_fare??r.actual_fare??r.fare??r.estimated_fare))}${td((r.payment_method||'—')+' / '+(r.payment_status||'—'))}<td>${statusPill(r.status)}</td><td>${activeStatuses.includes(r.status)?`<button class="btn btn-danger" data-action="cancel-ride" data-id="${esc(r.id)}">Cancel</button>`:'—'}</td></tr>`).join('')||emptyRow(11);
+}
+function renderFares(){
+  $('faresTable').innerHTML=fareRules.map(f=>`<tr data-fare-id="${esc(f.id)}"><td>${esc(vehicleName(f.vehicle_type))}</td><td><input aria-label="Base fare" type="number" min="0" step=".01" value="${esc(f.base_fare)}" class="fare-base" style="width:100px;background:#061625;color:white;border:1px solid #18364d;padding:8px;border-radius:6px"></td><td><input aria-label="Per km fare" type="number" min="0" step=".01" value="${esc(f.per_km_fare)}" class="fare-km" style="width:100px;background:#061625;color:white;border:1px solid #18364d;padding:8px;border-radius:6px"></td><td><input aria-label="Commission percent" type="number" min="0" max="100" step=".01" value="${esc(f.platform_commission_percent??f.commission_percent??15)}" class="fare-commission" style="width:85px;background:#061625;color:white;border:1px solid #18364d;padding:8px;border-radius:6px"></td><td>${boolText(f.is_active)}</td><td><button class="btn btn-orange" data-action="save-fare" data-id="${esc(f.id)}">Save</button></td></tr>`).join('')||emptyRow(6);
+}
+function renderPassengers(){
+  const q=($('passengerSearch')?.value||$('globalSearch').value).toLowerCase();
+  const list=profiles.filter(p=>roleName(p)==='passenger').filter(p=>[p.full_name,p.email,p.phone,p.id].some(x=>String(x||'').toLowerCase().includes(q)));
+  $('passengersTable').innerHTML=list.map(p=>`<tr>${td(displayName(p))}${td(p.email)}${td(p.phone)}${td(boolText(p.is_verified))}${td(boolText(p.is_suspended))}${td(dateText(p.created_at))}<td><button class="btn ${p.is_suspended?'btn-green':'btn-danger'}" data-action="suspend-profile" data-id="${esc(p.id)}">${p.is_suspended?'Unsuspend':'Suspend'}</button></td></tr>`).join('')||emptyRow(7);
+}
+function renderEarnings(){
+  const list=rides.filter(r=>r.status==='completed').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const total=list.reduce((s,r)=>s+Number(r.final_fare??r.actual_fare??r.fare??0),0);
+  const driver=list.reduce((s,r)=>s+Number(r.driver_earnings||0),0);
+  const platform=list.reduce((s,r)=>s+Number(r.admin_earnings||0),0);
+  $('reportFare').textContent=money(total);$('reportDriver').textContent=money(driver);$('reportAdmin').textContent=money(platform);$('reportCompleted').textContent=list.length;
+  $('earningsTable').innerHTML=list.slice(0,300).map(r=>`<tr>${td('#'+r.id)}${td(dateText(r.created_at))}${td(money(r.final_fare??r.actual_fare??r.fare))}${td(money(r.driver_earnings))}${td(money(r.admin_earnings))}${td((r.payment_method||'—')+' / '+(r.payment_status||'—'))}</tr>`).join('')||emptyRow(6);
+}
+function renderTracking(){
+  const drivers=profiles.filter(p=>roleName(p)==='driver'&&p.current_latitude!=null&&p.current_longitude!=null);
+  $('trackingTable').innerHTML=drivers.map(p=>`<tr>${td(displayName(p))}${td(p.phone)}${td(p.is_online?'Online':'Offline')}${td(p.current_latitude)}${td(p.current_longitude)}${td(dateText(p.location_updated_at))}</tr>`).join('')||emptyRow(6,'No driver GPS locations available.');
+}
+function renderSafety(){
+  const list=profiles.filter(p=>p.is_suspended);
+  $('safetyTable').innerHTML=list.map(p=>`<tr>${td(displayName(p))}${td(p.phone)}${td(p.role)}${td(p.suspension_reason||'—')}<td><button class="btn btn-green" data-action="suspend-profile" data-id="${esc(p.id)}">Unsuspend</button></td></tr>`).join('')||emptyRow(5,'No suspended accounts.');
+  const active=rides.filter(r=>activeStatuses.includes(r.status));
+  $('safetyRides').innerHTML=active.map(r=>`<tr>${td('#'+r.id)}${td(displayName(profileById(r.passenger_id)))}${td(r.driver_id?displayName(profileById(r.driver_id)):'Unassigned')}${td((r.pickup_location||'—')+' → '+(r.destination||'—'))}<td>${statusPill(r.status)}</td><td><button class="btn btn-danger" data-action="cancel-ride" data-id="${esc(r.id)}">Cancel ride</button></td></tr>`).join('')||emptyRow(6);
+}
+function renderAudit(){
+  $('auditTable').innerHTML=auditLogs.slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,500).map(a=>`<tr>${td(dateText(a.created_at))}${td(a.admin_id||a.user_id||a.actor_id||'—')}${td(a.action||a.action_type)}${td(a.target_id||a.entity_id||'—')}${td(a.details||a.description||JSON.stringify(a.metadata||{}))}</tr>`).join('')||emptyRow(5,'No audit records available or table access is restricted.');
+}
+function makeMap(id){
+  if(!window.L||!$(id))return null;
+  const m=L.map(id).setView([27.7172,85.3240],12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(m);
+  return m;
+}
+function drawMarkers(m,arr){
+  if(!m)return;
+  arr.forEach(marker=>m.removeLayer(marker));arr.length=0;
+  profiles.filter(p=>roleName(p)==='driver'&&p.current_latitude!=null&&p.current_longitude!=null).forEach(p=>{
+    const lat=Number(p.current_latitude),lng=Number(p.current_longitude);
+    if(!Number.isFinite(lat)||!Number.isFinite(lng))return;
+    const marker=L.marker([lat,lng]).addTo(m).bindPopup(`<strong>${esc(displayName(p))}</strong><br>${esc(p.is_online?'Online':'Offline')}<br>${esc(p.phone||'')}`);
+    arr.push(marker);
+  });
+}
+function renderMaps(){
+  if(!map)map=makeMap('map');
+  if(!bigMap)bigMap=makeMap('bigMap');
+  drawMarkers(map,markers);drawMarkers(bigMap,bigMarkers);
+}
+async function audit(action,targetId,details){
+  try{
+    const {error}=await db.from('rydo_admin_audit_logs').insert({
+      admin_id:currentUser.id,action,target_id:String(targetId??''),details:String(details??'')
+    });
+    if(error)console.warn('Audit log insert:',error.message);
+  }catch(e){console.warn('Audit log:',e.message)}
+}
+async function doAction(button){
+  const action=button.dataset.action,id=button.dataset.id;
+  if(!action||!id)return;
+  if(action==='cancel-ride'){
+    const ride=rides.find(r=>String(r.id)===String(id));
+    if(!ride||!activeStatuses.includes(ride.status)){toast('This ride is no longer active. Refresh and try again.','error');return}
+    if(!confirm(`Cancel ride #${id}? This will notify the passenger and assigned driver if notifications are configured.`))return;
+    button.disabled=true;
+    try{
+      const {error}=await db.rpc('admin_cancel_ride',{p_ride_id:Number(id)});
+      if(error)throw error;
+      await audit('admin_cancel_ride',id,'Admin cancelled ride');
+      toast('Ride cancellation completed.','success');await refreshAll(true);
+    }catch(e){toast('Could not cancel ride: '+e.message,'error')}
+    finally{button.disabled=false}
+    return;
+  }
+  if(action==='verify-driver'){
+    const p=profiles.find(x=>String(x.id)===String(id));if(!p)return;
+    if(!confirm(`${p.is_verified?'Revoke verification from':'Approve'} ${displayName(p)}?`))return;
+    button.disabled=true;
+    try{
+      if(!p.is_verified){
+        const {error}=await db.rpc('approve_driver',{p_driver_id:id});
+        if(error)throw error;
+      }else{
+        const {error}=await db.from('profiles').update({is_verified:false}).eq('id',id);
+        if(error)throw error;
+      }
+      await audit(p.is_verified?'driver_verification_revoked':'driver_approved',id,displayName(p));
+      toast('Driver status updated.','success');await refreshAll(true);
+    }catch(e){toast('Driver update failed: '+e.message,'error')}
+    finally{button.disabled=false}
+    return;
+  }
+  if(action==='verify-vehicle'){
+    const v=vehicles.find(x=>String(x.id)===String(id));if(!v)return;
+    if(!confirm(`${v.is_approved?'Revoke approval from':'Approve'} vehicle #${id}?`))return;
+    button.disabled=true;
+    try{
+      if(!v.is_approved){
+        const {error}=await db.rpc('approve_vehicle',{p_vehicle_id:Number(id)});
+        if(error)throw error;
+      }else{
+        const {error}=await db.from('vehicles').update({is_approved:false}).eq('id',id);
+        if(error)throw error;
+      }
+      await audit(v.is_approved?'vehicle_approval_revoked':'vehicle_approved',id,'Vehicle approval updated');
+      toast('Vehicle status updated.','success');await refreshAll(true);
+    }catch(e){toast('Vehicle update failed: '+e.message,'error')}
+    finally{button.disabled=false}
+    return;
+  }
+  if(action==='suspend-profile'){
+    const p=profiles.find(x=>String(x.id)===String(id));if(!p)return;
+    if(!confirm(`${p.is_suspended?'Unsuspend':'Suspend'} ${displayName(p)}?`))return;
+    button.disabled=true;
+    try{
+      const update=p.is_suspended
+        ? {is_suspended:false,suspension_reason:null,suspended_at:null}
+        : {is_suspended:true,suspension_reason:'Suspended by administrator',suspended_at:new Date().toISOString()};
+      const {error}=await db.from('profiles').update(update).eq('id',id);
+      if(error)throw error;
+      await audit(p.is_suspended?'account_unsuspended':'account_suspended',id,displayName(p));
+      toast('Account status updated.','success');await refreshAll(true);
+    }catch(e){toast('Account update failed: '+e.message,'error')}
+    finally{button.disabled=false}
+    return;
+  }
+  if(action==='save-fare'){
+    const row=button.closest('tr'),rule=fareRules.find(f=>String(f.id)===String(id));
+    if(!row||!rule)return;
+    const base=Number(row.querySelector('.fare-base').value);
+    const km=Number(row.querySelector('.fare-km').value);
+    const commission=Number(row.querySelector('.fare-commission').value);
+    if(![base,km,commission].every(Number.isFinite)||base<0||km<0||commission<0||commission>100){
+      toast('Enter valid non-negative fares and commission between 0 and 100.','error');return;
+    }
+    const update={base_fare:base,per_km_fare:km,is_active:rule.is_active};
+    if(Object.hasOwn(rule,'platform_commission_percent'))update.platform_commission_percent=commission;
+    else update.commission_percent=commission;
+    button.disabled=true;
+    try{
+      const {error}=await db.from('fare_rules').update(update).eq('id',id);
+      if(error)throw error;
+      await audit('fare_rule_updated',id,`${rule.vehicle_type}: base ${base}, per km ${km}, commission ${commission}%`);
+      toast('Fare rule saved.','success');await refreshAll(true);
+    }catch(e){toast('Fare update failed: '+e.message,'error')}
+    finally{button.disabled=false}
   }
 }
 
-async function startTracking() {
-  if(tracking) return;
-  try {
-    initMap();tracking=true;
-    await refreshTracking();
-    timer=setInterval(refreshTracking,15000);
-    channel=db.channel('rryd-admin-live')
-      .on('postgres_changes',{event:'*',schema:'public',table:'profiles'},()=>refreshTracking())
-      .subscribe(status=>{$('trackStatus').textContent='Realtime: '+status;});
-  } catch(error) {
-    tracking=false;$('trackStatus').textContent=error.message;
-  }
-}
-
-async function stopTracking() {
-  tracking=false;
-  if(timer) { clearInterval(timer);timer=null; }
-  if(channel) { await db.removeChannel(channel);channel=null; }
-  $('trackStatus').textContent='Live updates stopped.';
-}
-
-/* Login */
-$('loginForm').addEventListener('submit',async event=>{
-  event.preventDefault();
+$('loginForm').addEventListener('submit',async e=>{
+  e.preventDefault();
   $('loginButton').disabled=true;
-  try {
-    const {data,error}=await db.auth.signInWithPassword({
-      email:$('email').value.trim(),password:$('password').value
-    });
-    if(error) throw error;
-    if(!data.user) throw new Error('Sign-in did not return a user.');
+  try{
+    const {data,error}=await db.auth.signInWithPassword({email:$('loginEmail').value.trim(),password:$('loginPassword').value});
+    if(error)throw error;
     await enterAdmin(data.user);
-  } catch(error) {
-    console.error(error);
-    notice(error.message||'Login failed.');
-  } finally {
-    $('loginButton').disabled=false;
-  }
+  }catch(e){showLoginMessage(e.message)}
+  finally{$('loginButton').disabled=false}
 });
-
-$('showPass').onclick=()=>{
-  $('password').type=$('password').type==='password'?'text':'password';
-  $('showPass').textContent=$('password').type==='password'?'Show':'Hide';
-};
-$('forgot').onclick=()=>$('resetBox').classList.toggle('hidden');
-
-$('sendReset').onclick=async()=>{
-  try {
-    const email=$('email').value.trim();
-    if(!email) throw new Error('Enter your admin email first.');
-    const {error}=await db.auth.resetPasswordForEmail(email,{
-      redirectTo:location.origin+location.pathname+'?mode=reset'
-    });
-    if(error) throw error;
-    notice('If the account exists, a reset email has been sent. Check your inbox and spam folder.','success');
-  } catch(error) { notice(error.message); }
-};
-
-$('newPassForm').addEventListener('submit',async event=>{
-  event.preventDefault();
-  try {
-    const password=$('newPass').value;
-    if(password!==$('confirmPass').value) throw new Error('Passwords do not match.');
-    if(password.length<8) throw new Error('Password must be at least 8 characters.');
+$('forgotButton').addEventListener('click',async()=>{
+  const email=$('loginEmail').value.trim();
+  if(!email){showLoginMessage('Enter your email address first.');return}
+  try{
+    const redirect=location.origin+location.pathname+'?mode=reset';
+    const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:redirect});
+    if(error)throw error;
+    showLoginMessage('If the account exists, a password reset link has been sent. Check your email.','success');
+  }catch(e){showLoginMessage(e.message)}
+});
+$('savePasswordButton').addEventListener('click',async()=>{
+  const password=$('newPassword').value;
+  if(password.length<8){showLoginMessage('Use a password with at least 8 characters.');return}
+  try{
     const {error}=await db.auth.updateUser({password});
-    if(error) throw error;
-    await db.auth.signOut();
-    history.replaceState(null,'',location.pathname);
-    $('newPassForm').classList.add('hidden');
+    if(error)throw error;
+    showLoginMessage('Password updated. You can now sign in.','success');
     $('resetBox').classList.add('hidden');
-    notice('Password changed. Sign in again.','success');
-  } catch(error) { notice(error.message); }
+  }catch(e){showLoginMessage(e.message)}
 });
-
-$('logout').onclick=async()=>{
-  await stopTracking();
-  await db.auth.signOut();
-  location.reload();
-};
-$('refresh').onclick=()=>refreshAll().catch(e=>notice(e.message));
-
-$('driverSearch').oninput=renderDrivers;
-$('driverFilter').onchange=renderDrivers;
-$('rideSearch').oninput=renderRides;
-$('rideFilter').onchange=renderRides;
-$('passSearch').oninput=renderPassengers;
-$('auditSearch').oninput=renderAudit;
-
-$('trackStart').onclick=startTracking;
-$('trackStop').onclick=stopTracking;
-$('trackRefresh').onclick=refreshTracking;
-$('trackFilter').onchange=refreshTracking;
-
-$('csvRides').onclick=()=>exportCSV('rryd-rides.csv',rides);
-$('csvDone').onclick=()=>exportCSV('rryd-completed-rides.csv',rides.filter(r=>r.status==='completed'));
-$('csvDrivers').onclick=()=>exportCSV('rryd-drivers.csv',profiles.filter(p=>p.role==='driver'));
-$('csvAudit').onclick=()=>exportCSV('rryd-audit.csv',logs);
-
-$('auditRefresh').onclick=async()=>{
-  try { logs=await fetchRows('rydo_admin_audit_logs');renderAudit();notice('Audit logs refreshed.','success'); }
-  catch(error) { notice(error.message); }
-};
-
-$('nav').onclick=event=>{
-  const button=event.target.closest('[data-page]');
-  if(!button) return;
-  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b===button));
-  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('hidden',p.id!=='page-'+button.dataset.page));
-  if(button.dataset.page==='tracking') {
-    try { initMap();if(tracking) refreshTracking(); }
-    catch(error) { $('trackStatus').textContent=error.message; }
-  }
-};
-
-document.addEventListener('click',event=>{
-  const button=event.target.closest('button');
-  if(!button) return;
-  if(button.dataset.driver) updateDriver(button.dataset.driver,button.dataset.value==='true');
-  if(button.dataset.suspend) suspendProfile(button.dataset.suspend,button.dataset.value==='true');
-  if(button.dataset.vehicle) updateVehicle(button.dataset.vehicle,button.dataset.value==='true');
-  if(button.dataset.cancel) cancelRide(button.dataset.cancel);
-  if(button.dataset.fare) saveFare(button.dataset.fare);
-  if(button.dataset.details) showRideDetails(button.dataset.details);
-  if(button.dataset.focus&&markers[button.dataset.focus]) {
-    map.setView(markers[button.dataset.focus].getLatLng(),16);
-    markers[button.dataset.focus].openPopup();
-  }
+$('logoutButton').addEventListener('click',async()=>{
+  if(!confirm('Sign out of the Rryd Admin Portal?'))return;
+  if(refreshTimer)clearInterval(refreshTimer);
+  await db.auth.signOut();currentUser=null;$('app').style.display='none';$('loginScreen').style.display='grid';
 });
+$('refreshButton').addEventListener('click',()=>refreshAll());
+document.querySelectorAll('[data-refresh]').forEach(b=>b.addEventListener('click',()=>refreshAll()));
+document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>gotoPage(b.dataset.goto)));
+$('navigation').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-page]');if(b)gotoPage(b.dataset.page);
+});
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button[data-action]');if(b)doAction(b);
+  const r=e.target.closest('[data-ride]');if(r)gotoPage('rides');
+});
+['driverSearch','driverFilter','vehicleSearch','vehicleFilter','rideSearch','rideFilter','passengerSearch'].forEach(id=>{
+  $(id).addEventListener('input',()=>{
+    if(id.startsWith('driver'))renderDrivers();
+    if(id.startsWith('vehicle'))renderVehicles();
+    if(id.startsWith('ride'))renderRides();
+    if(id==='passengerSearch')renderPassengers();
+  });
+});
+$('globalSearch').addEventListener('input',()=>{
+  renderDrivers();renderRides();renderPassengers();
+});
+$('exportRides').addEventListener('click',()=>csvDownload('rryd-rides.csv',[
+  ['ID','Passenger','Driver','Pickup','Destination','Vehicle','Distance KM','Fare','Payment Method','Payment Status','Status','Created'],
+  ...rides.map(r=>[r.id,displayName(profileById(r.passenger_id)),displayName(profileById(r.driver_id)),r.pickup_location,r.destination,r.vehicle_type,r.distance_km,r.final_fare??r.actual_fare??r.fare,r.payment_method,r.payment_status,r.status,r.created_at])
+]));
+$('exportEarnings').addEventListener('click',()=>csvDownload('rryd-earnings.csv',[
+  ['Ride ID','Created','Fare','Driver Earnings','Platform Earnings','Payment Method','Payment Status'],
+  ...rides.filter(r=>r.status==='completed').map(r=>[r.id,r.created_at,r.final_fare??r.actual_fare??r.fare,r.driver_earnings,r.admin_earnings,r.payment_method,r.payment_status])
+]));
 
 db.auth.onAuthStateChange((event,session)=>{
-  if(event==='PASSWORD_RECOVERY') {
-    $('auth').classList.remove('hidden');$('app').classList.add('hidden');
-    $('resetBox').classList.remove('hidden');$('newPassForm').classList.remove('hidden');
-    $('authTitle').textContent='Set new password';
-  } else if(session?.user&&!user) {
-    setTimeout(()=>enterAdmin(session.user),0);
+  if(event==='PASSWORD_RECOVERY'){$('loginScreen').style.display='grid';$('resetBox').classList.remove('hidden')}
+  if(event==='SIGNED_OUT'){
+    currentUser=null;if(refreshTimer)clearInterval(refreshTimer);
+    $('app').style.display='none';$('loginScreen').style.display='grid';
   }
+  if(session?.user&&!currentUser)setTimeout(()=>enterAdmin(session.user),0);
 });
-
 (async()=>{
-  try {
-    const {data:{session},error}=await db.auth.getSession();
-    if(error) throw error;
-    if(session?.user) await enterAdmin(session.user);
-    if(new URLSearchParams(location.search).get('mode')==='reset') {
-      $('resetBox').classList.remove('hidden');
-      $('newPassForm').classList.remove('hidden');
-      $('authTitle').textContent='Set new password';
-    }
-  } catch(error) {
-    console.error(error);
-    notice('Session initialization failed: '+error.message);
-  }
-})();
-
+  $('todayDate').textContent=new Date().toLocaleDateString();
+  const params=new URLSearchParams(location.search);
+  if(params.get('mode')==='reset')$('resetBox').classList.remove('hidden');
+  try{
+    const {data,error}=await db.auth.getSession();
+    if(error)throw error;
+    if(data.session?.user)await enterAdmin(data.session.user);
+  }catch(e){showLoginMessage('Session check failed: '+e.message)}
 })();
 </script>
 </body>
