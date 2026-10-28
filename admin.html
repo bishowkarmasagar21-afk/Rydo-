@@ -323,9 +323,33 @@ async function get(tableName,order='created_at',limit=3000){
  return data||[];
 }
 async function checkAdmin(){
- const {data,error}=await db.rpc('rydo_is_admin');
- if(error)throw Error('Admin verification failed: '+error.message);
- if(data!==true)throw Error('This account is not an authorized RRYD administrator.');
+async function checkAdmin() {
+  const { data: { user }, error: authError } =
+    await db.auth.getUser();
+
+  if (authError || !user) {
+    throw Error('Please sign in first.');
+  }
+
+  const { data, error } = await db
+    .from('profiles')
+    .select('id, role, is_suspended')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (error) {
+    throw Error('Admin profile verification failed: ' + error.message);
+  }
+
+  if (
+    !data ||
+    data.role !== 'admin' ||
+    data.is_suspended === true
+  ) {
+    throw Error('This account is not an authorized RRYD administrator.');
+  }
+
+  return true;
 }
 async function writeAudit(action,target,id,details={}){
  if(!user)return;
