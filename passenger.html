@@ -5,1483 +5,557 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#08111b">
 <title>Rryd | Passenger</title>
-
-<link rel="stylesheet"
- href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-:root {
-  --bg:#08111b;
-  --panel:#142638;
-  --panel2:#0d1c2a;
-  --text:#f4f7fb;
-  --muted:#aab9c8;
-  --orange:#ff7417;
-  --blue:#58b9ff;
-  --border:#2b4053;
-  --danger:#ff5366;
-  --success:#37d99a;
-  --input:#f8fafc;
-  --inputText:#132536;
-}
-* { box-sizing:border-box }
-body {
-  margin:0;
-  background:var(--bg);
-  color:var(--text);
-  font-family:Arial,Helvetica,sans-serif;
-  line-height:1.45;
-}
-body.light {
-  --bg:#edf4f9;
-  --panel:#fff;
-  --panel2:#f5f9fc;
-  --text:#172a3a;
-  --muted:#627487;
-  --border:#d3e0e9;
-  --input:#fff;
-  --inputText:#132536;
-}
-button,input,select { font:inherit }
-button {
-  padding:12px 14px;
-  border:0;
-  border-radius:10px;
-  font-weight:700;
-  cursor:pointer;
-}
-button:disabled { opacity:.5;cursor:not-allowed }
-.primary { background:var(--orange);color:white }
-.secondary { background:var(--blue);color:#062034 }
-.ghost {
-  background:transparent;
-  border:1px solid var(--border);
-  color:var(--text);
-}
-.danger { background:var(--danger);color:white }
-input,select {
-  width:100%;
-  padding:12px;
-  border:1px solid var(--border);
-  border-radius:9px;
-  background:var(--input);
-  color:var(--inputText);
-}
-input:focus,select:focus {
-  outline:2px solid #ff741755;
-  border-color:var(--orange);
-}
-label {
-  display:block;
-  margin:12px 0 5px;
-  font-size:14px;
-  font-weight:700;
-}
-a { color:var(--blue) }
-.hidden { display:none!important }
-.muted { color:var(--muted) }
-.small { font-size:13px }
-.center { text-align:center }
-.wrap { max-width:1200px;margin:auto;padding:16px }
-.topbar {
-  position:sticky;
-  top:0;
-  z-index:1000;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  padding:12px 18px;
-  background:var(--panel);
-  border-bottom:1px solid var(--border);
-}
-.brand {
-  font-size:25px;
-  font-weight:900;
-  letter-spacing:1px;
-}
-.brand span { color:var(--orange) }
-.top-actions { display:flex;gap:8px;flex-wrap:wrap }
-.card {
-  min-width:0;
-  padding:17px;
-  margin-bottom:15px;
-  background:var(--panel);
-  border:1px solid var(--border);
-  border-radius:16px;
-}
-.auth-card { max-width:460px;margin:35px auto }
-.auth-tabs { display:flex;gap:8px;margin-bottom:12px }
-.auth-tabs button { flex:1 }
-.grid {
-  display:grid;
-  grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);
-  gap:14px;
-}
-.row { display:flex;align-items:center;gap:8px }
-.row>* { min-width:0 }
-.grow { flex:1 }
-.message {
-  padding:10px 12px;
-  margin:10px 0;
-  border-radius:9px;
-  overflow-wrap:anywhere;
-}
-.message:empty { display:none }
-.message.error { background:#ff536620;color:var(--danger) }
-.message.ok { background:#37d99a20;color:var(--success) }
-.message.info { background:#58b9ff20;color:var(--blue) }
-#map {
-  width:100%;
-  height:390px;
-  margin-top:12px;
-  border:1px solid var(--border);
-  border-radius:12px;
-  z-index:1;
-}
-.vehicle-grid {
-  display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:8px;
-  margin-top:8px;
-}
-.vehicle-option {
-  background:var(--panel2);
-  border:1px solid var(--border);
-  color:var(--text);
-  text-align:center;
-  padding:12px 4px;
-}
-.vehicle-option.selected {
-  border:2px solid var(--orange);
-  background:#ff74171a;
-}
-.emoji { display:block;font-size:24px }
-.fare { font-size:27px;font-weight:900;color:var(--orange) }
-.location-result {
-  padding:10px;
-  margin-top:4px;
-  border:1px solid var(--border);
-  border-radius:8px;
-  background:var(--panel2);
-  cursor:pointer;
-  font-size:13px;
-  overflow-wrap:anywhere;
-}
-.location-result:hover { border-color:var(--orange) }
-.status {
-  display:inline-block;
-  padding:4px 9px;
-  border-radius:20px;
-  background:#58b9ff22;
-  color:var(--blue);
-  font-size:12px;
-  font-weight:700;
-}
-.status.completed { background:#37d99a22;color:var(--success) }
-.status.cancelled { background:#ff536622;color:var(--danger) }
-.ride-item,.driver-box {
-  padding:12px;
-  margin-top:10px;
-  border:1px solid var(--border);
-  border-radius:10px;
-  overflow-wrap:anywhere;
-}
-hr { border:0;border-top:1px solid var(--border);margin:18px 0 }
-.footer { text-align:center;color:var(--muted);font-size:12px;padding:22px }
-.leaflet-container { background:#dce8ee }
-.leaflet-popup-content-wrapper,.leaflet-popup-tip { color:#172a3a }
-.pin-help {
-  margin-top:8px;
-  padding:10px;
-  border-radius:9px;
-  background:var(--panel2);
-  font-size:13px;
-}
-@media(max-width:780px) {
-  .grid { grid-template-columns:1fr }
-  .wrap { padding:9px }
-  .card { padding:13px }
-  .topbar { padding:10px }
-  .brand { font-size:22px }
-  #map { height:330px }
-  .top-actions button { padding:9px;font-size:12px }
-}
+:root{color-scheme:dark;--bg:#08111b;--panel:#142638;--panel2:#0d1c2a;--text:#f4f7fb;--muted:#aab9c8;--orange:#ff7417;--blue:#58b9ff;--border:#2b4053;--danger:#ff5366;--success:#37d99a;--input:#fff;--inputText:#132536;--shadow:0 12px 32px #0002}
+body.light{color-scheme:light;--bg:#edf4f9;--panel:#fff;--panel2:#f5f9fc;--text:#172a3a;--muted:#627487;--border:#d3e0e9;--input:#fff;--inputText:#132536;--shadow:0 10px 28px #0d233310}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font:15px Inter,Arial,Helvetica,sans-serif;line-height:1.45}button,input,select,textarea{font:inherit}button{border:0;border-radius:10px;padding:11px 14px;font-weight:700;cursor:pointer;touch-action:manipulation}button:disabled{opacity:.52;cursor:not-allowed}.primary{background:var(--orange);color:#fff}.secondary{background:var(--blue);color:#052137}.ghost{background:transparent;color:var(--text);border:1px solid var(--border)}.danger{background:var(--danger);color:#fff}.good{background:var(--success);color:#052719}input,select,textarea{width:100%;padding:12px;border:1px solid var(--border);border-radius:9px;background:var(--input);color:var(--inputText);outline:none}input:focus,select:focus,textarea:focus{border-color:var(--orange);box-shadow:0 0 0 2px #ff741733}label{display:block;margin:12px 0 5px;font-weight:700;font-size:13px}a{color:var(--blue)}.hidden{display:none!important}.muted{color:var(--muted)}.small{font-size:12px}.tiny{font-size:11px}.center{text-align:center}.wrap{max-width:1320px;margin:auto;padding:16px}.topbar{position:sticky;top:0;z-index:700;display:flex;align-items:center;gap:14px;padding:12px 18px;background:var(--panel);border-bottom:1px solid var(--border)}.brand{font-size:27px;font-weight:950;letter-spacing:-.8px;white-space:nowrap}.brand .rr{color:var(--orange)}.tagline{color:var(--muted);font-size:11px;margin-top:-4px}.topnote{flex:1;color:var(--muted);font-size:12px}.top-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.top-actions button{padding:9px 11px}.card{min-width:0;background:var(--panel);border:1px solid var(--border);border-radius:15px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}h1{font-size:24px;margin:0 0 6px}h2{font-size:19px;margin:0 0 13px}h3{font-size:16px;margin:5px 0 10px}.layout{display:grid;grid-template-columns:minmax(0,1.18fr) minmax(320px,.82fr);gap:14px;align-items:start}.stack{display:grid;gap:14px;min-width:0}.row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.row>*{min-width:0}.grow{flex:1;min-width:0}.fieldrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px}.fieldrow button{white-space:nowrap}.fieldbox{margin-bottom:9px}.fieldlabel{display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px;margin:6px 0}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#19ba80}.dot.dest{background:var(--danger)}.results{margin:4px 0 8px;max-height:180px;overflow:auto}.result{padding:10px;margin-top:5px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;overflow-wrap:anywhere}.result:hover{border-color:var(--orange)}#map{height:440px;width:100%;z-index:1;border-radius:12px;border:1px solid var(--border);overflow:hidden;background:#dce8ee}.map-tools{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.map-tools button{flex:1}.routeinfo{border-radius:9px;background:var(--panel2);padding:10px;margin-top:10px;overflow-wrap:anywhere}.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}.stat{padding:10px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;min-width:0}.stat span{display:block;color:var(--muted);font-size:11px}.stat strong{display:block;font-size:17px;margin-top:4px;overflow-wrap:anywhere}.vehicles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.vehicle{background:var(--panel2);color:var(--text);border:1px solid var(--border);padding:12px 5px;text-align:center}.vehicle.selected{border:2px solid var(--orange);background:#ff741718;padding:11px 4px}.vehicle .emoji{font-size:25px;display:block;margin-bottom:3px}.vehicle small{display:block;font-size:11px;color:var(--muted);font-weight:500}.fare{font-size:30px;font-weight:950;color:var(--orange);line-height:1.25}.message{border-radius:9px;padding:10px 12px;margin:10px 0;overflow-wrap:anywhere;white-space:pre-wrap}.message:empty{display:none}.message.error{background:#ff536620;color:var(--danger)}.message.ok{background:#37d99a20;color:var(--success)}.message.info{background:#58b9ff20;color:var(--blue)}.subtle{border-top:1px solid var(--border);margin:15px 0}.status{display:inline-flex;padding:4px 9px;border-radius:99px;background:#58b9ff22;color:var(--blue);font-size:12px;font-weight:800}.status.completed{background:#37d99a22;color:var(--success)}.status.cancelled{background:#ff536622;color:var(--danger)}.ride{border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:9px;overflow-wrap:anywhere}.ride p{margin:6px 0}.ride-head{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}.history{max-height:540px;overflow:auto}.driver-box{border:1px solid var(--border);background:var(--panel2);border-radius:10px;padding:12px;margin-top:10px}.fare-note{font-size:12px;color:var(--muted);line-height:1.45}.inline-check{display:flex;gap:8px;align-items:flex-start}.inline-check input{width:auto;margin-top:4px}.footer{text-align:center;padding:18px 10px;color:var(--muted);font-size:12px}.modalback{position:fixed;inset:0;background:#000b;z-index:2000;display:grid;place-items:center;padding:14px;overflow:auto}.modal{width:min(500px,100%);max-height:94vh;overflow:auto;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:0 22px 65px #0008}.modal h2{margin-top:0}.modal-actions{display:flex;gap:8px;margin-top:12px}.modal-actions>*{flex:1}.receipt-toast{position:fixed;z-index:2100;left:12px;right:12px;bottom:12px;max-width:680px;margin:0 auto;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:13px;box-shadow:0 12px 40px #0008;padding:14px;max-height:72vh;overflow:auto}.receipt-head{display:flex;align-items:center;gap:8px;justify-content:space-between;position:sticky;top:-14px;background:var(--panel);padding:0 0 8px}.receipt-toast pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}.receipt-close{padding:3px 9px;background:transparent;border:1px solid var(--border);color:var(--text)}.side-actions{display:flex;gap:7px;flex-wrap:wrap}.side-actions button{flex:1}.pill{display:inline-block;border:1px solid var(--border);border-radius:99px;padding:4px 9px;color:var(--muted);font-size:11px}.map-legend{display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin-top:6px}.legenddot{width:9px;height:9px;display:inline-block;border-radius:50%;margin-right:4px}.disabled-note{border:1px dashed var(--border);border-radius:9px;padding:11px;color:var(--muted);font-size:12px}.danger-text{color:var(--danger)}.toast{position:fixed;right:14px;bottom:14px;z-index:1900;width:min(340px,calc(100% - 28px));background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:var(--shadow)}.toast h3{margin:0 0 5px}.support-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.linkbtn{display:inline-block;text-decoration:none;text-align:center;border:1px solid var(--border);border-radius:9px;padding:10px;color:var(--text)}.leaflet-popup-content{color:#142638}
+@media(max-width:900px){.layout{grid-template-columns:1fr}#map{height:380px}.topnote{display:none}}
+@media(max-width:560px){.wrap{padding:8px}.topbar{padding:9px 10px;gap:8px}.brand{font-size:22px}.tagline{font-size:10px}.top-actions{gap:4px}.top-actions button{padding:8px;font-size:12px}.card{padding:12px;margin-bottom:10px}.layout{gap:10px}#map{height:310px}.fieldrow{grid-template-columns:minmax(0,1fr) auto}.fieldrow button{padding:10px 9px;font-size:12px}.stats{gap:5px}.stat{padding:8px}.stat strong{font-size:15px}.vehicles{gap:5px}.vehicle{font-size:13px;padding:9px 3px}.vehicle.selected{padding:8px 2px}.vehicle .emoji{font-size:22px}.modal{padding:15px}.support-grid{grid-template-columns:1fr}}
 </style>
 </head>
-
 <body>
 <header class="topbar">
-  <div class="brand">R<span>R</span>YD</div>
+  <div><div class="brand"><span class="rr">R</span>ryd</div><div class="tagline">Move your way.</div></div>
+  <div class="topnote">Nepal ride booking · Real road routes · Fare estimates</div>
   <div class="top-actions">
-    <button id="themeBtn" class="ghost" type="button">☀️ / 🌙</button>
-    <button id="settingsBtn" class="ghost hidden" type="button">Settings</button>
-    <button id="logoutBtn" class="ghost hidden" type="button">Log out</button>
+    <button class="ghost" id="themeBtn" type="button" title="Toggle dark or light theme">☀ / ☾</button>
+    <button class="ghost hidden" id="settingsBtn" type="button">Settings</button>
+    <button class="ghost hidden" id="notificationsBtn" type="button">Notifications</button>
+    <button class="ghost hidden" id="logoutBtn" type="button">Log out</button>
+    <button class="primary" id="accountBtn" type="button">Sign in</button>
   </div>
 </header>
 
 <main class="wrap">
-<section id="authSection" class="card auth-card">
-  <div class="center">
-    <div class="brand">R<span>R</span>YD</div>
-    <p class="muted">Move your way.</p>
-  </div>
-
-  <div class="auth-tabs">
-    <button id="loginTab" class="primary" type="button">Login</button>
-    <button id="registerTab" class="ghost" type="button">Register</button>
-  </div>
-
-  <form id="authForm">
-    <div id="registerFields" class="hidden">
-      <label for="fullName">Full name</label>
-      <input id="fullName" autocomplete="name" placeholder="Your full name">
-
-      <label for="phone">Phone number</label>
-      <input id="phone" type="tel" autocomplete="tel"
-       placeholder="+977 98XXXXXXXX">
-    </div>
-
-    <label for="email">Email address</label>
-    <input id="email" type="email" autocomplete="email"
-     placeholder="you@example.com" required>
-
-    <label for="password">Password</label>
+  <div id="globalMessage" class="message hidden" role="status" aria-live="polite"></div>
+  <section class="card">
+    <h1 id="welcome">Plan your ride</h1>
+    <p class="muted small">Choose your pickup and destination. Rryd calculates an estimated fare from the road route and active fare rules.</p>
+    <div id="appMessage" class="message" role="status" aria-live="polite"></div>
+    <div id="notificationMessage" class="message info hidden" role="status" aria-live="polite"></div>
     <div class="row">
-      <input id="password" class="grow" type="password"
-       autocomplete="current-password" required>
-      <button id="showPasswordBtn" class="ghost" type="button">Show</button>
+      <button class="secondary" id="enableNotificationsBtn" type="button">Enable browser alerts + sound</button>
+      <span class="muted small">Alerts work while this page is open; persistent mobile push needs a push service.</span>
     </div>
+  </section>
 
-    <button id="forgotBtn" class="ghost" type="button"
-     style="width:100%;margin-top:10px">Forgot password?</button>
+  <div class="layout" id="bookingSection">
+    <section class="stack">
+      <div class="card">
+        <h2>Where are you going?</h2>
+        <div class="fieldbox">
+          <div class="fieldlabel"><span class="dot"></span>Pickup location</div>
+          <div class="fieldrow"><input id="pickup" autocomplete="off" placeholder="Search a place in Nepal"><button class="secondary" id="searchPickupBtn" type="button">Search</button></div>
+          <div id="pickupResults" class="results hidden"></div>
+        </div>
+        <div class="fieldbox">
+          <div class="fieldlabel"><span class="dot dest"></span>Destination</div>
+          <div class="fieldrow"><input id="destination" autocomplete="off" placeholder="Where do you want to go?"><button class="secondary" id="searchDestinationBtn" type="button">Search</button></div>
+          <div id="destinationResults" class="results hidden"></div>
+        </div>
+        <div class="map-tools">
+          <button class="ghost" id="gpsBtn" type="button">◎ Use my GPS</button>
+          <button class="ghost" id="pickPickupBtn" type="button">＋ Pin pickup</button>
+          <button class="ghost" id="pickDestinationBtn" type="button">＋ Pin destination</button>
+          <button class="ghost" id="clearRouteBtn" type="button">Clear</button>
+        </div>
+        <p class="muted small" id="mapMessage">Search a place or choose a pin mode, then tap the map. Both pins can be dragged.</p>
+        <div id="map" aria-label="Rryd road map"></div>
+        <div class="map-legend"><span><i class="legenddot" style="background:#17c98b"></i>Pickup</span><span><i class="legenddot" style="background:#ff5366"></i>Destination</span><span><i class="legenddot" style="background:#ff7417"></i>Road route</span><span><i class="legenddot" style="background:#1687ff"></i>Assigned driver (when location is available)</span></div>
+        <div id="routeInfo" class="routeinfo muted">Route distance and estimated time appear after both locations are selected.</div>
+        <div class="stats">
+          <div class="stat"><span>Road distance</span><strong id="distanceDisplay">— km</strong></div>
+          <div class="stat"><span>Estimated time</span><strong id="etaDisplay">— min</strong></div>
+          <div class="stat"><span>Estimated fare</span><strong id="fareMini">NPR —</strong></div>
+        </div>
+        <div class="subtle"></div>
+        <h3>Saved places (this browser)</h3>
+        <p class="muted small">Saved places stay on this device only; they are not synced to other devices.</p>
+        <div class="row">
+          <button class="ghost grow" id="saveHomeBtn" type="button">Save pickup as Home</button>
+          <button class="ghost grow" id="useHomeBtn" type="button">Use Home</button>
+        </div>
+        <div class="row" style="margin-top:7px">
+          <button class="ghost grow" id="saveWorkBtn" type="button">Save pickup as Work</button>
+          <button class="ghost grow" id="useWorkBtn" type="button">Use Work</button>
+        </div>
+      </div>
+    </section>
 
-    <button id="authSubmit" class="primary" type="submit"
-     style="width:100%;margin-top:12px">Login</button>
-  </form>
+    <section class="stack">
+      <div class="card">
+        <h2>Choose your vehicle</h2>
+        <div class="vehicles">
+          <button class="vehicle selected" data-vehicle="bike" type="button"><span class="emoji">🏍️</span>Bike<small id="bikePrice">NPR —</small></button>
+          <button class="vehicle" data-vehicle="car" type="button"><span class="emoji">🚗</span>Car<small id="carPrice">NPR —</small></button>
+          <button class="vehicle" data-vehicle="tuk_tuk" type="button"><span class="emoji">🛺</span>Tuk Tuk<small id="tuk_tukPrice">NPR —</small></button>
+        </div>
+        <div class="subtle"></div>
+        <div class="muted small">Estimated fare</div><div class="fare" id="fareDisplay">NPR —</div>
+        <p class="fare-note" id="fareBreakdown">Loading active fare rules from Supabase...</p>
+        <div class="fare-note" style="margin-top:8px">The fare is an estimate, not a guaranteed final charge. The final fare may change only under the disclosed rules below and must be calculated from verified trip data.</div>
+        <details style="margin-top:10px">
+          <summary style="cursor:pointer;font-weight:700">When can the final fare change?</summary>
+          <ul class="fare-note">
+            <li>The passenger confirms a changed destination or an additional stop.</li>
+            <li>A validated road closure or unavoidable diversion changes the billable route under Rryd's final-fare rules.</li>
+            <li>Any future waiting, toll, surge or other fee must be explicitly configured and disclosed before it is charged.</li>
+            <li>An unnecessary driver detour, a GPS failure, or a guessed distance must not automatically increase the passenger's fare.</li>
+          </ul>
+          <p class="fare-note">This HTML shows the estimate and sends the calculated route distance to the existing request function. The database must enforce final-fare rules; this page does not set a final fare itself.</p>
+        </details>
+        <div class="subtle"></div>
+        <label for="paymentMethod">Payment method</label>
+        <select id="paymentMethod"><option value="cash">Cash — pay driver</option><option value="online">Online payment — not enabled yet</option></select>
+        <p id="paymentInfo" class="muted small">Cash is selected. Online payment cannot be marked paid until a real payment gateway is integrated.</p>
+        <button class="primary" id="requestRideBtn" style="width:100%;margin-top:8px" type="button">Request ride</button>
+        <div id="bookingMessage" class="message hidden" role="status" aria-live="polite"></div>
+        <div class="subtle"></div>
+        <h3>Driver availability</h3>
+        <p class="muted small">Rryd checks the current vehicle-availability function before showing its count. A count can change before a booking is processed, so the server remains authoritative.</p>
+        <div id="availabilityText" class="message info">Sign in to check availability.</div>
+        <button class="ghost" id="refreshAvailabilityBtn" type="button">Refresh availability</button>
+        <div id="nearbyMessage" class="muted small" style="margin-top:8px">Before assignment, this page does not expose every driver's precise GPS coordinates. A secure nearby-driver feed can be added if one exists in Supabase.</div>
+      </div>
 
-  <form id="recoveryForm" class="hidden">
-    <h3>Reset password</h3>
-    <p class="muted small">We'll email you a password-reset link.</p>
-    <label for="recoveryEmail">Email address</label>
-    <input id="recoveryEmail" type="email" required>
-    <button class="primary" style="width:100%;margin-top:12px">
-      Send reset link
-    </button>
-    <button id="backToLoginBtn" class="ghost" type="button"
-     style="width:100%;margin-top:8px">Back to login</button>
-  </form>
+      <div class="card" id="currentPanel">
+        <div class="row"><h2 class="grow">Current ride</h2><button class="ghost" id="refreshRideBtn" type="button">Refresh</button></div>
+        <div id="currentRide"><p class="muted">Sign in to view a ride.</p></div>
+        <div id="driverDetails"></div>
+        <div id="rideSafetyPanel" class="hidden">
+          <div class="subtle"></div><h3>Trip safety and sharing</h3>
+          <div class="support-grid"><button class="ghost" id="shareTripBtn" type="button">Share trip details</button><button class="ghost" id="reportTripBtn" type="button">Report an issue</button></div>
+          <p class="muted small">An SOS button is intentionally not shown as active until Rryd has a monitored emergency response channel. For immediate danger, use local emergency services.</p>
+        </div>
+        <div id="ratingPanel" class="disabled-note hidden">Driver ratings will appear here when a verified rating endpoint is configured. No rating is stored by this page without that backend.</div>
+        <div id="messagePanel" class="disabled-note hidden">In-app messaging requires a secure ride-message endpoint and database policies. This page will not pretend a message was sent when that endpoint is unavailable. Use the driver's call option when available.</div>
+      </div>
 
-  <form id="newPasswordForm" class="hidden">
-    <h3>Choose a new password</h3>
-    <label for="newPassword">New password</label>
-    <input id="newPassword" type="password" minlength="6" required>
-    <label for="confirmNewPassword">Confirm password</label>
-    <input id="confirmNewPassword" type="password" minlength="6" required>
-    <button class="primary" style="width:100%;margin-top:12px">
-      Update password
-    </button>
-  </form>
-
-  <div id="authMessage" class="message" role="status"></div>
-</section>
-
-<section id="appSection" class="hidden">
-  <div class="card">
-    <h1 id="welcome">Welcome to Rryd</h1>
-    <p class="muted">Book your next ride across Nepal.</p>
-    <div id="appMessage" class="message" role="status"></div>
+      <div class="card">
+        <div class="row"><h2 class="grow">Ride history</h2><button class="ghost" id="refreshHistoryBtn" type="button">Refresh</button></div>
+        <div id="rideHistory" class="history"><p class="muted">Your rides will appear here.</p></div>
+      </div>
+    </section>
   </div>
 
-  <section id="bookingSection" class="grid">
-    <div class="card">
-      <h2>Book a ride</h2>
-
-      <label for="pickup">Pickup location</label>
-      <input id="pickup" autocomplete="off"
-       placeholder="Search pickup in Nepal">
-      <div id="pickupResults" class="hidden"></div>
-
-      <div class="row" style="margin-top:8px">
-        <button id="gpsBtn" class="secondary grow" type="button">
-          Use my GPS
-        </button>
-        <button id="pickupPinBtn" class="ghost" type="button">
-          Pickup pin
-        </button>
-      </div>
-
-      <label for="destination">Destination</label>
-      <input id="destination" autocomplete="off"
-       placeholder="Search destination in Nepal">
-      <div id="destinationResults" class="hidden"></div>
-
-      <div class="row" style="margin-top:8px">
-        <button id="destinationPinBtn" class="ghost grow" type="button">
-          Destination pin
-        </button>
-        <button id="fitRouteBtn" class="ghost" type="button">
-          Show route
-        </button>
-      </div>
-
-      <div class="pin-help">
-        <strong>Map pins:</strong> choose Pickup pin or Destination pin,
-        then click the map. You can also drag either marker to adjust it.
-      </div>
-
-      <div id="map"></div>
-      <p id="mapMessage" class="muted small">
-        Search for locations or choose a pin to place it on the road map.
-      </p>
-
-      <hr>
-      <h3>Select vehicle</h3>
-      <div class="vehicle-grid">
-        <button class="vehicle-option selected" data-vehicle="bike" type="button">
-          <span class="emoji">🏍️</span>Bike
-        </button>
-        <button class="vehicle-option" data-vehicle="car" type="button">
-          <span class="emoji">🚗</span>Car
-        </button>
-        <button class="vehicle-option" data-vehicle="tuk_tuk" type="button">
-          <span class="emoji">🛺</span>Tuk Tuk
-        </button>
-      </div>
-
-      <label for="paymentMethod">Payment method</label>
-      <select id="paymentMethod">
-        <option value="cash">Cash</option>
-        <option value="online">Online</option>
-      </select>
-
-      <hr>
-      <div class="row">
-        <div class="grow">
-          <div class="muted small">Estimated fare</div>
-          <div id="fareDisplay" class="fare">NPR --</div>
-        </div>
-        <div class="grow">
-          <div class="muted small">Road distance</div>
-          <strong id="distanceDisplay">-- km</strong>
-          <div id="etaDisplay" class="muted small">ETA: --</div>
-        </div>
-      </div>
-
-      <p id="fareNote" class="muted small">
-        Fare uses active Supabase fare rules when available.
-      </p>
-
-      <button id="requestRideBtn" class="primary" type="button"
-       style="width:100%;margin-top:12px">Request ride</button>
-    </div>
-
-    <div>
-      <div class="card">
-        <h2>Current ride</h2>
-        <div id="currentRide">
-          <p class="muted">You have no active ride.</p>
-        </div>
-        <div id="driverDetails"></div>
-      </div>
-
-      <div class="card">
-        <div class="row">
-          <h2 class="grow">Ride history</h2>
-          <button id="refreshHistoryBtn" class="ghost" type="button">
-            Refresh
-          </button>
-        </div>
-        <div id="rideHistory">
-          <p class="muted">Your ride history will appear here.</p>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>Ride receipt</h3>
-        <p class="muted small">
-          Completed ride receipts can be downloaded from ride history.
-        </p>
-      </div>
-    </div>
+  <section id="settingsPanel" class="card hidden">
+    <div class="row"><h2 class="grow">Account settings</h2><button class="ghost" id="closeSettingsBtn" type="button">Back to booking</button></div>
+    <form id="profileForm">
+      <label for="settingsName">Full name</label><input id="settingsName" required autocomplete="name">
+      <label for="settingsPhone">Phone number</label><input id="settingsPhone" required type="tel" autocomplete="tel" placeholder="+977 98XXXXXXXX">
+      <button class="primary" type="submit" style="margin-top:12px">Save profile</button>
+    </form>
+    <div id="settingsMessage" class="message" role="status"></div>
+    <div class="subtle"></div><h3>Password</h3><p class="muted small">Send a reset link to the email on your account.</p>
+    <button class="secondary" id="settingsResetBtn" type="button">Send password-reset email</button>
+    <div class="subtle"></div><h3>Privacy and account</h3><p class="muted small">Deleting an account is permanent and may affect access to past trip data. Any retention required for financial or safety records must follow Rryd's policy.</p>
+    <button class="danger" id="deleteAccountBtn" type="button">Delete my account</button>
   </section>
 
-  <section id="settingsSection" class="hidden">
-    <div class="card">
-      <div class="row">
-        <h2 class="grow">Account settings</h2>
-        <button id="closeSettingsBtn" class="ghost" type="button">Back</button>
-      </div>
-
-      <form id="profileForm">
-        <label for="settingsName">Full name</label>
-        <input id="settingsName" required>
-
-        <label for="settingsPhone">Phone number</label>
-        <input id="settingsPhone" type="tel" required>
-
-        <button class="primary" type="submit"
-         style="width:100%;margin-top:12px">Save profile</button>
-      </form>
-
-      <div id="profileMessage" class="message"></div>
-
-      <hr>
-      <h3>Change password</h3>
-      <button id="settingsResetBtn" class="secondary" type="button">
-        Send password-reset email
-      </button>
-
-      <hr>
-      <h3>Support</h3>
-      <p class="muted small">
-        Contact support using the support address configured for Rryd.
-      </p>
-
-      <hr>
-      <h3>Delete account</h3>
-      <p class="muted small">
-        This may permanently remove your account and cannot be undone.
-      </p>
-      <button id="deleteAccountBtn" class="danger" type="button">
-        Delete my account
-      </button>
+  <section id="supportPanel" class="card">
+    <h2>Help and support</h2>
+    <p class="muted small">This form prepares a detailed report that you can copy and send to Rryd support. Ticket submission and case tracking require a configured support backend; this page will not claim a ticket was submitted when it wasn't.</p>
+    <div class="grid">
+      <div><label for="supportCategory">Issue type</label><select id="supportCategory"><option>Booking problem</option><option>Fare dispute</option><option>Driver or vehicle concern</option><option>Payment issue</option><option>Lost item</option><option>Safety concern</option><option>Account or privacy</option><option>Other</option></select></div>
+      <div><label for="supportRideId">Ride ID (optional)</label><input id="supportRideId" placeholder="Ride ID"></div>
     </div>
+    <label for="supportDetails">Describe the issue</label><textarea id="supportDetails" rows="3" placeholder="Describe what happened. Do not include passwords or payment secrets."></textarea>
+    <div class="row" style="margin-top:8px"><button class="secondary" id="copySupportReportBtn" type="button">Copy support report</button><button class="ghost" id="shareSupportReportBtn" type="button">Share report</button></div>
+    <div id="supportMessage" class="message" role="status"></div>
   </section>
-</section>
-
-<div class="footer">Rryd · Move your way.</div>
+  <p class="muted tiny">Mapping services, location search and routing services have separate usage terms. For a production ride-hailing business, use providers with suitable service permissions, capacity and reliability.</p>
 </main>
+<footer class="footer">Rryd · Move your way · Nepal</footer>
+
+<div id="authOverlay" class="modalback">
+  <section class="modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <div class="center"><div class="brand"><span class="rr">R</span>ryd</div><p class="muted">Move your way.</p></div>
+    <h2 id="authTitle">Passenger account</h2>
+    <div class="row"><button class="primary grow" id="loginTab" type="button">Sign in</button><button class="ghost grow" id="registerTab" type="button">Register</button></div>
+    <form id="authForm">
+      <div id="registerFields" class="hidden"><label for="registerName">Full name</label><input id="registerName" autocomplete="name" placeholder="Your full name"><label for="registerPhone">Phone number</label><input id="registerPhone" type="tel" autocomplete="tel" placeholder="+977 98XXXXXXXX"></div>
+      <label for="email">Email address</label><input id="email" type="email" autocomplete="email" required placeholder="you@example.com">
+      <label for="password">Password</label><div class="row"><input class="grow" id="password" type="password" autocomplete="current-password" required minlength="6"><button class="ghost" id="showPasswordBtn" type="button">Show</button></div>
+      <button class="ghost" id="forgotBtn" type="button" style="width:100%;margin-top:9px">Forgot password?</button>
+      <button class="primary" id="authSubmit" type="submit" style="width:100%;margin-top:12px">Sign in</button>
+    </form>
+    <form id="recoveryForm" class="hidden"><h3>Reset password</h3><p class="muted small">We'll send a secure password reset link.</p><label for="recoveryEmail">Email address</label><input id="recoveryEmail" type="email" required><button class="primary" type="submit" style="width:100%;margin-top:12px">Send reset link</button><button class="ghost" id="backToLoginBtn" type="button" style="width:100%;margin-top:8px">Back to sign in</button></form>
+    <form id="newPasswordForm" class="hidden"><h3>Set a new password</h3><label for="newPassword">New password</label><input id="newPassword" type="password" minlength="8" required><label for="confirmNewPassword">Confirm new password</label><input id="confirmNewPassword" type="password" minlength="8" required><button class="primary" type="submit" style="width:100%;margin-top:12px">Save new password</button></form>
+    <div id="authMessage" class="message" role="status" aria-live="polite"></div>
+    <button class="ghost" id="closeAuthBtn" type="button" style="width:100%">Close</button>
+  </section>
+</div>
+
+<div id="receiptPopup" class="receipt-toast hidden" role="dialog" aria-label="Completed ride receipt" aria-live="polite"></div>
+<div id="toast" class="toast hidden" role="status" aria-live="polite"><h3 id="toastTitle">Rryd</h3><div id="toastBody"></div><button class="ghost" id="toastClose" type="button" style="margin-top:8px">Close</button></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script>
 "use strict";
 
-/* SUPABASE */
+/* Rryd public browser configuration. Never put a service-role/secret key in HTML. */
 const SUPABASE_URL = "https://kqtvuorasqyzjbnlkkxs.supabase.co";
 const SUPABASE_KEY = "sb_publishable_zZFJiy0YWZgOXFesVuAQcA_wd7rleMb";
-
+const PHONE_RPC = "rydd_update_my_phone";
+const NAME_RPC = "rydd_update_my_passenger_name";
+const DELETE_RPC = "delete_own_account";
+const DRIVER_DETAILS_RPC = "get_driver_details_for_my_ride";
+const AVAILABILITY_RPC = "rryd_check_vehicle_availability";
+const ACTIVE_STATUSES = ["requested","accepted","arriving","started"];
+const VEHICLE_TYPES = ["bike","car","tuk_tuk"];
+const ROUTER_BASE = "https://router.project-osrm.org/route/v1/driving"; // Demo/test router; replace for production scale.
+const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"; // Replace with a production-authorized tile provider as Rryd scales.
+const NOMINATIM_BASE = "https://nominatim.openstreetmap.org"; // Development/testing only for this ride-hailing use case; use an authorized production geocoder.
 const $ = id => document.getElementById(id);
-const ACTIVE = ["requested","accepted","arriving","started"];
+const show = (id,on=true) => { const e=$(id); if(e)e.classList.toggle("hidden",!on); };
+const text = (id,value) => { const e=$(id); if(e)e.textContent=value==null?"":String(value); };
+const esc = value => String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const money = value => Number.isFinite(Number(value)) ? "NPR " + Math.round(Number(value)).toLocaleString("en-IN") : "NPR —";
+const roundFare = value => Math.floor(Number(value) + 0.5);
+const isActive = status => ACTIVE_STATUSES.includes(String(status||"").toLowerCase());
+const statusName = status => String(status||"unknown").replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase());
+const errorText = error => String(error?.message||error||"Unknown error");
+const setMessage = (id,value,type="info") => { const e=$(id); if(e){e.textContent=value||"";e.className="message"+(type?" "+type:"");} };
 
-let db = null;
-let session = null;
-let profile = null;
-let authMode = "login";
-let selectedVehicle = "bike";
+let db=null,session=null,profile=null,authMode="login",selectedVehicle="bike",paymentMethod="cash",loadedProfileUserId=null,loadingProfile=false;
+let map=null,pickupMarker=null,destinationMarker=null,routeLayer=null,driverMarker=null,driverRouteLayer=null;
+let pickupPoint=null,destinationPoint=null,routeDistanceKm=0,routeDurationMinutes=0,routeGeometry=null;
+let fareRules={},fareRulesLoaded=false,fareRulesError="",mapPickTarget="",routeRequestSeq=0,driverRouteSeq=0,lastDriverRouteKey="",lastReceiptPopupId=null;
+let currentRide=null,rideRows=[],ridePollTimer=null,availabilityTimer=null,isLoading=false;
+let lastKnownStatus="",lastKnownRideId=null,receiptTimer=null,notificationAllowed=false,soundEnabled=false,audioContext=null;
+let lastNominatimAt=0,nominatimQueue=Promise.resolve(),lastRequestAt=0;
 
-let map = null;
-let pickupMarker = null;
-let destinationMarker = null;
-let routeLayer = null;
-let pickupCoords = null;
-let destinationCoords = null;
-let routeDistanceKm = 0;
-let routeDurationMinutes = 0;
-let fareRules = {};
-let currentRide = null;
-let mapPickTarget = null;
-let isLoadingPassenger = false;
-let pollingTimer = null;
-let pickupSearchTimer = null;
-let destinationSearchTimer = null;
-let searchSequence = {pickup:0,destination:0};
-let routeSequence = 0;
+function activeViewSettings(){show("settingsPanel",true);show("bookingSection",false);show("supportPanel",false);$("settingsPanel").scrollIntoView({behavior:"smooth",block:"start"});}
+function showBookingView(){show("settingsPanel",false);show("bookingSection",true);show("supportPanel",true);window.scrollTo({top:0,behavior:"smooth"});}
+function profileDisplayName(){return profile?.full_name||session?.user?.user_metadata?.full_name||session?.user?.email||"Passenger";}
+function showToast(title,body){text("toastTitle",title);text("toastBody",body);show("toast",true);}
+$("toastClose").addEventListener("click",()=>show("toast",false));
 
-function message(id,text,type="") {
-  const el = $(id);
-  if (!el) return;
-  el.textContent = text || "";
-  el.className = "message" + (type ? " " + type : "");
-}
-function show(id,visible=true) {
-  const el = $(id);
-  if (el) el.classList.toggle("hidden",!visible);
-}
-function setText(id,value) {
-  const el = $(id);
-  if (el) el.textContent = value == null ? "" : String(value);
-}
-function errText(error) {
-  return error?.message || String(error || "Unknown error");
-}
-function escapeHTML(value) {
-  return String(value ?? "").replace(/[&<>"']/g,ch=>({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-  }[ch]));
-}
-function money(value) {
-  const n = Number(value);
-  return Number.isFinite(n)
-    ? "NPR " + Math.round(n).toLocaleString("en-IN")
-    : "NPR --";
-}
-function normalizeVehicle(value) {
-  return String(value || "").toLowerCase().replace(/[- ]/g,"_");
-}
-function isActive(status) {
-  return ACTIVE.includes(String(status || "").toLowerCase());
-}
-function friendlyError(error) {
-  const m = errText(error);
-  if (/invalid api key/i.test(m))
-    return "Supabase rejected the publishable key. Check the key in this file.";
-  if (/row-level security|permission denied/i.test(m))
-    return "Supabase permissions blocked this action. Check its existing policy or RPC.";
-  if (/failed to fetch|network/i.test(m))
-    return "Network error. Check your internet connection.";
-  return m;
-}
+/* Theme */
+try{if(localStorage.getItem("rryd-passenger-theme")==="light")document.body.classList.add("light");}catch(_){}
+$("themeBtn").addEventListener("click",()=>{document.body.classList.toggle("light");try{localStorage.setItem("rryd-passenger-theme",document.body.classList.contains("light")?"light":"dark");}catch(_){}});
 
-/* THEME */
-$("themeBtn").addEventListener("click",()=>{
-  document.body.classList.toggle("light");
-  try {
-    localStorage.setItem("rryd-passenger-theme",
-      document.body.classList.contains("light") ? "light" : "dark");
-  } catch (_) {}
-});
-try {
-  if (localStorage.getItem("rryd-passenger-theme") === "light")
-    document.body.classList.add("light");
-} catch (_) {}
-
-/* AUTH FORMS */
-function setAuthMode(mode) {
-  authMode = mode === "register" ? "register" : "login";
-  show("registerFields",authMode === "register");
-  $("fullName").required = authMode === "register";
-  $("phone").required = authMode === "register";
-  $("password").autocomplete = authMode === "register"
-    ? "new-password" : "current-password";
-  $("authSubmit").textContent = authMode === "register"
-    ? "Create passenger account" : "Login";
-  $("loginTab").className = authMode === "login" ? "primary" : "ghost";
-  $("registerTab").className = authMode === "register" ? "primary" : "ghost";
-  message("authMessage","");
-}
+/* Auth views */
+function setAuthMode(mode){authMode=mode==="register"?"register":"login";show("registerFields",authMode==="register");$("loginTab").className=authMode==="login"?"primary grow":"ghost grow";$("registerTab").className=authMode==="register"?"primary grow":"ghost grow";text("authSubmit",authMode==="register"?"Create passenger account":"Sign in");$("password").autocomplete=authMode==="register"?"new-password":"current-password";$("registerName").required=authMode==="register";$("registerPhone").required=authMode==="register";show("forgotBtn",authMode==="login");setMessage("authMessage","");show("authForm",true);show("recoveryForm",false);show("newPasswordForm",false);}
 $("loginTab").addEventListener("click",()=>setAuthMode("login"));
 $("registerTab").addEventListener("click",()=>setAuthMode("register"));
+$("showPasswordBtn").addEventListener("click",()=>{const e=$("password");e.type=e.type==="password"?"text":"password";text("showPasswordBtn",e.type==="password"?"Show":"Hide");});
+$("forgotBtn").addEventListener("click",()=>{text("recoveryEmail","");$("recoveryEmail").value=$("email").value.trim();show("authForm",false);show("recoveryForm",true);show("newPasswordForm",false);setMessage("authMessage","");});
+$("backToLoginBtn").addEventListener("click",()=>setAuthMode("login"));
+$("closeAuthBtn").addEventListener("click",()=>{if(session?.user)show("authOverlay",false);else setMessage("authMessage","Sign in or register to book a ride.","info");});
 
-$("showPasswordBtn").addEventListener("click",()=>{
-  const input = $("password");
-  input.type = input.type === "password" ? "text" : "password";
-  $("showPasswordBtn").textContent =
-    input.type === "password" ? "Show" : "Hide";
-});
-
-$("forgotBtn").addEventListener("click",()=>{
-  $("recoveryEmail").value = $("email").value.trim();
-  show("authForm",false);
-  show("recoveryForm",true);
-  show("newPasswordForm",false);
-  message("authMessage","");
-});
-$("backToLoginBtn").addEventListener("click",()=>{
-  show("authForm",true);
-  show("recoveryForm",false);
-  show("newPasswordForm",false);
-  message("authMessage","");
-});
-
-$("recoveryForm").addEventListener("submit",async event=>{
-  event.preventDefault();
-  try {
-    const {error} = await db.auth.resetPasswordForEmail(
-      $("recoveryEmail").value.trim().toLowerCase(),
-      {redirectTo:location.href.split("#")[0].split("?")[0]}
-    );
-    if (error) throw error;
-    message("authMessage",
-      "If the email is registered, a reset link will be sent. Check your inbox and spam folder.",
-      "ok");
-  } catch(error) {
-    message("authMessage",friendlyError(error),"error");
-  }
-});
-
-$("newPasswordForm").addEventListener("submit",async event=>{
-  event.preventDefault();
-  const password = $("newPassword").value;
-  if (password !== $("confirmNewPassword").value)
-    return message("authMessage","Passwords do not match.","error");
-  try {
-    const {error} = await db.auth.updateUser({password});
-    if (error) throw error;
-    message("authMessage","Password updated successfully.","ok");
-    show("newPasswordForm",false);
-    show("authForm",true);
-  } catch(error) {
-    message("authMessage",friendlyError(error),"error");
-  }
-});
-
-/* REGISTER / LOGIN */
-$("authForm").addEventListener("submit",async event=>{
-  event.preventDefault();
-  const button = $("authSubmit");
-  button.disabled = true;
-  message("authMessage",authMode === "register"
-    ? "Creating passenger account..." : "Signing in...");
-  try {
-    const email = $("email").value.trim().toLowerCase();
-    const password = $("password").value;
-
-    if (authMode === "register") {
-      const fullName = $("fullName").value.trim();
-      const phone = $("phone").value.trim();
-
-      if (!fullName || !phone)
-        throw new Error("Enter your full name and phone number.");
-
-      if (phone.length < 7 || phone.length > 20)
-        throw new Error("Enter a valid phone number.");
-
-      const {data,error} = await db.auth.signUp({
-        email,
-        password,
-        options:{
-          data:{full_name:fullName,phone,role:"passenger"},
-          emailRedirectTo:location.href.split("#")[0].split("?")[0]
-        }
-      });
-      if (error) throw error;
-
-      if (data.session) {
-        session = data.session;
-        await loadPassenger();
-      } else {
-        message("authMessage",
-          "Registration submitted. Verify your email if required, then log in.",
-          "ok");
-      }
-    } else {
-      const {data,error} = await db.auth.signInWithPassword({email,password});
-      if (error) throw error;
-      session = data.session;
-      await loadPassenger();
+$("authForm").addEventListener("submit",async e=>{
+  e.preventDefault();if(isLoading||!db)return;isLoading=true;const button=$("authSubmit");button.disabled=true;const oldText=button.textContent;button.textContent=authMode==="register"?"Creating account…":"Signing in…";
+  try{
+    const email=$("email").value.trim(),password=$("password").value;
+    if(authMode==="register"){
+      const full_name=$("registerName").value.trim(),phone=$("registerPhone").value.trim();
+      if(full_name.length<2)throw Error("Enter your full name.");if(phone.length<7)throw Error("Enter a valid phone number.");
+      const {data,error}=await db.auth.signUp({email,password,options:{data:{full_name,phone,role:"passenger"}}});if(error)throw error;
+      if(data.session){session=data.session;await loadPassenger();show("authOverlay",false);setMessage("appMessage","Passenger account created.","ok");}
+      else setMessage("authMessage","Registration submitted. Check your email to confirm your account, then sign in.","ok");
+    }else{
+      const {data,error}=await db.auth.signInWithPassword({email,password});if(error)throw error;if(!data.session)throw Error("Login did not return an active session.");session=data.session;await loadPassenger();show("authOverlay",false);
     }
-  } catch(error) {
-    message("authMessage",friendlyError(error),"error");
-  } finally {
-    button.disabled = false;
-  }
+  }catch(error){setMessage("authMessage",friendlyError(error),"error");}
+  finally{isLoading=false;button.disabled=false;button.textContent=authMode==="register"?"Create passenger account":"Sign in";}
 });
+$("recoveryForm").addEventListener("submit",async e=>{e.preventDefault();try{const email=$("recoveryEmail").value.trim();const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(error)throw error;setMessage("authMessage","Password reset email sent if this address is registered. Open the link on this site to set a new password.","ok");}catch(error){setMessage("authMessage",friendlyError(error),"error");}});
+$("newPasswordForm").addEventListener("submit",async e=>{e.preventDefault();const a=$("newPassword").value,b=$("confirmNewPassword").value;if(a.length<8)return setMessage("authMessage","Use at least 8 characters.","error");if(a!==b)return setMessage("authMessage","Passwords do not match.","error");try{const {error}=await db.auth.updateUser({password:a});if(error)throw error;show("newPasswordForm",false);show("authForm",true);setAuthMode("login");setMessage("authMessage","Password updated. You can now sign in with your new password.","ok");}catch(error){setMessage("authMessage",friendlyError(error),"error");}});
+function friendlyError(error){const m=errorText(error);if(/invalid api key|invalid jwt/i.test(m))return "Supabase rejected the browser key. Verify the current publishable/anon key from your Rryd Supabase project.";if(/row-level security|permission denied/i.test(m))return "Supabase permissions blocked this action. Check the existing RLS policy or RPC permissions.";if(/failed to fetch|networkerror|network request failed/i.test(m))return "Network request failed. Check your connection and the Supabase/service status.";if(/active passenger account/i.test(m))return "Supabase did not recognize an active passenger profile for this account. Check the profile row, role and suspension flag.";return m;}
 
-/* SESSION HANDLING: a transient null callback does not log the passenger out */
-function showLoggedOut() {
-  session = null;
-  profile = null;
-  currentRide = null;
-  if (pollingTimer) clearInterval(pollingTimer);
-  pollingTimer = null;
-  show("authSection",true);
-  show("appSection",false);
-  show("settingsBtn",false);
-  show("logoutBtn",false);
-  show("recoveryForm",false);
-  show("newPasswordForm",false);
-  show("authForm",true);
-  setAuthMode("login");
-}
-$("logoutBtn").addEventListener("click",async()=>{
-  try {
-    const {error} = await db.auth.signOut();
-    if (error) throw error;
-    showLoggedOut();
-  } catch(error) {
-    message("appMessage",friendlyError(error),"error");
-  }
-});
-
-/* MAP AND REAL ROAD ROUTING */
-function initMap() {
-  if (map || !window.L) return;
-  map = L.map("map").setView([27.7172,85.3240],13);
-
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
-    maxZoom:19,
-    attribution:"&copy; OpenStreetMap contributors"
-  }).addTo(map);
-
-  map.on("click",async event=>{
-    if (!mapPickTarget) return;
-    const target = mapPickTarget;
-    mapPickTarget = null;
-    try {
-      const location = await reverseGeocode(event.latlng.lat,event.latlng.lng);
-      if (target === "pickup") await setLocation("pickup",location);
-      else await setLocation("destination",location);
-      setText("mapMessage",target === "pickup"
-        ? "Pickup pin placed." : "Destination pin placed.");
-    } catch(error) {
-      message("appMessage",friendlyError(error),"error");
-    }
+/* Supabase session. Ignore temporary initial callbacks; only explicit sign-out clears the portal. */
+async function initialize(){
+  if(!window.supabase){setMessage("authMessage","Supabase client did not load. Check your internet connection and reload.","error");return;}
+  db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  const hash=new URLSearchParams(location.hash.replace(/^#/,""));const query=new URLSearchParams(location.search);const recovery=hash.get("type")==="recovery"||query.get("type")==="recovery";
+  try{
+    const {data,error}=await db.auth.getSession();if(error)throw error;session=data.session;
+    if(recovery){show("authOverlay",true);show("authForm",false);show("recoveryForm",false);show("newPasswordForm",true);setMessage("authMessage","Enter your new password below.","info");}
+    else if(session)await loadPassenger();else show("authOverlay",true);
+  }catch(error){setMessage("authMessage",friendlyError(error),"error");}
+  db.auth.onAuthStateChange((event,nextSession)=>{
+    session=nextSession;
+    if(event==="PASSWORD_RECOVERY"){show("authOverlay",true);show("authForm",false);show("recoveryForm",false);show("newPasswordForm",true);setMessage("authMessage","Enter your new password below.","info");return;}
+    if(event==="SIGNED_OUT"){resetLoggedOut();return;}
+    if(nextSession&&loadedProfileUserId===nextSession.user?.id&&profile)return;
+    if(nextSession&&event!=="INITIAL_SESSION")setTimeout(()=>loadPassenger().catch(err=>setMessage("globalMessage",friendlyError(err),"error")),0);
   });
 }
-function choosePin(target) {
-  mapPickTarget = target;
-  setText("mapMessage","Click the map to place your "+target+" pin.");
-  $("map").scrollIntoView({behavior:"smooth",block:"center"});
-  if (map) setTimeout(()=>map.invalidateSize(),250);
+async function loadPassenger(){
+  if(!db||!session?.user||loadingProfile)return;
+  if(loadedProfileUserId===session.user.id&&profile){show("authOverlay",false);return;}
+  loadingProfile=true;
+  try{
+    const {data:authData,error:authError}=await db.auth.getUser();if(authError)throw authError;if(!authData.user)throw Error("Session expired. Sign in again.");
+    const {data,error}=await db.from("profiles").select("id,full_name,phone,role,is_verified,is_suspended").eq("id",authData.user.id).maybeSingle();if(error)throw error;if(!data)throw Error("Your passenger profile was not found. Check the profile creation trigger in Supabase.");if(data.role!=="passenger")throw Error("This portal is for passenger accounts only.");if(data.is_suspended===true)throw Error("Your account is suspended. Please contact Rryd support.");
+    profile=data;loadedProfileUserId=authData.user.id;show("authOverlay",false);show("settingsBtn",true);show("notificationsBtn",true);show("logoutBtn",true);text("accountBtn",profileDisplayName());text("welcome","Welcome, "+profileDisplayName());$("settingsName").value=profile.full_name||"";$("settingsPhone").value=profile.phone||"";
+    initMap();await loadFareRules();await refreshAvailability();await refreshCurrentRide();startPolling();setMessage("globalMessage","");show("globalMessage",false);if(map)setTimeout(()=>map.invalidateSize(),200);
+  }catch(error){show("authOverlay",true);setMessage("authMessage",friendlyError(error),"error");console.error("Passenger startup",error);}
+  finally{loadingProfile=false;}
 }
-$("pickupPinBtn").addEventListener("click",()=>choosePin("pickup"));
-$("destinationPinBtn").addEventListener("click",()=>choosePin("destination"));
-
-function createMarker(target,lat,lon,label) {
-  const old = target === "pickup" ? pickupMarker : destinationMarker;
-  if (old) map.removeLayer(old);
-
-  const marker = L.marker([lat,lon],{draggable:true})
-    .addTo(map)
-    .bindPopup(label);
-
-  marker.on("dragend",async()=>{
-    const point = marker.getLatLng();
-    try {
-      const location = await reverseGeocode(point.lat,point.lng);
-      await setLocation(target,location);
-    } catch(error) {
-      message("appMessage",friendlyError(error),"error");
-    }
-  });
-
-  if (target === "pickup") pickupMarker = marker;
-  else destinationMarker = marker;
-  return marker;
+function resetLoggedOut(){
+  session=null;profile=null;loadedProfileUserId=null;loadingProfile=false;currentRide=null;rideRows=[];stopPolling();
+  if(map){for(const layer of [pickupMarker,destinationMarker,routeLayer])if(layer)map.removeLayer(layer);}
+  pickupMarker=destinationMarker=routeLayer=null;pickupPoint=destinationPoint=null;routeDistanceKm=0;routeDurationMinutes=0;routeGeometry=null;clearDriverTracking();closeReceipt();lastKnownStatus="";lastKnownRideId=null;lastRequestAt=0;
+  $("pickup").value="";$("destination").value="";updateFareDisplay();show("authOverlay",true);show("settingsBtn",false);show("notificationsBtn",false);show("logoutBtn",false);show("settingsPanel",false);show("bookingSection",true);show("supportPanel",true);show("rideSafetyPanel",false);show("ratingPanel",false);show("messagePanel",false);
+  text("accountBtn","Sign in");text("welcome","Plan your ride");text("currentRide","Sign in to view a ride.");text("driverDetails","");text("rideHistory","Sign in to load ride history.");text("availabilityText","Sign in to check availability.");text("routeInfo","Sign in to restore an active ride or choose locations to calculate a route.");text("distanceDisplay","— km");text("etaDisplay","— min");
 }
+$("accountBtn").addEventListener("click",()=>{if(!session?.user)show("authOverlay",true);else activeViewSettings();});
+$("settingsBtn").addEventListener("click",activeViewSettings);
+$("closeSettingsBtn").addEventListener("click",showBookingView);
+$("logoutBtn").addEventListener("click",async()=>{try{const {error}=await db.auth.signOut();if(error)throw error;}catch(error){setMessage("appMessage",friendlyError(error),"error");}});
 
-async function reverseGeocode(lat,lon) {
-  const url = "https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat="
-    + encodeURIComponent(lat) + "&lon=" + encodeURIComponent(lon);
-
-  const response = await fetch(url,{headers:{Accept:"application/json"}});
-  if (!response.ok) throw new Error("Could not identify that map location.");
-
-  const data = await response.json();
-  if (!data.address ||
-      String(data.address.country_code || "").toLowerCase() !== "np") {
-    throw new Error("Rryd currently supports locations in Nepal only.");
-  }
-  return {
-    lat:Number(data.lat),
-    lon:Number(data.lon),
-    display_name:data.display_name
-  };
-}
-
-async function setLocation(target,location) {
-  const lat = Number(location.lat);
-  const lon = Number(location.lon);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon))
-    throw new Error("Invalid map coordinates.");
-
-  const point = {
-    lat,lon,
-    display_name:location.display_name || "Selected map location"
-  };
-
-  if (target === "pickup") {
-    pickupCoords = point;
-    $("pickup").value = point.display_name;
-    createMarker("pickup",lat,lon,"Pickup");
-    show("pickupResults",false);
-  } else {
-    destinationCoords = point;
-    $("destination").value = point.display_name;
-    createMarker("destination",lat,lon,"Destination");
-    show("destinationResults",false);
-  }
-
-  map.setView([lat,lon],16);
-  await calculateRoute();
-}
-
-$("fitRouteBtn").addEventListener("click",()=>{
-  if (routeLayer) map.fitBounds(routeLayer.getBounds(),{padding:[25,25]});
-  else if (pickupMarker) map.setView(pickupMarker.getLatLng(),15);
-});
-
-/* SEARCH NEPAL LOCATIONS */
-async function searchLocations(query,target) {
-  const container = target === "pickup"
-    ? $("pickupResults") : $("destinationResults");
-  const seq = ++searchSequence[target];
-  const q = query.trim();
-
-  if (q.length < 3) {
-    container.innerHTML = "";
-    show(container.id,false);
-    return;
-  }
-
-  container.innerHTML =
-    '<div class="location-result">Searching Nepal locations...</div>';
-  show(container.id,true);
-
-  try {
-    const url = "https://nominatim.openstreetmap.org/search?format=jsonv2"
-      + "&addressdetails=1&limit=6&countrycodes=np&q="
-      + encodeURIComponent(q);
-    const response = await fetch(url,{headers:{Accept:"application/json"}});
-    if (!response.ok) throw new Error("Location search failed.");
-    const results = await response.json();
-    if (seq !== searchSequence[target]) return;
-
-    container.innerHTML = "";
-    if (!results.length) {
-      container.innerHTML =
-        '<div class="location-result">No Nepal locations found. Try another search.</div>';
-      return;
-    }
-
-    results.forEach(item=>{
-      const div = document.createElement("div");
-      div.className = "location-result";
-      div.textContent = item.display_name;
-      div.addEventListener("click",async()=>{
-        try {
-          await setLocation(target,{
-            lat:Number(item.lat),
-            lon:Number(item.lon),
-            display_name:item.display_name
-          });
-        } catch(error) {
-          message("appMessage",friendlyError(error),"error");
-        }
-      });
-      container.appendChild(div);
-    });
-  } catch(error) {
-    if (seq !== searchSequence[target]) return;
-    container.innerHTML = "";
-    const div = document.createElement("div");
-    div.className = "location-result";
-    div.textContent = "Search error: " + errText(error);
-    container.appendChild(div);
-  }
-}
-
-$("pickup").addEventListener("input",()=>{
-  pickupCoords = null;
-  if (pickupMarker) { map.removeLayer(pickupMarker);pickupMarker = null; }
-  calculateRoute();
-  clearTimeout(pickupSearchTimer);
-  pickupSearchTimer = setTimeout(
-    ()=>searchLocations($("pickup").value,"pickup"),450);
-});
-$("destination").addEventListener("input",()=>{
-  destinationCoords = null;
-  if (destinationMarker) { map.removeLayer(destinationMarker);destinationMarker = null; }
-  calculateRoute();
-  clearTimeout(destinationSearchTimer);
-  destinationSearchTimer = setTimeout(
-    ()=>searchLocations($("destination").value,"destination"),450);
-});
-
-/* GPS PICKUP */
-$("gpsBtn").addEventListener("click",()=>{
-  if (!navigator.geolocation)
-    return message("appMessage","GPS is not supported by this browser.","error");
-
-  $("gpsBtn").disabled = true;
-  message("appMessage","Getting your location...");
-
-  navigator.geolocation.getCurrentPosition(async position=>{
-    try {
-      const location = await reverseGeocode(
-        position.coords.latitude,position.coords.longitude);
-      await setLocation("pickup",location);
-      message("appMessage","Pickup location set from GPS.","ok");
-    } catch(error) {
-      message("appMessage",friendlyError(error),"error");
-    } finally {
-      $("gpsBtn").disabled = false;
-    }
-  },error=>{
-    const text = error.code === 1
-      ? "Location permission denied. Allow location access in your browser."
-      : error.code === 3
-        ? "GPS request timed out. Try again."
-        : "Could not get your current location.";
-    message("appMessage",text,"error");
-    $("gpsBtn").disabled = false;
-  },{enableHighAccuracy:true,timeout:15000,maximumAge:10000});
-});
-
-/* ROUTE: OSRM road-following geometry, not a straight-line distance */
-async function calculateRoute() {
-  const seq = ++routeSequence;
-  if (!map || !pickupCoords || !destinationCoords) {
-    routeDistanceKm = 0;
-    routeDurationMinutes = 0;
-    if (routeLayer) { map.removeLayer(routeLayer);routeLayer = null; }
-    updateFareDisplay();
-    setText("mapMessage","Choose both locations to calculate a road route.");
-    return;
-  }
-
-  setText("mapMessage","Calculating road route...");
-  try {
-    const url = "https://router.project-osrm.org/route/v1/driving/"
-      + pickupCoords.lon + "," + pickupCoords.lat + ";"
-      + destinationCoords.lon + "," + destinationCoords.lat
-      + "?overview=full&geometries=geojson&steps=false";
-
-    const response = await fetch(url);
-    if (!response.ok) throw new Error("Road routing service is unavailable.");
-    const data = await response.json();
-    if (seq !== routeSequence) return;
-    if (data.code !== "Ok" || !data.routes?.length)
-      throw new Error("No drivable road route was found between these locations.");
-
-    const route = data.routes[0];
-    routeDistanceKm = route.distance / 1000;
-    routeDurationMinutes = route.duration / 60;
-
-    if (routeLayer) map.removeLayer(routeLayer);
-    routeLayer = L.geoJSON(route.geometry,{
-      style:{color:"#ff7417",weight:6,opacity:.9}
-    }).addTo(map);
-
-    const bounds = routeLayer.getBounds();
-    if (pickupMarker) bounds.extend(pickupMarker.getLatLng());
-    if (destinationMarker) bounds.extend(destinationMarker.getLatLng());
-    map.fitBounds(bounds,{padding:[28,28]});
-
-    setText("mapMessage","Road route calculated using OpenStreetMap data.");
-    updateFareDisplay();
-  } catch(error) {
-    if (seq !== routeSequence) return;
-    routeDistanceKm = 0;
-    routeDurationMinutes = 0;
-    updateFareDisplay();
-    setText("mapMessage",errText(error));
-    if (routeLayer) { map.removeLayer(routeLayer);routeLayer = null; }
-  }
-}
-
-/* FARE RULES */
-async function loadFareRules() {
-  const {data,error} = await db.from("fare_rules")
-    .select("vehicle_type,base_fare,per_km_fare,platform_commission_percent,is_active")
-    .eq("is_active",true);
-
-  if (error) throw error;
-  fareRules = {};
-  (data || []).forEach(rule=>{
-    fareRules[normalizeVehicle(rule.vehicle_type)] = rule;
-  });
+/* Fare rules. Never hardcode fallback pricing if Supabase cannot be read. */
+async function loadFareRules(){
+  fareRules={};fareRulesLoaded=false;fareRulesError="";updateFareDisplay();
+  try{
+    const {data,error}=await db.from("fare_rules").select("vehicle_type,base_fare,per_km_fare,platform_commission_percent,is_active").eq("is_active",true);if(error)throw error;
+    for(const r of data||[]){const type=String(r.vehicle_type||"").toLowerCase(),base=Number(r.base_fare),perKm=Number(r.per_km_fare);if(VEHICLE_TYPES.includes(type)&&Number.isFinite(base)&&Number.isFinite(perKm)&&base>=0&&perKm>=0)fareRules[type]={base,perKm};}
+    if(!Object.keys(fareRules).length)throw Error("No valid active fare rules were returned from Supabase.");fareRulesLoaded=true;
+  }catch(error){fareRulesError=errorText(error);console.error("Fare rules",error);}
   updateFareDisplay();
 }
-function calculateFare(vehicle,distance) {
-  const rule = fareRules[normalizeVehicle(vehicle)];
-  if (!rule) return null;
-
-  const base = Number(rule.base_fare);
-  const perKm = Number(rule.per_km_fare);
-  if (!Number.isFinite(base) || !Number.isFinite(perKm)) return null;
-
-  return Math.round(base + perKm * distance);
+function estimateFare(type=selectedVehicle,distance=routeDistanceKm){const r=fareRules[type];if(!fareRulesLoaded||!r||!Number.isFinite(Number(distance))||Number(distance)<=0)return null;return roundFare(r.base+r.perKm*Number(distance));}
+function updateFareDisplay(){
+  const ids={bike:"bikePrice",car:"carPrice",tuk_tuk:"tuk_tukPrice"};
+  for(const [type,id] of Object.entries(ids)){const f=estimateFare(type);text(id,f===null?"NPR —":money(f));}
+  const fare=estimateFare();text("fareDisplay",fare===null?"NPR —":money(fare));text("fareMini",fare===null?"NPR —":money(fare));
+  const rule=fareRules[selectedVehicle];
+  if(!fareRulesLoaded){text("fareBreakdown",fareRulesError?"Fare rules could not be loaded. Refresh and retry; no fallback price is used.":"Loading current active fare rules from Supabase...");return;}
+  if(!rule){text("fareBreakdown","There is no active fare rule for this vehicle.");return;}
+  text("fareBreakdown",fare===null?`${money(rule.base)} base + ${money(rule.perKm)}/km · Select both locations for an estimate.`:`${money(rule.base)} base + ${money(rule.perKm)}/km × ${routeDistanceKm.toFixed(2)} km. Rounded to the nearest rupee. This is an estimate.`);
 }
-function updateFareDisplay() {
-  if (routeDistanceKm > 0) {
-    const fare = calculateFare(selectedVehicle,routeDistanceKm);
-    setText("fareDisplay",fare == null ? "NPR --" : money(fare));
-    setText("distanceDisplay",routeDistanceKm.toFixed(2) + " km");
-    setText("etaDisplay","ETA: " + Math.max(1,Math.round(routeDurationMinutes)) + " min");
-    setText("fareNote",fare == null
-      ? "Active fare rule for this vehicle is missing. Booking is disabled until a fare is available."
-      : "Estimated fare uses the active Supabase fare rule and is rounded to the nearest rupee.");
-  } else {
-    setText("fareDisplay","NPR --");
-    setText("distanceDisplay","-- km");
-    setText("etaDisplay","ETA: --");
+document.querySelectorAll("[data-vehicle]").forEach(btn=>btn.addEventListener("click",()=>{selectedVehicle=btn.dataset.vehicle;document.querySelectorAll("[data-vehicle]").forEach(b=>b.classList.toggle("selected",b===btn));updateFareDisplay();refreshAvailability();}));
+$("paymentMethod").addEventListener("change",()=>{paymentMethod=$("paymentMethod").value;const online=paymentMethod==="online";text("paymentInfo",online?"Online payment is not connected to a real gateway yet. Booking with online payment is blocked so no false payment status is shown.":"Cash is selected. Pay the driver directly; Rryd still records the payment status as the database reports it.");});
+
+/* Map and geocoding. Public Nominatim is rate limited and not for production ride-hailing geocoding. */
+function initMap(){
+  if(map||!window.L)return;
+  map=L.map("map").setView([27.7172,85.3240],13);
+  L.tileLayer(TILE_URL,{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>'}).addTo(map);
+  map.on("click",async e=>{if(!mapPickTarget)return;const target=mapPickTarget;mapPickTarget="";text("mapMessage","Checking selected point and resolving its address...");try{const place=await reverseGeocode(e.latlng.lat,e.latlng.lng);if(place.countryCode!=="np")throw Error("Please place this pin inside Nepal. The selected point could not be verified as a Nepal location.");if(target==="pickup")await setPoint("pickup",e.latlng.lat,e.latlng.lng,place.label,true);else await setPoint("destination",e.latlng.lat,e.latlng.lng,place.label,true);text("mapMessage","Location selected. You can drag either pin to adjust it.");}catch(error){setMessage("appMessage",errorText(error),"error");text("mapMessage","The selected point could not be verified. Try another mapped road or use search.");}});
+  setTimeout(()=>map.invalidateSize(),200);
+}
+function isNepalBounds(lat,lon){return Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=26&&lat<=31&&lon>=80&&lon<=89;}
+function updatePinMarker(which,lat,lon,label){
+  if(which==="pickup"){
+    if(pickupMarker)map.removeLayer(pickupMarker);
+    pickupMarker=L.marker([lat,lon],{draggable:true}).addTo(map).bindPopup("Pickup");
+    pickupMarker.on("dragend",async e=>{const p=e.target.getLatLng();try{const place=await reverseGeocode(p.lat,p.lng);if(place.countryCode!=="np")throw Error("Pickup must remain in Nepal.");await setPoint("pickup",p.lat,p.lng,place.label,true);}catch(err){setMessage("appMessage",errorText(err),"error");if(pickupPoint)pickupMarker.setLatLng([pickupPoint.lat,pickupPoint.lon]);}});
+  }else{
+    if(destinationMarker)map.removeLayer(destinationMarker);
+    destinationMarker=L.marker([lat,lon],{draggable:true}).addTo(map).bindPopup("Destination");
+    destinationMarker.on("dragend",async e=>{const p=e.target.getLatLng();try{const place=await reverseGeocode(p.lat,p.lng);if(place.countryCode!=="np")throw Error("Destination must remain in Nepal.");await setPoint("destination",p.lat,p.lng,place.label,true);}catch(err){setMessage("appMessage",errorText(err),"error");if(destinationPoint)destinationMarker.setLatLng([destinationPoint.lat,destinationPoint.lon]);}});
   }
+  if(label)(which==="pickup"?$("pickup"):$("destination")).value=label;
 }
-
-document.querySelectorAll(".vehicle-option").forEach(button=>{
-  button.addEventListener("click",()=>{
-    selectedVehicle = button.dataset.vehicle;
-    document.querySelectorAll(".vehicle-option").forEach(item=>
-      item.classList.toggle("selected",item === button));
-    updateFareDisplay();
-  });
+async function setPoint(which,lat,lon,label,validated=false){
+  lat=Number(lat);lon=Number(lon);if(!isNepalBounds(lat,lon))throw Error("Choose a location inside Nepal.");
+  if(!validated){const place=await reverseGeocode(lat,lon);if(place.countryCode!=="np")throw Error("Selected coordinates could not be verified as a location in Nepal.");label=place.label;}
+  const p={lat,lon,label:label||`${lat.toFixed(5)}, ${lon.toFixed(5)}`};
+  if(which==="pickup"){pickupPoint=p;$("pickup").value=p.label;updatePinMarker("pickup",lat,lon,p.label);}else{destinationPoint=p;$("destination").value=p.label;updatePinMarker("destination",lat,lon,p.label);}
+  map?.setView([lat,lon],Math.max(map.getZoom(),14));invalidateRoute(which);if(pickupPoint&&destinationPoint)await calculateRoute();else{text("routeInfo","Select the other location to calculate a road route.");text("distanceDisplay","— km");text("etaDisplay","— min");updateFareDisplay();}
+}
+function invalidateRoute(){routeRequestSeq++;routeDistanceKm=0;routeDurationMinutes=0;routeGeometry=null;if(routeLayer&&map){map.removeLayer(routeLayer);routeLayer=null;}text("distanceDisplay","— km");text("etaDisplay","— min");updateFareDisplay();}
+async function nominatimFetch(url){
+  const job=async()=>{const wait=Math.max(0,1100-(Date.now()-lastNominatimAt));if(wait)await new Promise(resolve=>setTimeout(resolve,wait));lastNominatimAt=Date.now();const response=await fetch(url,{headers:{"Accept":"application/json","Accept-Language":"en"}});if(!response.ok)throw Error("Place service returned HTTP "+response.status+". Wait briefly and retry.");return response.json();};
+  const result=nominatimQueue.then(job,job);nominatimQueue=result.then(()=>undefined,()=>undefined);return result;
+}
+async function reverseGeocode(lat,lon){const url=`${NOMINATIM_BASE}/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&accept-language=en`;const d=await nominatimFetch(url);return{label:d.display_name||`${lat.toFixed(5)}, ${lon.toFixed(5)}`,countryCode:String(d.address?.country_code||"").toLowerCase()};}
+async function searchPlaces(which){
+  const input=$(which),box=$(which+"Results"),query=input.value.trim();if(query.length<3){show(which+"Results",false);return setMessage("appMessage","Enter at least 3 characters to search Nepal places.","info");}
+  show(which+"Results",true);box.replaceChildren();const loading=document.createElement("div");loading.className="result";loading.textContent="Searching Nepal locations…";box.appendChild(loading);
+  try{
+    const url=`${NOMINATIM_BASE}/search?format=jsonv2&countrycodes=np&limit=6&addressdetails=1&q=${encodeURIComponent(query)}`;const results=await nominatimFetch(url);box.replaceChildren();
+    if(!results.length){const item=document.createElement("div");item.className="result";item.textContent="No Nepal locations found. Try a nearby landmark or use a map pin.";box.appendChild(item);return;}
+    results.forEach(place=>{const item=document.createElement("button");item.type="button";item.className="result";item.style.width="100%";item.style.textAlign="left";item.textContent=place.display_name;item.addEventListener("click",async()=>{try{if(String(place.address?.country_code||"").toLowerCase()!=="np")throw Error("Only Nepal locations can be selected.");await setPoint(which,Number(place.lat),Number(place.lon),place.display_name,true);show(which+"Results",false);setMessage("appMessage","Location selected. The fare estimate will refresh after route calculation.","ok");}catch(error){setMessage("appMessage",errorText(error),"error");}});box.appendChild(item);});
+  }catch(error){box.replaceChildren();const item=document.createElement("div");item.className="result";item.textContent=errorText(error);box.appendChild(item);}
+}
+$("searchPickupBtn").addEventListener("click",()=>searchPlaces("pickup"));$("searchDestinationBtn").addEventListener("click",()=>searchPlaces("destination"));
+for(const id of ["pickup","destination"])$(id).addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();searchPlaces(id);}});
+$("pickPickupBtn").addEventListener("click",()=>{mapPickTarget="pickup";text("mapMessage","Pickup pin mode is active. Tap the map where the passenger should be collected.");map?.invalidateSize();});
+$("pickDestinationBtn").addEventListener("click",()=>{mapPickTarget="destination";text("mapMessage","Destination pin mode is active. Tap the map to choose the destination.");map?.invalidateSize();});
+$("gpsBtn").addEventListener("click",()=>{
+  if(!navigator.geolocation)return setMessage("appMessage","This browser does not support GPS. Search for a place or choose a map pin.","error");
+  const b=$("gpsBtn");b.disabled=true;text("mapMessage","Requesting your device location… Allow location access if prompted.");
+  navigator.geolocation.getCurrentPosition(async pos=>{try{const place=await reverseGeocode(pos.coords.latitude,pos.coords.longitude);if(place.countryCode!=="np")throw Error("Your current location could not be verified as inside Nepal.");await setPoint("pickup",pos.coords.latitude,pos.coords.longitude,place.label,true);text("mapMessage","Pickup set using device GPS. You can still move the pickup pin manually.");}catch(error){setMessage("appMessage",errorText(error),"error");}finally{b.disabled=false;}},error=>{b.disabled=false;setMessage("appMessage","GPS could not get your location: "+error.message+". Allow location permission and use HTTPS, or search manually.","error");},{enableHighAccuracy:true,timeout:18000,maximumAge:10000});
 });
+$("clearRouteBtn").addEventListener("click",()=>{pickupPoint=null;destinationPoint=null;$("pickup").value="";$("destination").value="";show("pickupResults",false);show("destinationResults",false);if(pickupMarker)map.removeLayer(pickupMarker);if(destinationMarker)map.removeLayer(destinationMarker);if(routeLayer)map.removeLayer(routeLayer);if(driverRouteLayer)map.removeLayer(driverRouteLayer);driverRouteLayer=null;lastDriverRouteKey="";pickupMarker=destinationMarker=routeLayer=null;invalidateRoute();text("routeInfo","Route cleared. Select pickup and destination to recalculate.");text("mapMessage","Search a place or choose a pin mode, then tap the map.");setMessage("appMessage","");});
 
-/* AVAILABILITY CHECK */
-async function checkAvailability() {
-  const {data,error} = await db.rpc(
-    "rryd_check_vehicle_availability",
-    {p_vehicle_type:selectedVehicle}
-  );
-  if (error)
-    throw new Error("Could not verify live driver availability: " + errText(error));
-
-  let count = null;
-  if (typeof data === "number") count = data;
-  else if (typeof data === "string" && data.trim() !== "" &&
-           Number.isFinite(Number(data))) count = Number(data);
-  else if (Array.isArray(data) && data.length === 1) {
-    const value = Object.values(data[0] || {})[0];
-    if (Number.isFinite(Number(value))) count = Number(value);
-  } else if (data && typeof data === "object") {
-    const value = data.available_count ?? data.count ?? data.total ??
-      data.rryd_check_vehicle_availability;
-    if (value !== undefined && Number.isFinite(Number(value)))
-      count = Number(value);
-  }
-
-  if (!Number.isFinite(count) || count < 0)
-    throw new Error("Unexpected availability response. Ride request was stopped.");
-
-  return count;
+/* Route estimate. Do not substitute straight-line distance if routing fails. */
+async function calculateRoute(){
+  if(!pickupPoint||!destinationPoint)return;const seq=++routeRequestSeq;routeDistanceKm=0;routeDurationMinutes=0;routeGeometry=null;updateFareDisplay();text("routeInfo","Calculating a road route…");
+  try{
+    const a=pickupPoint,b=destinationPoint;const url=`${ROUTER_BASE}/${a.lon},${a.lat};${b.lon},${b.lat}?overview=full&geometries=geojson&steps=false`;const response=await fetch(url);if(!response.ok)throw Error("Road-routing service unavailable (HTTP "+response.status+").");const data=await response.json();if(data.code!=="Ok"||!data.routes?.length)throw Error("No drivable road route was found between these points. Adjust a pin or choose another location.");if(seq!==routeRequestSeq)return;
+    const r=data.routes[0];if(!Number.isFinite(r.distance)||r.distance<=0)throw Error("Routing service returned an invalid distance.");routeDistanceKm=r.distance/1000;routeDurationMinutes=Math.max(1,Math.ceil(r.duration/60));routeGeometry=r.geometry;
+    if(routeLayer)map.removeLayer(routeLayer);routeLayer=L.geoJSON(routeGeometry,{style:{color:"#ff7417",weight:5,opacity:.92}}).addTo(map);map.fitBounds(routeLayer.getBounds(),{padding:[26,26]});text("distanceDisplay",routeDistanceKm.toFixed(2)+" km");text("etaDisplay",routeDurationMinutes+" min");text("routeInfo","Road route calculated. Distance and time are estimates and may differ from actual traffic, closures or local access. The routing service may use a general driving profile.");updateFareDisplay();await refreshAvailability();
+  }catch(error){if(seq!==routeRequestSeq)return;routeDistanceKm=0;routeDurationMinutes=0;routeGeometry=null;if(routeLayer){map.removeLayer(routeLayer);routeLayer=null;}text("distanceDisplay","— km");text("etaDisplay","— min");text("routeInfo",errorText(error));updateFareDisplay();setMessage("appMessage","A verified road route is not available. Adjust the selected locations; no straight-line fare will be substituted.","error");}
 }
 
-/* REQUEST RIDE: exact existing nine-argument RPC signature */
-$("requestRideBtn").addEventListener("click",async()=>{
-  if (!session?.user)
-    return message("appMessage","Please log in first.","error");
+/* Driver availability is informational; ride RPC remains the authority at booking time. */
+async function availabilityFor(type){const {data,error}=await db.rpc(AVAILABILITY_RPC,{p_vehicle_type:type});if(error)throw error;let value=typeof data==="number"?data:typeof data==="string"?Number(data):NaN;if(Array.isArray(data)&&data.length)value=Number(Object.values(data[0]||{})[0]);if(data&&typeof data==="object"&&!Array.isArray(data))value=Number(data.available_count??data.count??data.total??data[AVAILABILITY_RPC]);if(!Number.isFinite(value)||value<0)throw Error("Availability function returned an unexpected value.");return value;}
+async function refreshAvailability(){if(!db||!session?.user){setMessage("availabilityText","Sign in to check approved online vehicle availability.","info");return;}try{const n=await availabilityFor(selectedVehicle);setMessage("availabilityText",n?`${n} eligible ${selectedVehicle.replace("_"," ")} vehicle(s) currently reported available. This may change before the server processes a booking.`:`No eligible ${selectedVehicle.replace("_"," ")} vehicles are currently reported available. You may retry later.`,n?"ok":"info");}catch(error){setMessage("availabilityText","Availability could not be verified: "+errorText(error)+". The booking function will still perform its own authoritative checks.","info");}}
+$("refreshAvailabilityBtn").addEventListener("click",refreshAvailability);
 
-  if (!pickupCoords || !$("pickup").value.trim())
-    return message("appMessage","Choose a valid pickup location in Nepal.","error");
-
-  if (!destinationCoords || !$("destination").value.trim())
-    return message("appMessage","Choose a valid destination in Nepal.","error");
-
-  if (!(routeDistanceKm > 0))
-    return message("appMessage","Wait for a valid road route and distance.","error");
-
-  if (currentRide && isActive(currentRide.status))
-    return message("appMessage","You already have an active ride.","error");
-
-  const fare = calculateFare(selectedVehicle,routeDistanceKm);
-  if (fare == null)
-    return message("appMessage","No active fare rule was found for this vehicle. Booking is stopped.","error");
-
-  const button = $("requestRideBtn");
-  button.disabled = true;
-
-  try {
-    message("appMessage","Checking approved online drivers...");
-    const count = await checkAvailability();
-    if (count < 1)
-      throw new Error("No approved online " + selectedVehicle +
-        " drivers are currently available. Please try again later.");
-
-    message("appMessage","Sending your ride request...");
-
-    const args = {
-      p_pickup_location:$("pickup").value.trim(),
-      p_destination:$("destination").value.trim(),
-      p_vehicle_type:selectedVehicle,
-      p_distance_km:Number(routeDistanceKm.toFixed(2)),
-      p_payment_method:$("paymentMethod").value,
-      p_pickup_latitude:pickupCoords.lat,
-      p_pickup_longitude:pickupCoords.lon,
-      p_destination_latitude:destinationCoords.lat,
-      p_destination_longitude:destinationCoords.lon
-    };
-
-    const {data,error} = await db.rpc("request_ride",args);
-    if (error) throw error;
-
-    let rideId = null;
-    if (typeof data === "number" || typeof data === "string") {
-      const n = Number(data);
-      if (Number.isFinite(n) && n > 0) rideId = n;
-    } else if (Array.isArray(data) && data.length) {
-      rideId = data[0]?.id ?? data[0]?.ride_id;
-    } else if (data && typeof data === "object") {
-      rideId = data.id ?? data.ride_id;
-    }
-
-    let createdRide = null;
-    if (rideId != null && Number.isFinite(Number(rideId))) {
-      const result = await db.from("rides").select("*")
-        .eq("id",Number(rideId))
-        .eq("passenger_id",session.user.id)
-        .maybeSingle();
-      if (result.error) throw result.error;
-      createdRide = result.data;
-    }
-
-    if (!createdRide) {
-      const result = await db.from("rides").select("*")
-        .eq("passenger_id",session.user.id)
-        .eq("status","requested")
-        .order("created_at",{ascending:false})
-        .limit(10);
-      if (result.error) throw result.error;
-      createdRide = (result.data || []).find(ride =>
-        String(ride.pickup_location || "") === $("pickup").value.trim() &&
-        String(ride.destination || "") === $("destination").value.trim() &&
-        normalizeVehicle(ride.vehicle_type) === selectedVehicle
-      ) || null;
-    }
-
-    if (!createdRide) {
-      throw new Error("The RPC returned successfully, but the new ride could not be read. Do not submit again immediately. Check the rides SELECT policy.");
-    }
-
-    currentRide = createdRide;
-    await refreshCurrentRide();
-    await loadRideHistory();
-
-    message("appMessage",
-      "Ride request submitted. Supabase reported " + count +
-      " available driver(s). Your ride is waiting for a driver.",
-      "ok");
-  } catch(error) {
-    message("appMessage",friendlyError(error),"error");
-  } finally {
-    button.disabled = false;
-  }
-});
-
-/* CURRENT RIDE AND CANCELLATION */
-async function refreshCurrentRide() {
-  if (!session?.user) return;
-
-  const {data,error} = await db.from("rides").select("*")
-    .eq("passenger_id",session.user.id)
-    .in("status",ACTIVE)
-    .order("created_at",{ascending:false})
-    .limit(1);
-
-  if (error) throw error;
-  currentRide = data?.[0] || null;
-  renderCurrentRide();
+/* Booking: use the existing exact RPC contract. Do not update `fare` from browser JavaScript. */
+$("requestRideBtn").addEventListener("click",requestRide);
+async function requestRide(){
+  const btn=$("requestRideBtn");if(btn.disabled)return;
+  if(!session?.user||!profile){show("authOverlay",true);return setMessage("authMessage","Sign in before requesting a ride.","info");}
+  if(profile.role!=="passenger"||profile.is_suspended===true)return setMessage("appMessage","Your passenger account is not eligible to book. Check your account status with Rryd support.","error");
+  if(!pickupPoint||!destinationPoint)return setMessage("appMessage","Choose both pickup and destination from Nepal search or the map.","error");
+  if(!Number.isFinite(routeDistanceKm)||routeDistanceKm<=0)return setMessage("appMessage","Wait for a valid road route before booking.","error");
+  if(routeDistanceKm>500)return setMessage("appMessage","This route is over the current 500 km safety limit. Choose a nearer destination or contact support.","error");
+  if(!fareRulesLoaded||!fareRules[selectedVehicle])return setMessage("appMessage","Active fare rules could not be loaded. A booking estimate cannot be verified.","error");
+  if(paymentMethod==="online")return setMessage("appMessage","Online payment is not yet connected to a payment gateway. Choose Cash; no online payment has been taken.","error");
+  if(currentRide&&isActive(currentRide.status))return setMessage("appMessage","You already have an active ride. Refresh Current Ride instead of creating another request.","error");
+  if(Date.now()-lastRequestAt<12000)return setMessage("appMessage","A request was just submitted. Check Current Ride before submitting another request.","info");
+  const estimate=estimateFare(selectedVehicle,routeDistanceKm);if(estimate===null)return setMessage("appMessage","Unable to calculate an estimate from the active database fare rule.","error");
+  btn.disabled=true;const old=btn.textContent;btn.textContent="Submitting request…";
+  try{
+    setMessage("appMessage","Verifying your current Supabase session…","info");
+    const {data:auth,error:authErr}=await db.auth.getUser();if(authErr)throw authErr;if(!auth?.user?.id)throw Error("Your session has expired. Sign in again.");
+    const {data:sessionData,error:sessionErr}=await db.auth.getSession();if(sessionErr)throw sessionErr;session=sessionData.session;if(!session?.user?.id||session.user.id!==auth.user.id)throw Error("Session mismatch. Reload and sign in again.");
+    const {data:p,error:pErr}=await db.from("profiles").select("id,role,is_suspended").eq("id",auth.user.id).maybeSingle();if(pErr)throw pErr;if(!p)throw Error("No profile exists for this signed-in user. Check the profile creation trigger.");if(p.role!=="passenger")throw Error("The signed-in account is not a passenger account.");if(p.is_suspended===true)throw Error("Your passenger account is suspended.");
+    setMessage("appMessage","Sending the booking request to Supabase. Driver availability and final booking validation are handled by the server…","info");
+    const args={p_pickup_location:pickupPoint.label,p_destination:destinationPoint.label,p_vehicle_type:selectedVehicle,p_distance_km:Number(routeDistanceKm.toFixed(3)),p_payment_method:paymentMethod,p_pickup_latitude:pickupPoint.lat,p_pickup_longitude:pickupPoint.lon,p_destination_latitude:destinationPoint.lat,p_destination_longitude:destinationPoint.lon};
+    lastRequestAt=Date.now();
+    const {data,error}=await db.rpc("request_ride",args);if(error)throw error;
+    const rideId=extractRideId(data);
+    setMessage("appMessage","Ride request submitted to Supabase. Waiting for the database to confirm the current ride. Do not press Request again if the ride does not appear immediately.","ok");
+    // The browser does not write fare columns directly. The server must persist or validate fare snapshots.
+    await refreshCurrentRide();await refreshAvailability();notifyUser("Rryd ride requested","Your ride request was sent. Waiting for driver assignment.",true);
+    if(!currentRide&&rideId){showToast("Ride request submitted",`Rryd returned ride ID ${rideId}, but the current-ride read did not return it yet. Use Refresh Current Ride and do not submit a duplicate request.`);}
+  }catch(error){setMessage("appMessage","Ride request could not be confirmed: "+friendlyError(error)+". Check Current Ride before trying again to avoid a duplicate.","error");console.error("request_ride error",error);}
+  finally{btn.disabled=false;btn.textContent=old;}
 }
-function renderCurrentRide() {
-  const container = $("currentRide");
-  if (!currentRide) {
-    container.innerHTML = '<p class="muted">You have no active ride.</p>';
-    return;
-  }
+function extractRideId(data){if(typeof data==="number"||typeof data==="string")return data;if(Array.isArray(data)&&data.length)return data[0]?.ride_id??data[0]?.id??null;if(data&&typeof data==="object")return data.ride_id??data.id??null;return null;}
 
-  const r = currentRide;
-  const fare = r.final_fare ?? r.estimated_fare ?? r.fare;
-  container.innerHTML = `
-    <div class="ride-item">
-      <p><strong>Ride #${escapeHTML(r.id)}</strong></p>
-      <p><span class="status">${escapeHTML(r.status)}</span></p>
-      <p><strong>Pickup:</strong> ${escapeHTML(r.pickup_location)}</p>
-      <p><strong>Destination:</strong> ${escapeHTML(r.destination)}</p>
-      <p><strong>Vehicle:</strong> ${escapeHTML(r.vehicle_type)}</p>
-      <p><strong>Distance:</strong> ${Number(r.distance_km || 0).toFixed(2)} km</p>
-      <p><strong>Fare:</strong> ${fare == null ? "Pending" : money(fare)}</p>
-      ${r.driver_id ? "<p>Driver assigned. Driver details depend on your database permissions and driver-details RPC.</p>" : "<p>Waiting for a driver to accept.</p>"}
-      ${["requested","accepted","arriving"].includes(String(r.status).toLowerCase())
-        ? '<button id="cancelRideBtn" class="danger" type="button">Cancel ride</button>' : ""}
-    </div>`;
-
-  const cancelBtn = $("cancelRideBtn");
-  if (cancelBtn) cancelBtn.addEventListener("click",cancelCurrentRide);
-}
-async function cancelCurrentRide() {
-  if (!currentRide || !confirm("Cancel this ride?")) return;
-  const button = $("cancelRideBtn");
-  if (button) button.disabled = true;
-
-  try {
-    const {error} = await db.rpc("cancel_ride",{p_ride_id:currentRide.id});
-    if (error) throw error;
-    currentRide = null;
-    await refreshCurrentRide();
-    await loadRideHistory();
-    message("appMessage","Ride cancelled.","ok");
-  } catch(error) {
-    message("appMessage",friendlyError(error),"error");
-    if (button) button.disabled = false;
-  }
-}
-
-/* HISTORY AND DOWNLOADABLE RECEIPTS */
-async function loadRideHistory() {
-  if (!session?.user) return;
-
-  const {data,error} = await db.from("rides").select("*")
-    .eq("passenger_id",session.user.id)
-    .order("created_at",{ascending:false})
-    .limit(30);
-
-  if (error) throw error;
-  const container = $("rideHistory");
-  if (!data?.length) {
-    container.innerHTML = '<p class="muted">No rides yet.</p>';
-    return;
-  }
-
-  container.innerHTML = "";
-  data.forEach(ride=>{
-    const item = document.createElement("div");
-    item.className = "ride-item";
-
-    const fare = ride.final_fare ?? ride.estimated_fare ?? ride.fare;
-    const completed = String(ride.status).toLowerCase() === "completed";
-
-    item.innerHTML = `
-      <p><strong>Ride #${escapeHTML(ride.id)}</strong></p>
-      <p><span class="status ${completed ? "completed" : String(ride.status).toLowerCase() === "cancelled" ? "cancelled" : ""}">${escapeHTML(ride.status)}</span></p>
-      <p>${escapeHTML(ride.pickup_location)} → ${escapeHTML(ride.destination)}</p>
-      <p>${escapeHTML(ride.vehicle_type)} · ${Number(ride.distance_km || 0).toFixed(2)} km</p>
-      <p><strong>Fare:</strong> ${fare == null ? "Pending" : money(fare)}</p>
-      ${completed ? '<button class="secondary receiptBtn" type="button">Download receipt</button>' : ""}`;
-
-    const receiptBtn = item.querySelector(".receiptBtn");
-    if (receiptBtn) receiptBtn.addEventListener("click",()=>downloadReceipt(ride));
-    container.appendChild(item);
-  });
-}
-function downloadReceipt(ride) {
-  const fare = ride.final_fare ?? ride.estimated_fare ?? ride.fare;
-  const lines = [
-    "RRYD — RIDE RECEIPT",
-    "Move your way.",
-    "Ride ID: " + ride.id,
-    "Status: " + ride.status,
-    "Pickup: " + (ride.pickup_location || ""),
-    "Destination: " + (ride.destination || ""),
-    "Vehicle: " + (ride.vehicle_type || ""),
-    "Distance: " + (ride.distance_km || 0) + " km",
-    "Fare: " + (fare == null ? "Pending" : money(fare)),
-    "Payment method: " + (ride.payment_method || "Not recorded"),
-    "Date: " + (ride.completed_at || ride.created_at || ""),
-    "",
-    "Thank you for riding with Rryd."
-  ];
-  const blob = new Blob([lines.join("\n")],{type:"text/plain;charset=utf-8"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "rryd-receipt-" + ride.id + ".txt";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-$("refreshHistoryBtn").addEventListener("click",async()=>{
-  try {
-    await loadRideHistory();
-    await refreshCurrentRide();
-    message("appMessage","Ride information refreshed.","ok");
-  } catch(error) {
-    message("appMessage",friendlyError(error),"error");
-  }
-});
-
-/* PROFILE */
-async function loadPassenger() {
-  if (!session?.user || isLoadingPassenger) return;
-  isLoadingPassenger = true;
-
-  try {
-    const {data,error} = await db.from("profiles").select("*")
-      .eq("id",session.user.id).maybeSingle();
-    if (error) throw error;
-    if (!data) throw new Error(
-      "Passenger profile was not found. Check your existing profile-creation trigger.");
-    if (data.role && data.role !== "passenger")
-      throw new Error("This page is for passenger accounts only.");
-
-    profile = data;
-    show("authSection",false);
-    show("appSection",true);
-    show("bookingSection",true);
-    show("settingsSection",false);
-    show("settingsBtn",true);
-    show("logoutBtn",true);
-    setText("welcome","Welcome, " + (profile.full_name || "Passenger"));
-    $("settingsName").value = profile.full_name || "";
-    $("settingsPhone").value = profile.phone || "";
-
-    try {
-      await loadFareRules();
-    } catch(error) {
-      message("appMessage",
-        "Could not load active fare rules. Booking will remain disabled until a valid fare is loaded. " +
-        friendlyError(error),"error");
+/* Ride status, history, assigned driver, live location and receipt */
+async function refreshCurrentRide(){
+  if(!db||!session?.user)return;
+  try{
+    const {data,error}=await db.from("rides").select("*").eq("passenger_id",session.user.id).order("created_at",{ascending:false}).limit(50);if(error)throw error;
+    rideRows=data||[];const prev=currentRide;currentRide=rideRows.find(r=>isActive(r.status))||null;
+    if(currentRide)await restoreMapFromRide(currentRide);
+    renderCurrentRide();renderHistory();
+    if(currentRide){await loadAssignedDriver(currentRide);show("rideSafetyPanel",true);show("messagePanel",true);show("ratingPanel",false);}
+    else{
+      text("driverDetails","");clearDriverTracking();if(prev&&String(prev.status).toLowerCase()!=="completed") {const finished=rideRows.find(r=>String(r.id)===String(prev.id)&&String(r.status).toLowerCase()==="completed");if(finished)showReceiptOnce(finished);}
+      const latestCompleted=rideRows.find(r=>String(r.status).toLowerCase()==="completed");if(latestCompleted&&latestCompleted.completed_at&&Date.now()-new Date(latestCompleted.completed_at).getTime()<120000)showReceiptOnce(latestCompleted);
+      show("rideSafetyPanel",false);show("messagePanel",false);show("ratingPanel",!!rideRows.find(r=>String(r.status).toLowerCase()==="completed"));
     }
-
-    await loadRideHistory();
-    await refreshCurrentRide();
-
-    if (map) setTimeout(()=>map.invalidateSize(),150);
-    if (pollingTimer) clearInterval(pollingTimer);
-    pollingTimer = setInterval(async()=>{
-      if (!session?.user) return;
-      try {
-        await refreshCurrentRide();
-        await loadRideHistory();
-      } catch(error) {
-        console.warn("Rryd passenger refresh:",errText(error));
-      }
-    },10000);
-  } catch(error) {
-    show("authSection",false);
-    show("appSection",true);
-    show("bookingSection",true);
-    show("settingsBtn",true);
-    show("logoutBtn",true);
-    message("appMessage",
-      "You are signed in, but passenger information could not finish loading: " +
-      friendlyError(error),"error");
-  } finally {
-    isLoadingPassenger = false;
-  }
+  }catch(error){setMessage("appMessage","Could not refresh ride status or history: "+friendlyError(error),"error");console.error("refreshCurrentRide",error);}
 }
-
-$("settingsBtn").addEventListener("click",()=>{
-  show("bookingSection",false);
-  show("settingsSection",true);
-  message("profileMessage","");
-});
-$("closeSettingsBtn").addEventListener("click",()=>{
-  show("settingsSection",false);
-  show("bookingSection",true);
-});
-
-$("profileForm").addEventListener("submit",async event=>{
-  event.preventDefault();
-  if (!session?.user) return;
-
-  const phone = $("settingsPhone").value.trim();
-  const fullName = $("settingsName").value.trim();
-  if (phone.length < 7 || phone.length > 20)
-    return message("profileMessage","Enter a valid phone number.","error");
-  if (!fullName)
-    return message("profileMessage","Enter your full name.","error");
-
-  const button = $("profileForm").querySelector("button[type=submit]");
-  button.disabled = true;
-  try {
-    const phoneResult = await db.rpc("rydd_update_my_phone",{p_phone:phone});
-    if (phoneResult.error) throw phoneResult.error;
-    if (phoneResult.data !== true)
-      throw new Error("Supabase did not confirm the phone number update.");
-
-    /* Use the existing profile update policy only if it allows this own row. */
-    const nameResult = await db.from("profiles")
-      .update({full_name:fullName})
-      .eq("id",session.user.id);
-    if (nameResult.error) {
-      message("profileMessage",
-        "Phone saved, but the name update was blocked: " + errText(nameResult.error),
-        "info");
-    } else {
-      profile = {...profile,phone,full_name:fullName};
-      setText("welcome","Welcome, " + fullName);
-      message("profileMessage","Profile saved.","ok");
-    }
-  } catch(error) {
-    message("profileMessage",friendlyError(error),"error");
-  } finally {
-    button.disabled = false;
+async function restoreMapFromRide(ride){
+  if(!map||!ride)return;
+  const pl=ride.pickup_latitude,po=ride.pickup_longitude,dl=ride.destination_latitude,do_=ride.destination_longitude;
+  let changed=false;
+  if(pl!=null&&po!=null&&isNepalBounds(Number(pl),Number(po))){
+    const label=String(ride.pickup_location??ride.pickup??"Saved pickup");
+    if(!pickupPoint||Math.abs(pickupPoint.lat-Number(pl))>0.000001||Math.abs(pickupPoint.lon-Number(po))>0.000001||pickupPoint.label!==label){pickupPoint={lat:Number(pl),lon:Number(po),label};$("pickup").value=label;updatePinMarker("pickup",Number(pl),Number(po),label);changed=true;}
   }
-});
-
-$("settingsResetBtn").addEventListener("click",async()=>{
-  if (!session?.user?.email) return;
-  try {
-    const {error} = await db.auth.resetPasswordForEmail(
-      session.user.email,
-      {redirectTo:location.href.split("#")[0].split("?")[0]}
-    );
-    if (error) throw error;
-    message("profileMessage","Password-reset email requested. Check your inbox and spam folder.","ok");
-  } catch(error) {
-    message("profileMessage",friendlyError(error),"error");
+  if(dl!=null&&do_!=null&&isNepalBounds(Number(dl),Number(do_))){
+    const label=String(ride.destination??"Saved destination");
+    if(!destinationPoint||Math.abs(destinationPoint.lat-Number(dl))>0.000001||Math.abs(destinationPoint.lon-Number(do_))>0.000001||destinationPoint.label!==label){destinationPoint={lat:Number(dl),lon:Number(do_),label};$("destination").value=label;updatePinMarker("destination",Number(dl),Number(do_),label);changed=true;}
   }
-});
-
-$("deleteAccountBtn").addEventListener("click",async()=>{
-  if (!session?.user) return;
-  if (!confirm("Delete your Rryd account? This action may be permanent.")) return;
-  if (!confirm("Final confirmation: delete your account now?")) return;
-
-  const button = $("deleteAccountBtn");
-  button.disabled = true;
-  try {
-    const {error} = await db.rpc("delete_own_account");
-    if (error) throw error;
-    await db.auth.signOut();
-    showLoggedOut();
-  } catch(error) {
-    message("profileMessage","Account deletion failed: " + friendlyError(error),"error");
-  } finally {
-    button.disabled = false;
-  }
-});
-
-/* STARTUP */
-async function init() {
-  if (!window.supabase || !window.L) {
-    message("authMessage",
-      "Required libraries did not load. Check your internet connection and reload.",
-      "error");
-    return;
-  }
-
-  db = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
-    auth:{
-      persistSession:true,
-      autoRefreshToken:true,
-      detectSessionInUrl:true
-    }
-  });
-
-  initMap();
-  setAuthMode("login");
-
-  const hash = new URLSearchParams(location.hash.replace(/^#/,""));
-  const query = new URLSearchParams(location.search);
-  if (hash.get("type") === "recovery" || query.get("type") === "recovery") {
-    show("authForm",false);
-    show("recoveryForm",false);
-    show("newPasswordForm",true);
-    message("authMessage","Enter your new password below.","info");
-  }
-
-  try {
-    const {data,error} = await db.auth.getSession();
-    if (error) throw error;
-    session = data.session;
-    if (session) await loadPassenger();
-  } catch(error) {
-    message("authMessage",friendlyError(error),"error");
-  }
-
-  db.auth.onAuthStateChange((event,newSession)=>{
-    session = newSession;
-
-    if (event === "PASSWORD_RECOVERY") {
-      show("authSection",true);
-      show("authForm",false);
-      show("recoveryForm",false);
-      show("newPasswordForm",true);
-      message("authMessage","Enter your new password below.","info");
-      return;
-    }
-
-    if (event === "SIGNED_OUT") {
-      showLoggedOut();
-      return;
-    }
-
-    if (newSession && !isLoadingPassenger) {
-      setTimeout(()=>{
-        if (session?.user && $("appSection").classList.contains("hidden")) {
-          loadPassenger().catch(error=>
-            message("authMessage",friendlyError(error),"error"));
-        }
-      },0);
-    }
-  });
+  if(changed&&pickupPoint&&destinationPoint){invalidateRoute();await calculateRoute();}
+  else if(!pickupPoint||!destinationPoint){text("routeInfo","This saved ride does not include both usable coordinates. Its original road route cannot be reconstructed until valid coordinates are available.");}
 }
-init();
+function clearDriverApproachRoute(){driverRouteSeq++;lastDriverRouteKey="";if(driverRouteLayer&&map)map.removeLayer(driverRouteLayer);driverRouteLayer=null;}
+function clearDriverTracking(){clearDriverApproachRoute();if(driverMarker&&map)map.removeLayer(driverMarker);driverMarker=null;}
+async function updateDriverApproachRoute(ride,lat,lon){
+  if(!pickupPoint||!["accepted","arriving"].includes(String(ride.status||"").toLowerCase())){clearDriverApproachRoute();return;}
+  const key=[String(ride.id),Number(lat).toFixed(3),Number(lon).toFixed(3),pickupPoint.lat.toFixed(4),pickupPoint.lon.toFixed(4)].join(":");
+  if(key===lastDriverRouteKey&&driverRouteLayer)return;
+  lastDriverRouteKey=key;const seq=++driverRouteSeq;
+  try{
+    const url=`${ROUTER_BASE}/${lon},${lat};${pickupPoint.lon},${pickupPoint.lat}?overview=full&geometries=geojson&steps=false`;
+    const response=await fetch(url);if(!response.ok)throw Error("Driver-to-pickup route service unavailable");
+    const data=await response.json();if(data.code!=="Ok"||!data.routes?.length)throw Error("No road route found from driver to pickup");
+    if(seq!==driverRouteSeq||!currentRide||String(currentRide.id)!==String(ride.id))return;
+    const r=data.routes[0];if(driverRouteLayer)map.removeLayer(driverRouteLayer);
+    driverRouteLayer=L.geoJSON(r.geometry,{style:{color:"#1687ff",weight:4,opacity:.85,dashArray:"8 7"}}).addTo(map);
+    text("driverApproachEta",`Approx. driver-to-pickup route: ${(r.distance/1000).toFixed(2)} km · ${Math.max(1,Math.ceil(r.duration/60))} min (no live-traffic guarantee).`);
+  }catch(error){if(seq===driverRouteSeq){lastDriverRouteKey="";text("driverApproachEta","Driver-to-pickup road route is temporarily unavailable. The marker may still be shown if its location is fresh.");}}
+}
+function renderCurrentRide(){
+  const box=$("currentRide");if(!currentRide){box.innerHTML='<p class="muted">No active ride. Your next booking will appear here.</p>';return;}
+  const r=currentRide,s=String(r.status||"requested").toLowerCase();
+  if(lastKnownRideId===String(r.id)&&lastKnownStatus&&lastKnownStatus!==s)notifyUser("Rryd ride update","Ride status changed to "+statusName(s)+".",true);
+  lastKnownRideId=String(r.id);lastKnownStatus=s;
+  const isFinal=s==="completed";const showFare=isFinal?(r.final_fare??r.actual_fare??r.fare):(r.estimated_fare??r.fare);
+  const date=r.created_at?new Date(r.created_at).toLocaleString():"—";
+  box.innerHTML=`<div class="ride"><div class="ride-head"><strong>Ride #${esc(r.id)}</strong><span class="status ${s==="completed"?"completed":s==="cancelled"?"cancelled":""}">${esc(statusName(s))}</span></div><p><b>Pickup:</b> ${esc(r.pickup_location??r.pickup??"—")}</p><p><b>Destination:</b> ${esc(r.destination??"—")}</p><p><b>Vehicle:</b> ${esc(r.vehicle_type??"—")}</p><p><b>Distance:</b> ${Number(r.distance_km||routeDistanceKm||0).toFixed(2)} km</p><p><b>${isFinal?"Final fare":"Estimated/current fare"}:</b> ${money(showFare)}</p><p><b>Payment:</b> ${esc(r.payment_method||"cash")} · ${esc(r.payment_status||"status not recorded")}</p><p class="muted small">Requested: ${esc(date)}</p><div class="row" id="rideActionButtons"></div></div>`;
+  const actions=$("rideActionButtons");
+  if(["requested","accepted","arriving"].includes(s)){const b=document.createElement("button");b.type="button";b.className="danger";b.textContent="Cancel ride";b.addEventListener("click",cancelRide);actions.appendChild(b);}
+  const share=document.createElement("button");share.type="button";share.className="ghost";share.textContent="Share trip details";share.addEventListener("click",()=>shareTrip(r));actions.appendChild(share);
+  if(isFinal){const b=document.createElement("button");b.type="button";b.className="secondary";b.textContent="View receipt";b.addEventListener("click",()=>showReceipt(r));actions.appendChild(b);}
+}
+async function loadAssignedDriver(ride){
+  const box=$("driverDetails");if(!ride.driver_id||!["accepted","arriving","started"].includes(String(ride.status).toLowerCase())){box.innerHTML="";clearDriverTracking();return;}
+  try{
+    const {data,error}=await db.rpc(DRIVER_DETAILS_RPC,{p_ride_id:ride.id});if(error)throw error;const d=Array.isArray(data)?data[0]:data;if(!d){box.innerHTML='<div class="driver-box"><b>Driver assigned</b><p class="muted small">Driver details are not available from the current driver-details endpoint.</p></div>';return;}
+    const phone=String(d.driver_phone??d.phone??"").trim();const lat=Number(d.driver_latitude??d.current_latitude??d.latitude),lon=Number(d.driver_longitude??d.current_longitude??d.longitude);const hasCoords=Number.isFinite(lat)&&Number.isFinite(lon)&&isNepalBounds(lat,lon);
+    box.innerHTML=`<div class="driver-box"><h3>Assigned driver</h3><p><b>Name:</b> ${esc(d.driver_name??d.full_name??"Driver")}</p><p><b>Vehicle:</b> ${esc(d.vehicle_type??ride.vehicle_type??"—")}</p><p><b>Model:</b> ${esc(d.vehicle_model??d.model??"Not provided")}</p><p><b>Registration:</b> ${esc(d.vehicle_registration??d.vehicle_number??"Not provided")}</p><p><b>Phone:</b> ${phone?`<a href="tel:${esc(phone)}">${esc(phone)}</a>`:"Not available"}</p>${phone?`<a class="linkbtn" href="tel:${esc(phone)}">Call driver</a>`:""}<p class="muted small" id="driverLocationStatus">${hasCoords?"Live driver location available; checking freshness…":"Driver location is not currently available."}</p><p class="muted small" id="driverApproachEta">Driver-to-pickup route will appear when fresh coordinates are available.</p></div>`;
+    if(hasCoords){const updated=d.location_updated_at?new Date(d.location_updated_at).getTime():0;const fresh=updated>0&&Date.now()-updated<120000;if(!driverMarker)driverMarker=L.marker([lat,lon],{icon:L.divIcon({className:"",html:'<div style="font-size:24px">🚙</div>',iconSize:[30,30],iconAnchor:[15,15]})}).addTo(map);else driverMarker.setLatLng([lat,lon]);driverMarker.bindPopup("Assigned driver · "+(fresh?"location updated recently":"location may be stale"));text("driverLocationStatus",fresh?"Driver location updated recently. ETA is still an estimate.":"Last driver location is older than 2 minutes. Treat this marker as stale until a new update arrives.");if(fresh&&["accepted","arriving"].includes(String(ride.status).toLowerCase()))await updateDriverApproachRoute(ride,lat,lon);else clearDriverApproachRoute();}else{clearDriverApproachRoute();if(driverMarker&&map){map.removeLayer(driverMarker);driverMarker=null;}}
+  }catch(error){console.warn("Assigned driver details unavailable",error);box.innerHTML='<div class="driver-box"><b>Driver assigned</b><p class="muted small">Driver contact and live location could not be loaded. Check the existing get_driver_details_for_my_ride RPC and its access policy.</p></div>';}
+}
+async function cancelRide(){
+  if(!currentRide||!["requested","accepted","arriving"].includes(String(currentRide.status).toLowerCase()))return setMessage("appMessage","This ride cannot be cancelled from its current status.","error");if(!confirm("Cancel this ride request? Cancellation fees only apply if Rryd has a separate disclosed policy and the database confirms the conditions."))return;
+  try{const {data,error}=await db.rpc("cancel_ride",{p_ride_id:currentRide.id});if(error)throw error;if(data===false)throw Error("Supabase did not confirm cancellation.");setMessage("appMessage","Cancellation request processed by Supabase. Refreshing ride status…","ok");await refreshCurrentRide();}catch(error){setMessage("appMessage","Cancellation failed: "+friendlyError(error),"error");}
+}
+function renderHistory(){const box=$("rideHistory");if(!rideRows.length){box.innerHTML='<p class="muted">No rides yet.</p>';return;}box.innerHTML=rideRows.slice(0,40).map(r=>{const s=String(r.status||"unknown").toLowerCase(),complete=s==="completed",cancelled=["cancelled","canceled"].includes(s),date=r.created_at?new Date(r.created_at).toLocaleString():"—",fare=complete?(r.final_fare??r.actual_fare??r.fare):(r.estimated_fare??r.fare);return `<div class="ride"><div class="ride-head"><b>Ride #${esc(r.id)}</b><span class="status ${complete?"completed":cancelled?"cancelled":""}">${esc(statusName(s))}</span></div><p>${esc(r.pickup_location??r.pickup??"—")} → ${esc(r.destination??"—")}</p><p>${esc(r.vehicle_type??"—")} · ${money(fare)}</p><p class="muted small">${esc(date)}</p>${complete?`<button class="secondary" type="button" data-receipt="${esc(r.id)}">Receipt</button>`:""}</div>`;}).join("");box.querySelectorAll("[data-receipt]").forEach(btn=>btn.addEventListener("click",()=>{const r=rideRows.find(x=>String(x.id)===btn.dataset.receipt);if(r)showReceipt(r);}));}
+$("refreshRideBtn").addEventListener("click",refreshCurrentRide);$("refreshHistoryBtn").addEventListener("click",refreshCurrentRide);
+
+/* Receipt: only issue it for a completed ride. Automatically appears briefly after completion. */
+function receiptText(r){const fare=r.final_fare??r.actual_fare??r.fare??r.estimated_fare;const date=r.completed_at||r.created_at;return["RRYD — RIDE RECEIPT","Ride ID: "+r.id,"Status: "+statusName(r.status),"Date: "+(date?new Date(date).toLocaleString():"—"),"Pickup: "+(r.pickup_location??r.pickup??"—"),"Destination: "+(r.destination??"—"),"Vehicle: "+(r.vehicle_type??"—"),"Billable distance: "+(r.distance_km==null?"—":Number(r.distance_km).toFixed(2)+" km"),"Initial estimate: "+money(r.estimated_fare??r.fare),"Final fare: "+money(fare),"Payment method: "+(r.payment_method??"cash"),"Payment status: "+(r.payment_status??"not recorded"),"","This receipt reflects ride/payment fields recorded by Rryd. It is not proof of online payment unless the payment status is confirmed by the payment system."].join("\n");}
+function showReceiptOnce(r){if(!r||String(r.status).toLowerCase()!=="completed")return;if(lastReceiptPopupId===String(r.id))return;let key="";try{key="rryd-receipt-seen-"+session.user.id+"-"+r.id;if(localStorage.getItem(key)==="1")return;localStorage.setItem(key,"1");}catch(_){}lastReceiptPopupId=String(r.id);showReceipt(r);}
+function showReceipt(r){if(String(r.status).toLowerCase()!=="completed")return setMessage("appMessage","A final receipt is only available after the ride is completed.","info");closeReceipt();const popup=$("receiptPopup");popup.innerHTML=`<div class="receipt-head"><strong>Rryd receipt · Ride #${esc(r.id)}</strong><button class="receipt-close" id="closeReceiptBtn" type="button" aria-label="Close receipt">×</button></div><pre>${esc(receiptText(r))}</pre><div class="row"><button class="primary" id="downloadReceiptBtn" type="button">Download</button><button class="secondary" id="copyReceiptBtn" type="button">Copy</button><button class="ghost" id="shareReceiptBtn" type="button">Share</button><button class="ghost" id="printReceiptBtn" type="button">Print / PDF</button></div><p class="muted tiny">This receipt popup closes automatically after 10 seconds.</p>`;show("receiptPopup",true);$("closeReceiptBtn").onclick=closeReceipt;$("downloadReceiptBtn").onclick=()=>downloadReceipt(r);$("copyReceiptBtn").onclick=()=>copyText(receiptText(r),"Receipt copied.");$("shareReceiptBtn").onclick=()=>shareText("Rryd ride receipt",receiptText(r));$("printReceiptBtn").onclick=()=>printReceipt(r);receiptTimer=setTimeout(closeReceipt,10000);}
+function closeReceipt(){show("receiptPopup",false);$("receiptPopup").innerHTML="";if(receiptTimer){clearTimeout(receiptTimer);receiptTimer=null;}}
+function downloadReceipt(r){const blob=new Blob(["\ufeff",receiptText(r)],{type:"text/plain;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="Rryd-receipt-"+String(r.id).replace(/[^a-zA-Z0-9_-]/g,"")+".txt";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);setMessage("appMessage","Receipt downloaded.","ok");}
+async function copyText(textValue,successMessage){try{await navigator.clipboard.writeText(textValue);setMessage("appMessage",successMessage,"ok");}catch(_){window.prompt("Copy this text:",textValue);}}
+async function shareText(title,body){try{if(navigator.share)await navigator.share({title,text:body});else await copyText(body,"Details copied for sharing.");}catch(error){if(error.name!=="AbortError")setMessage("appMessage","Share could not be opened: "+errorText(error),"error");}}
+function printReceipt(r){const w=window.open("","_blank","width=700,height=800");if(!w)return setMessage("appMessage","Allow pop-ups to print the receipt.","error");w.document.write("<!doctype html><html><head><meta charset='utf-8'><title>Rryd receipt</title></head><body style='font:16px Arial;padding:24px'><pre style='white-space:pre-wrap;font:inherit'>"+esc(receiptText(r))+"</pre></body></html>");w.document.close();w.focus();w.print();}
+
+/* Trip sharing and issue reporting. No ticket is claimed as submitted without a backend. */
+$("shareTripBtn").addEventListener("click",()=>{if(!currentRide)return;shareText("Rryd trip details",`Rryd trip #${currentRide.id}\nPickup: ${currentRide.pickup_location||"—"}\nDestination: ${currentRide.destination||"—"}\nStatus: ${statusName(currentRide.status)}\nVehicle: ${currentRide.vehicle_type||"—"}`);});
+$("reportTripBtn").addEventListener("click",()=>{if(currentRide)$("supportRideId").value=currentRide.id;$("supportPanel").scrollIntoView({behavior:"smooth"});$("supportDetails").focus();});
+function makeSupportReport(){return["RRYD SUPPORT REPORT","Issue: "+$("supportCategory").value,"Ride ID: "+($("supportRideId").value.trim()||"not provided"),"Passenger email: "+(session?.user?.email||"not available"),"Details:",$("supportDetails").value.trim()||"No additional details supplied.","Generated at: "+new Date().toISOString()].join("\n");}
+$("copySupportReportBtn").addEventListener("click",()=>copyText(makeSupportReport(),"Support report copied. Send it through Rryd's official support channel; no ticket was submitted from this page."));
+$("shareSupportReportBtn").addEventListener("click",()=>shareText("Rryd support report",makeSupportReport()));
+
+/* Profile, phone, password-reset and account deletion */
+$("profileForm").addEventListener("submit",async e=>{e.preventDefault();if(!session?.user)return;const name=$("settingsName").value.trim(),phone=$("settingsPhone").value.trim();if(name.length<2)return setMessage("settingsMessage","Enter a valid full name.","error");if(phone.length<7||phone.length>25)return setMessage("settingsMessage","Enter a valid phone number.","error");try{
+  const nameResult=await db.rpc(NAME_RPC,{p_full_name:name});if(nameResult.error)throw Error("Could not save name: "+nameResult.error.message);if(nameResult.data===false)throw Error("Supabase did not confirm the name update.");
+  const phoneResult=await db.rpc(PHONE_RPC,{p_phone:phone});if(phoneResult.error)throw Error("Name may be saved, but phone update failed: "+phoneResult.error.message);if(phoneResult.data===false)throw Error("Supabase did not confirm the phone update.");
+  profile={...profile,full_name:name,phone};text("welcome","Welcome, "+profileDisplayName());text("accountBtn",profileDisplayName());setMessage("settingsMessage","Profile and phone saved successfully.","ok");
+ }catch(error){setMessage("settingsMessage",friendlyError(error),"error");}});
+$("settingsResetBtn").addEventListener("click",async()=>{if(!session?.user?.email)return setMessage("settingsMessage","No email is available for this session.","error");try{const {error}=await db.auth.resetPasswordForEmail(session.user.email,{redirectTo:location.origin+location.pathname});if(error)throw error;setMessage("settingsMessage","Password reset email sent if the address is registered.","ok");}catch(error){setMessage("settingsMessage",friendlyError(error),"error");}});
+$("deleteAccountBtn").addEventListener("click",async()=>{if(!confirm("Permanently delete your Rryd account? This action cannot be undone."))return;if(!confirm("Final confirmation: delete your passenger account now?"))return;try{const {data,error}=await db.rpc(DELETE_RPC);if(error)throw error;if(data===false)throw Error("Supabase did not confirm account deletion.");await db.auth.signOut();}catch(error){setMessage("settingsMessage","Account deletion failed: "+friendlyError(error),"error");}});
+
+/* Browser notifications and sound. This never pretends to send push when the page is closed. */
+$("enableNotificationsBtn").addEventListener("click",async()=>{try{if("Notification" in window){const p=await Notification.requestPermission();notificationAllowed=p==="granted";}else notificationAllowed=false;soundEnabled=true;if(window.AudioContext||window.webkitAudioContext){const C=window.AudioContext||window.webkitAudioContext;audioContext=audioContext||new C();if(audioContext.state==="suspended")await audioContext.resume();}setMessage("appMessage",notificationAllowed?"Browser notifications and in-page sound are enabled while this page is open.":"In-page sound is enabled where the browser allows it. Browser notifications were not granted.","ok");}catch(error){setMessage("appMessage","Notification setup: "+errorText(error),"info");}});
+function beep(){if(!soundEnabled)return;try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;audioContext=audioContext||new C();if(audioContext.state==="suspended")audioContext.resume();const o=audioContext.createOscillator(),g=audioContext.createGain();o.type="sine";o.frequency.value=880;g.gain.value=.045;o.connect(g);g.connect(audioContext.destination);o.start();o.stop(audioContext.currentTime+.18);}catch(_){}}
+function notifyUser(title,body,playSound=false){setMessage("notificationMessage",title+": "+body,"info");show("notificationMessage",true);if(playSound)beep();if(notificationAllowed&&"Notification" in window&&Notification.permission==="granted"){try{new Notification(title,{body});}catch(_){}}}
+$("notificationsBtn").addEventListener("click",()=>{const txt=$("notificationMessage").textContent||"No new in-page notification.";showToast("Rryd notifications",txt);});
+
+/* Browser-local saved places; never upload a saved address without an explicit database feature. */
+function savePlace(name){if(!pickupPoint)return setMessage("appMessage","Choose a pickup point before saving a place.","error");try{localStorage.setItem("rryd-saved-"+name,JSON.stringify(pickupPoint));setMessage("appMessage",name+" saved in this browser.","ok");}catch(error){setMessage("appMessage","This browser could not save the place.","error");}}
+async function usePlace(name){try{const p=JSON.parse(localStorage.getItem("rryd-saved-"+name)||"null");if(!p)return setMessage("appMessage","No saved "+name+" place exists in this browser.","info");await setPoint("pickup",p.lat,p.lon,p.label,true);setMessage("appMessage",name+" loaded as pickup.","ok");}catch(error){setMessage("appMessage","Could not load saved place: "+errorText(error),"error");}}
+$("saveHomeBtn").addEventListener("click",()=>savePlace("home"));$("useHomeBtn").addEventListener("click",()=>usePlace("home"));$("saveWorkBtn").addEventListener("click",()=>savePlace("work"));$("useWorkBtn").addEventListener("click",()=>usePlace("work"));
+
+/* Poll actual database state. Pauses in hidden tabs to reduce traffic. */
+function startPolling(){stopPolling();ridePollTimer=setInterval(()=>{if(session&&!document.hidden)refreshCurrentRide();},8000);availabilityTimer=setInterval(()=>{if(session&&!document.hidden)refreshAvailability();},30000);}
+function stopPolling(){if(ridePollTimer)clearInterval(ridePollTimer);if(availabilityTimer)clearInterval(availabilityTimer);ridePollTimer=availabilityTimer=null;}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&session){refreshCurrentRide();refreshAvailability();if(map)setTimeout(()=>map.invalidateSize(),100);}});
+
+/* Initial bindings */
+setAuthMode("login");
+initialize();
 </script>
 </body>
 </html>
