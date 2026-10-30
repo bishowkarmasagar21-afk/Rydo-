@@ -119,6 +119,27 @@ class RrydPassengerRideRepository {
     return rows.cast<Map<String, dynamic>>();
   }
 
+  Future<void> updateMyPassengerLocation({
+    required int rideId,
+    required double latitude,
+    required double longitude,
+  }) async {
+    final result = await SupabaseBootstrap.client.rpc(
+      'rryd_update_my_passenger_location',
+      params: {
+        'p_ride_id': rideId,
+        'p_latitude': latitude,
+        'p_longitude': longitude,
+      },
+    );
+    if (result != true) {
+      throw StateError(
+        'Supabase did not confirm passenger location sharing. '
+        'Check the rryd_passenger_location_backend SQL setup and ride status.',
+      );
+    }
+  }
+
   Future<List<Map<String, dynamic>>> loadRideMessages(int rideId) async {
     final rows = await SupabaseBootstrap.client
         .from('ride_messages')
