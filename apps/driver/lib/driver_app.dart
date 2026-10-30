@@ -72,7 +72,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
   bool _requestReadFailed = false;
   String? _notice;
   bool _noticeIsError = false;
-  String _gpsStatus = 'Location has not been requested.';
+  String _gpsStatus = strings.text('location_not_requested');
 
   static const _activeStatuses = {'accepted', 'arriving', 'started'};
 
@@ -409,7 +409,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirm ride action'),
+        title: const Text(strings.text('confirm_ride_action')),
         content: Text(labels[action] ?? 'Continue?'),
         actions: [
           TextButton(
@@ -517,7 +517,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  _online ? 'You are online' : 'You are offline',
+                                  _online ? strings.text('online') : strings.text('offline'),
                                   style: theme.textTheme.titleLarge?.copyWith(
                                     fontWeight: FontWeight.w800,
                                     color: _online
@@ -539,8 +539,8 @@ class _DriverHomePageState extends State<DriverHomePage> {
                           const SizedBox(height: 8),
                           Text(
                             widget.profile.isVerified
-                                ? 'Driver verification approved'
-                                : 'Driver verification is pending',
+                                ? strings.text('driver_approved')
+                                : strings.text('driver_pending_label'),
                             style: theme.textTheme.bodySmall,
                           ),
                           const SizedBox(height: 6),
@@ -551,7 +551,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                             icon: Icon(
                               _online ? Icons.pause_circle : Icons.play_circle,
                             ),
-                            label: Text(_online ? 'Go offline' : 'Go online'),
+                            label: Text(_online ? strings.text('go_offline') : strings.text('go_online')),
                           ),
                         ],
                       ),
@@ -563,7 +563,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                   ],
                   const SizedBox(height: 18),
                   Text(
-                    'Your vehicles',
+                    strings.text('my_vehicles'),
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
@@ -574,7 +574,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                       child: Padding(
                         padding: EdgeInsets.all(16),
                         child: Text(
-                          'No vehicle is registered on this driver profile yet. Register a vehicle and wait for admin approval.',
+                          strings.text('no_vehicles'),
                         ),
                       ),
                     )
@@ -590,21 +590,21 @@ class _DriverHomePageState extends State<DriverHomePage> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Text(
-                              'Register a vehicle',
+                              strings.text('register_vehicle'),
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Each vehicle is reviewed separately. Approval is required before it can receive rides.',
+                              strings.text('vehicle_review_text'),
                               style: theme.textTheme.bodySmall,
                             ),
                             const SizedBox(height: 12),
                             DropdownButtonFormField<String>(
                               initialValue: _newVehicleType,
                               decoration: const InputDecoration(
-                                labelText: 'Vehicle type',
+                                labelText: strings.text('vehicle_type'),
                               ),
                               items: const [
                                 DropdownMenuItem(value: 'bike', child: Text('Bike')),
@@ -624,7 +624,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                               controller: _vehicleModelController,
                               textCapitalization: TextCapitalization.words,
                               decoration: const InputDecoration(
-                                labelText: 'Vehicle model',
+                                labelText: strings.text('vehicle_model'),
                                 prefixIcon: Icon(Icons.directions_car_outlined),
                               ),
                               validator: (value) =>
@@ -637,7 +637,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                               controller: _vehicleNumberController,
                               textCapitalization: TextCapitalization.characters,
                               decoration: const InputDecoration(
-                                labelText: 'Vehicle registration number',
+                                labelText: strings.text('vehicle_number'),
                                 prefixIcon: Icon(Icons.confirmation_number_outlined),
                               ),
                               validator: (value) =>
@@ -649,7 +649,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                             FilledButton.icon(
                               onPressed: _busy ? null : _submitVehicle,
                               icon: const Icon(Icons.add_road),
-                              label: const Text('Submit vehicle for approval'),
+                              label: const Text(strings.text('submit_vehicle')),
                             ),
                           ],
                         ),
@@ -658,7 +658,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    'Earnings overview',
+                    strings.text('earnings_overview'),
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
@@ -668,14 +668,14 @@ class _DriverHomePageState extends State<DriverHomePage> {
                     children: [
                       Expanded(
                         child: _metricCard(
-                          'Driver net',
+                          strings.text('driver_net'),
                           _money(_sumField(completed, 'driver_earnings')),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: _metricCard(
-                          'Company commission',
+                          strings.text('company_commission'),
                           _money(_sumField(completed, 'admin_earnings')),
                         ),
                       ),
@@ -685,18 +685,18 @@ class _DriverHomePageState extends State<DriverHomePage> {
                   Row(
                     children: [
                       Expanded(
-                        child: _metricCard('Completed', '${completed.length}'),
+                        child: _metricCard(strings.text('completed'), '${completed.length}'),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: _metricCard('Cancelled', '$cancelledCount'),
+                        child: _metricCard(strings.text('cancelled'), '$cancelledCount'),
                       ),
                     ],
                   ),
                   if (_activeRide != null) ...[
                     const SizedBox(height: 18),
                     Text(
-                      'Current ride',
+                      strings.text('current_ride'),
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
@@ -709,7 +709,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                     children: [
                       Expanded(
                         child: Text(
-                          'Incoming requests',
+                          strings.text('incoming_requests'),
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
@@ -727,7 +727,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                       child: Padding(
                         padding: EdgeInsets.all(16),
                         child: Text(
-                          'Go online to check for incoming ride requests.',
+                          strings.text('go_online_requests'),
                         ),
                       ),
                     )
@@ -736,7 +736,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                       child: Padding(
                         padding: EdgeInsets.all(16),
                         child: Text(
-                          'Ride requests could not be read. Check the rides SELECT policy for verified online drivers.',
+                          strings.text('requests_unavailable'),
                         ),
                       ),
                     )
@@ -744,14 +744,14 @@ class _DriverHomePageState extends State<DriverHomePage> {
                     const Card(
                       child: Padding(
                         padding: EdgeInsets.all(16),
-                        child: Text('No unassigned ride requests are visible.'),
+                        child: Text(strings.text('no_requests')),
                       ),
                     )
                   else
                     ..._requests.map(_requestCard),
                   const SizedBox(height: 18),
                   Text(
-                    'Recent rides',
+                    strings.text('recent_rides'),
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
@@ -800,7 +800,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
         title: Text(model),
         subtitle: Text('$type · $number'),
         trailing: Chip(
-          label: Text(approved ? 'Approved' : 'Pending'),
+          label: Text(approved ? strings.text('approved') : strings.text('pending')),
           backgroundColor: approved
               ? const Color(0xFF16B981).withValues(alpha: 0.12)
               : null,
@@ -855,7 +855,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
             if (fare != null) ...[
               const SizedBox(height: 5),
               Text(
-                'Passenger estimate: ${_money((fare as num).toDouble())}',
+                strings.text('passenger_estimate') + ': ${_money((fare as num).toDouble())}',
                 style: const TextStyle(
                   color: Color(0xFF16B981),
                   fontWeight: FontWeight.w700,
@@ -869,7 +869,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                   : () => _acceptRide(ride),
               child: Text(
                 compatible
-                    ? 'Accept ride'
+                    ? strings.text('accept_ride')
                     : 'Requires approved $type vehicle',
               ),
             ),
@@ -885,13 +885,13 @@ class _DriverHomePageState extends State<DriverHomePage> {
     String? actionLabel;
     if (status == 'accepted') {
       nextAction = 'driver_arriving';
-      actionLabel = 'Mark arriving';
+      actionLabel = strings.text('mark_arriving');
     } else if (status == 'arriving') {
       nextAction = 'start_ride';
-      actionLabel = 'Start ride';
+      actionLabel = strings.text('start_ride');
     } else if (status == 'started') {
       nextAction = 'complete_ride';
-      actionLabel = 'Complete ride';
+      actionLabel = strings.text('complete_ride');
     }
 
     return Card(
