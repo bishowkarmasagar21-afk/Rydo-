@@ -215,7 +215,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
   void _startPolling() {
     _pollTimer?.cancel();
     _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (!mounted || !_online) return;
+      if (!mounted || (!_online && _activeRide == null)) return;
       _loadData();
     });
   }
