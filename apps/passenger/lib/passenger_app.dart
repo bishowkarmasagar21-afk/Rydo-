@@ -400,7 +400,15 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
       if (point.isInsideNepal) destination = point;
     }
 
-    if (pickup == null || destination == null) return;
+    if (pickup == null || destination == null) {
+      setState(() {
+        _pickup = pickup;
+        _destination = destination;
+        _route = null;
+        _driverRoute = [];
+      });
+      return;
+    }
     final key = '${ride['id']}:${pickup.latitude.toStringAsFixed(5)}:'
         '${pickup.longitude.toStringAsFixed(5)}:'
         '${destination.latitude.toStringAsFixed(5)}:'
@@ -410,6 +418,8 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
     setState(() {
       _pickup = pickup;
       _destination = destination;
+      _route = null;
+      _driverRoute = [];
       _activeRideRouteKey = key;
     });
 
@@ -418,7 +428,7 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
         from: pickup,
         to: destination,
       );
-      if (!mounted || _activeRide?.toString() != ride.toString()) return;
+      if (!mounted || _activeRide?['id'].toString() != ride['id'].toString()) return;
       setState(() => _route = route);
     } catch (_) {
       // The ride record and fixed pickup/destination markers remain available
@@ -430,7 +440,7 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
     if (_driverPollTimer != null) return;
     _driverPollTimer = Timer.periodic(
       const Duration(seconds: 8),
-      (_) => _refreshDriverDetails(),
+      (_) => _refreshRides(),
     );
   }
 
