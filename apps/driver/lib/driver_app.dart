@@ -56,6 +56,9 @@ class DriverHomePage extends StatefulWidget {
 
 class _DriverHomePageState extends State<DriverHomePage> {
   final _repository = RrydDriverRepository();
+  final _ratingsRepository = RrydRatingsRepository();
+  final _ratedRideIds = <String>{};
+  bool _ratingsBackendAvailable = false;
   final _locationService = RrydLocationService();
   final _chatController = TextEditingController();
   final _vehicleFormKey = GlobalKey<FormState>();
@@ -166,6 +169,19 @@ class _DriverHomePageState extends State<DriverHomePage> {
       final rides = await _repository.loadMyRides(widget.profile.id);
       if (!mounted) return;
       setState(() => _myRides = rides);
+      try {
+        final ratedIds =
+            await _ratingsRepository.loadMyRatedRideIds(widget.profile.id);
+        if (!mounted) return;
+        setState(() {
+          _ratedRideIds
+            ..clear()
+            ..addAll(ratedIds);
+          _ratingsBackendAvailable = true;
+        });
+      } catch (_) {
+        if (mounted) setState(() => _ratingsBackendAvailable = false);
+      }
       await _refreshRideCommunication();
     } catch (error) {
       _setNotice('Could not load your ride history: $error', isError: true);
@@ -1734,24 +1750,94 @@ class _DriverHomePageState extends State<DriverHomePage> {
     );
   }
 
+  Future<void> _ratePassenger(Map<String, dynamic> ride) async {
+    final rideId = int.tryParse(ride['id'].toString());
+    if (rideId == null) {
+      _setNotice('Ride ID is not in the expected format.', isError: true);
+      return;
+    }
+    if (!_ratingsBackendAvailable) {
+      _setNotice(
+        'Ratings are not enabled on the backend yet. Apply the reviewed ratings SQL migration first.',
+        isError: true,
+      );
+      return;
+    }
+
+    await RrydRatingSheet.show(
+      context,
+      title: widget.settings.language.code == 'ne'
+          ? 'यात्रुलाई रेटिङ दिनुहोस्'
+          : 'Rate your passenger',
+      languageCode: widget.settings.language.code,
+      onSubmit: (rating, feedback) async {
+        await _ratingsRepository.submitRating(
+          rideId: rideId,
+          rating: rating,
+          feedback: feedback,
+        );
+        if (!mounted) return;
+        setState(() => _ratedRideIds.add(rideId.toString()));
+        _setNotice(
+          widget.settings.language.code == 'ne'
+              ? 'तपाईंको रेटिङ सुरक्षित भयो।'
+              : 'Your rating was saved.',
+        );
+      },
+    );
+  }
+
   Widget _historyCard(Map<String, dynamic> ride) {
     final fare = ride['final_fare'] ?? ride['fare'];
+    final completed =
+        (ride['status'] ?? '').toString().toLowerCase() == 'completed';
+    final alreadyRated = _ratedRideIds.contains(ride['id'].toString());
     return Card(
-      child: ListTile(
-        dense: true,
-        leading: const Icon(Icons.route_outlined),
-        title: Text(
-          '${ride['pickup_location'] ?? 'Pickup'} → '
-          '${ride['destination'] ?? 'Destination'}',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          'Ride #${ride['id']} · ${ride['status'] ?? 'Unknown'}',
-        ),
-        trailing: fare == null
-            ? null
-            : Text(_money((fare as num).toDouble())),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ListTile(
+            dense: true,
+            leading: const Icon(Icons.route_outlined),
+            title: Text(
+              '${ride['pickup_location'] ?? 'Pickup'} → '
+              '${ride['destination'] ?? 'Destination'}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(
+              'Ride #${ride['id']} · ${ride['status'] ?? 'Unknown'}',
+            ),
+            trailing: fare == null
+                ? null
+                : Text(_money((fare as num).toDouble())),
+          ),
+          if (completed && ride['passenger_id'] != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: alreadyRated
+                    ? const Chip(
+                        avatar: Icon(Icons.star, size: 16),
+                        label: Text('Rated'),
+                      )
+                    : !_ratingsBackendAvailable
+                        ? const Text(
+                            'Rating will be available after Rryd enables the ratings service.',
+                          )
+                        : OutlinedButton.icon(
+                            onPressed: () => _ratePassenger(ride),
+                            icon: const Icon(Icons.star_outline),
+                            label: Text(
+                              widget.settings.language.code == 'ne'
+                                  ? 'यात्रुलाई रेटिङ दिनुहोस्'
+                                  : 'Rate passenger',
+                            ),
+                          ),
+              ),
+            ),
+        ],
       ),
     );
   }
