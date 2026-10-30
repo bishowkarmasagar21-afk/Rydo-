@@ -119,6 +119,32 @@ class RrydPassengerRideRepository {
     return rows.cast<Map<String, dynamic>>();
   }
 
+  Future<List<Map<String, dynamic>>> loadRideMessages(int rideId) async {
+    final rows = await SupabaseBootstrap.client
+        .from('ride_messages')
+        .select('*')
+        .eq('ride_id', rideId)
+        .order('created_at', ascending: true)
+        .limit(100);
+    return rows.cast<Map<String, dynamic>>();
+  }
+
+  Future<void> sendRideMessage({
+    required int rideId,
+    required String senderId,
+    required String message,
+  }) async {
+    final clean = message.trim();
+    if (clean.isEmpty || clean.length > 1000) {
+      throw ArgumentError('Message must contain 1 to 1000 characters.');
+    }
+    await SupabaseBootstrap.client.from('ride_messages').insert({
+      'ride_id': rideId,
+      'sender_id': senderId,
+      'message': clean,
+    });
+  }
+
   Future<Map<String, dynamic>?> loadDriverDetailsForRide(int rideId) async {
     final response = await SupabaseBootstrap.client.rpc(
       'get_driver_details_for_my_ride',
