@@ -832,7 +832,33 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
     }
     final status = (ride['status'] ?? '').toString().toLowerCase();
     if (status == 'accepted') {
-      await _startPassengerLocationSharing(ride);
+      final rideId = int.tryParse(ride['id'].toString());
+      if (rideId != null && _sharingLocationRideId == rideId) {
+        // Refresh a low-frequency heartbeat even when the passenger is
+        // stationary and the GPS stream's distance filter emits no event.
+        final last = _lastPassengerLocationWrite;
+        if (last == null ||
+            DateTime.now().difference(last) >= const Duration(seconds: 30)) {
+          try {
+            final current = await Geolocator.getCurrentPosition(
+              locationSettings: const LocationSettings(
+                accuracy: LocationAccuracy.high,
+                timeLimit: Duration(seconds: 15),
+              ),
+            );
+            await _publishPassengerLocation(rideId, current);
+          } catch (error) {
+            if (mounted) {
+              _setNotice(
+                'Could not refresh your shared pickup location: $error',
+                isError: true,
+              );
+            }
+          }
+        }
+      } else {
+        await _startPassengerLocationSharing(ride);
+      }
     } else {
       await _stopPassengerLocationSharing();
     }
