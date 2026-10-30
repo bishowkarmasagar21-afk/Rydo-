@@ -15,6 +15,8 @@ dependencies:
   rryd_core:
     path: ../../packages/rryd_core
   geolocator: ^14.1.2
+  pdf: ^3.11.3
+  printing: ^5.14.3
   url_launcher: ^6.3.3
 
 dev_dependencies:
