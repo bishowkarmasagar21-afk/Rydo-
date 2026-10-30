@@ -14,6 +14,7 @@ dependencies:
     sdk: flutter
   rryd_core:
     path: ../../packages/rryd_core
+  geolocator: ^14.1.2
   url_launcher: ^6.3.3
 
 dev_dependencies:
