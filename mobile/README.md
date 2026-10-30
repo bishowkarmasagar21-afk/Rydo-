@@ -55,6 +55,14 @@ The current web driver portal in `driver.html` uses:
 8. The Nominatim search and OSRM demo routing endpoints are development-only and subject to usage policies/availability. The OpenStreetMap public tile service also has a usage policy; these endpoints are not a contracted production map stack.
 9. Passenger/Driver pages are not yet production-ready: native folders and initial flows are being built, but the exact live Supabase project, RLS, role model, deep-link redirect configuration, production geocoder/router, and payment integration must be confirmed.
 
+## Passenger live-location and Driver notification backend status
+
+- Passenger location sharing is implemented as ride-scoped consent: it starts only after a driver is assigned and the ride is `accepted`; it stops when the ride leaves that status. It updates while the Passenger app is active. Background sharing after the app is minimized or closed is not yet implemented.
+- The proposed secure backend is in `mobile/sql/rryd_passenger_location_backend.sql`. It creates an RLS-protected location table, passenger update RPC, driver read RPC and cleanup trigger. **This SQL has not been applied to Supabase.** The correct live Supabase project must be connected and the current schema audited before applying it.
+- Driver request alerts currently use local notifications when the Driver app is running and polling. True remote/background push when the app is closed requires FCM/APNs setup plus a trusted server-side push sender and credentials; those have not been configured.
+- The notification plugin's local notification permission is requested after the driver taps Go online. OS notification settings can still suppress alerts.
+- Passenger and Driver accounts still use the existing one-value `profiles.role` model. Cross-app access for a single identity is not enabled by this code alone.
+
 ## Development safety
 
 - Work on the `mobile/flutter-foundation` branch.
