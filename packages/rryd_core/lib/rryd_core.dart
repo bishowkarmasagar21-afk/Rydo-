@@ -8,6 +8,7 @@ export 'src/localization/rryd_strings.dart';
 export 'src/models/rryd_location.dart';
 export 'src/models/rryd_profile.dart';
 export 'src/services/rryd_notification_service.dart';
+export 'src/widgets/rryd_safety_center.dart';
 export 'src/models/rryd_profile_repository.dart';
 export 'src/preferences/rryd_app_settings.dart';
 export 'src/repositories/rryd_driver_repository.dart';
