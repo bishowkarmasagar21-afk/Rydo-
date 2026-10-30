@@ -211,9 +211,10 @@ class _RrydAuthGateState extends State<RrydAuthGate> {
       }
 
     } else {
-      // A driver can still open the Passenger app with the same Auth identity.
-      // The request_ride RPC must also be updated server-side to allow this
-      // dual-app account before passenger booking is enabled for driver profiles.
+      // The current database stores exactly one profile role. A driver
+      // profile is therefore not eligible for the Passenger app yet.
+      // Do not relax this client check until the backend role/eligibility
+      // migration and request_ride authorization have both been deployed.
       if (profile.role != 'passenger') {
         return _RrydNoticeScreen(
           title: strings.text('wrong_role'),
