@@ -11,6 +11,8 @@ class RrydTripMap extends StatelessWidget {
     this.pickup,
     this.destination,
     this.route = const [],
+    this.driverLocation,
+    this.driverRoute = const [],
     this.onMapTap,
     this.showCurrentMapPinHint = true,
   });
@@ -18,6 +20,8 @@ class RrydTripMap extends StatelessWidget {
   final RrydLocationPoint? pickup;
   final RrydLocationPoint? destination;
   final List<LatLng> route;
+  final RrydLocationPoint? driverLocation;
+  final List<LatLng> driverRoute;
   final ValueChanged<LatLng>? onMapTap;
   final bool showCurrentMapPinHint;
 
@@ -47,6 +51,19 @@ class RrydTripMap extends StatelessWidget {
           child: const _MapPin(
             color: RrydTheme.orange,
             icon: Icons.location_on_rounded,
+          ),
+        ),
+      );
+    }
+    if (driverLocation != null) {
+      markers.add(
+        Marker(
+          point: driverLocation!.latLng,
+          width: 46,
+          height: 54,
+          child: const _MapPin(
+            color: Color(0xFF3B82F6),
+            icon: Icons.directions_car_filled_rounded,
           ),
         ),
       );
@@ -81,6 +98,17 @@ class RrydTripMap extends StatelessWidget {
                       points: route,
                       strokeWidth: 5,
                       color: RrydTheme.orange,
+                    ),
+                  ],
+                ),
+              if (driverRoute.length >= 2)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: driverRoute,
+                      strokeWidth: 4,
+                      color: const Color(0xFF3B82F6),
+                      pattern: StrokePattern.dotted(),
                     ),
                   ],
                 ),
