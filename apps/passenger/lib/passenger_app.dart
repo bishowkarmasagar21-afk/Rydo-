@@ -63,6 +63,7 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
   final _locationService = RrydLocationService();
   final _rideRepository = RrydPassengerRideRepository();
   final _searchController = TextEditingController();
+  final _chatController = TextEditingController();
 
   RrydLocationPoint? _pickup;
   RrydLocationPoint? _destination;
@@ -70,7 +71,12 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
   RrydLocationPoint? _driverLocation;
   List<LatLng> _driverRoute = [];
   Map<String, dynamic>? _driverDetails;
+  List<Map<String, dynamic>> _chatMessages = [];
+  final Set<String> _knownChatMessageIds = {};
   Timer? _driverPollTimer;
+  bool _loadingChat = false;
+  bool _chatHasInitialSnapshot = false;
+  bool _sendingMessage = false;
   bool _loadingDriverDetails = false;
   String? _driverRouteKey;
   String? _activeRideRouteKey;
@@ -131,6 +137,7 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _chatController.dispose();
     _driverPollTimer?.cancel();
     _locationService.dispose();
     super.dispose();
@@ -609,6 +616,7 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
       await _restoreActiveRideLocations();
       if (_activeRide != null) {
         await _refreshDriverDetails();
+        await _refreshRideMessages();
         _startDriverPolling();
       } else {
         _stopDriverPolling();
@@ -618,6 +626,9 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
           _driverRoute = [];
           _driverRouteKey = null;
           _activeRideRouteKey = null;
+          _chatMessages = [];
+          _knownChatMessageIds.clear();
+          _chatHasInitialSnapshot = false;
         });
       }
     } catch (error) {
@@ -808,6 +819,189 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
     } finally {
       _loadingDriverDetails = false;
     }
+  }
+
+  Future<void> _refreshRideMessages() async {
+    final ride = _activeRide;
+    if (ride == null ||
+        _loadingChat ||
+        widget.profile.role != 'passenger' ||
+        ride['driver_id'] == null) return;
+    final status = (ride['status'] ?? '').toString().toLowerCase();
+    if (!{'accepted', 'arriving', 'started'}.contains(status)) return;
+    final rideId = int.tryParse(ride['id'].toString());
+    if (rideId == null) return;
+
+    _loadingChat = true;
+    try {
+      final messages = await _rideRepository.loadRideMessages(rideId);
+      if (!mounted || _activeRide?['id'].toString() != rideId.toString()) {
+        return;
+      }
+      final ids = messages
+          .map((message) => (message['id'] ??
+                  '${message['created_at']}:'
+                      '${message['sender_id']}:'
+                      '${message['message']}')
+              .toString())
+          .toSet();
+      if (_chatHasInitialSnapshot) {
+        final incoming = messages.any((message) {
+          final id = (message['id'] ??
+                  '${message['created_at']}:'
+                      '${message['sender_id']}:'
+                      '${message['message']}')
+              .toString();
+          return !_knownChatMessageIds.contains(id) &&
+              message['sender_id'].toString() != widget.profile.id;
+        });
+        if (incoming) SystemSound.play(SystemSoundType.alert);
+      }
+      setState(() {
+        _chatMessages = messages;
+        _knownChatMessageIds
+          ..clear()
+          ..addAll(ids);
+        _chatHasInitialSnapshot = true;
+      });
+    } catch (error) {
+      if (mounted) _setNotice('Ride chat is unavailable: $error', isError: true);
+    } finally {
+      _loadingChat = false;
+    }
+  }
+
+  Future<void> _sendRideMessage() async {
+    final ride = _activeRide;
+    if (ride == null || _sendingMessage) return;
+    final status = (ride['status'] ?? '').toString().toLowerCase();
+    if (!{'accepted', 'arriving', 'started'}.contains(status)) {
+      _setNotice('Chat is available only for your assigned active ride.',
+          isError: true);
+      return;
+    }
+    final clean = _chatController.text.trim();
+    if (clean.isEmpty) return;
+    if (clean.length > 1000) {
+      _setNotice('Messages can contain at most 1000 characters.',
+          isError: true);
+      return;
+    }
+    final rideId = int.tryParse(ride['id'].toString());
+    if (rideId == null) {
+      _setNotice('Ride ID is not in the expected format.', isError: true);
+      return;
+    }
+    setState(() => _sendingMessage = true);
+    try {
+      await _rideRepository.sendRideMessage(
+        rideId: rideId,
+        senderId: widget.profile.id,
+        message: clean,
+      );
+      _chatController.clear();
+      await _refreshRideMessages();
+      _setNotice('Message saved to this ride chat.');
+    } catch (error) {
+      _setNotice('Message was not sent: $error', isError: true);
+    } finally {
+      if (mounted) setState(() => _sendingMessage = false);
+    }
+  }
+
+  Widget _rideChatCard(ThemeData theme) {
+    final status = (_activeRide?['status'] ?? '').toString().toLowerCase();
+    final chatAvailable =
+        {'accepted', 'arriving', 'started'}.contains(status);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Ride chat',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                )),
+            const SizedBox(height: 8),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 220),
+              decoration: BoxDecoration(
+                border: Border.all(color: theme.dividerColor),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: _chatMessages.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Text('No messages yet.'),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: _chatMessages.length,
+                      itemBuilder: (context, index) {
+                        final message = _chatMessages[index];
+                        final mine =
+                            message['sender_id'].toString() == widget.profile.id;
+                        return Align(
+                          alignment: mine
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: Container(
+                            margin: const EdgeInsets.all(6),
+                            padding: const EdgeInsets.all(10),
+                            constraints: const BoxConstraints(maxWidth: 280),
+                            decoration: BoxDecoration(
+                              color: mine
+                                  ? theme.colorScheme.primaryContainer
+                                  : theme.colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text((message['message'] ?? '').toString()),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _chatController,
+                    enabled: chatAvailable && !_sendingMessage,
+                    maxLength: 1000,
+                    minLines: 1,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Message driver',
+                      counterText: '',
+                    ),
+                    onSubmitted: (_) => _sendRideMessage(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: !chatAvailable || _sendingMessage
+                      ? null
+                      : _sendRideMessage,
+                  icon: _sendingMessage
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.send),
+                ),
+              ],
+            ),
+            Text(
+              'Only messages confirmed by Supabase are shown. Chat access is restricted by ride_messages policies.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _callDriver() async {
@@ -1368,6 +1562,11 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
             if (_driverDetails != null) ...[
               const SizedBox(height: 12),
               _driverContactCard(strings, theme),
+            ],
+            if (ride['driver_id'] != null &&
+                {'accepted', 'arriving', 'started'}.contains(status)) ...[
+              const SizedBox(height: 12),
+              _rideChatCard(theme),
             ],
             const SizedBox(height: 8),
             Row(
