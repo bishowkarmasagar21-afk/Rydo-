@@ -1,0 +1,115 @@
+name: Generate native Android and iOS projects
+
+on:
+  push:
+    branches:
+      - mobile/flutter-foundation
+    paths:
+      - ".github/workflows/flutter-platform-scaffold.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate-platforms:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out mobile branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate Passenger Android and iOS projects
+        run: |
+          mkdir -p "$RUNNER_TEMP/rryd_native"
+          flutter create --platforms=android,ios --org com.rryd --project-name passenger --empty "$RUNNER_TEMP/rryd_native/passenger"
+          mkdir -p apps/passenger
+          cp -R "$RUNNER_TEMP/rryd_native/passenger/android" apps/passenger/
+          cp -R "$RUNNER_TEMP/rryd_native/passenger/ios" apps/passenger/
+
+      - name: Generate Driver Android and iOS projects
+        run: |
+          flutter create --platforms=android,ios --org com.rryd --project-name driver --empty "$RUNNER_TEMP/rryd_native/driver"
+          mkdir -p apps/driver
+          cp -R "$RUNNER_TEMP/rryd_native/driver/android" apps/driver/
+          cp -R "$RUNNER_TEMP/rryd_native/driver/ios" apps/driver/
+
+      - name: Add app names, location permissions and auth deep links
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import plistlib
+          import re
+
+          apps = [
+              ("passenger", "Rryd Passenger", "com.rryd.passenger"),
+              ("driver", "Rryd Driver", "com.rryd.driver"),
+          ]
+
+          for folder, display_name, scheme in apps:
+              root = pathlib.Path("apps") / folder
+
+              manifest = root / "android/app/src/main/AndroidManifest.xml"
+              xml = manifest.read_text()
+              xml = re.sub(r'android:label="[^"]+"',
+                           f'android:label="{display_name}"', xml, count=1)
+              permissions = """
+              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+              """
+              xml = xml.replace("<application", permissions + "\n    <application", 1)
+              callback = f"""
+                      <intent-filter android:autoVerify="false">
+                          <action android:name="android.intent.action.VIEW" />
+                          <category android:name="android.intent.category.DEFAULT" />
+                          <category android:name="android.intent.category.BROWSABLE" />
+                          <data android:scheme="{scheme}" android:host="auth-callback" />
+                      </intent-filter>
+              """
+              xml = xml.replace("</activity>", callback + "\n        </activity>", 1)
+              manifest.write_text(xml)
+
+              gradle = root / "android/app/build.gradle.kts"
+              if gradle.exists():
+                  text = gradle.read_text()
+                  text = re.sub(r'namespace\s*=\s*"[^"]+"',
+                                f'namespace = "{scheme}"', text, count=1)
+                  text = re.sub(r'applicationId\s*=\s*"[^"]+"',
+                                f'applicationId = "{scheme}"', text, count=1)
+                  gradle.write_text(text)
+
+              info = root / "ios/Runner/Info.plist"
+              with info.open("rb") as handle:
+                  data = plistlib.load(handle)
+              data["CFBundleDisplayName"] = display_name
+              data["NSLocationWhenInUseUsageDescription"] = (
+                  "Rryd uses your location to set pickup and destination points "
+                  "and, while a driver is online, to update the driver's trip location."
+              )
+              data["CFBundleURLTypes"] = [{
+                  "CFBundleTypeRole": "Editor",
+                  "CFBundleURLName": scheme,
+                  "CFBundleURLSchemes": [scheme],
+              }]
+              with info.open("wb") as handle:
+                  plistlib.dump(data, handle)
+          PY
+
+      - name: Commit generated native projects
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/passenger/android apps/passenger/ios apps/driver/android apps/driver/ios
+          if git diff --cached --quiet; then
+            echo "Native platform folders are already present."
+            exit 0
+          fi
+          git commit -m "build: generate Android and iOS platform projects"
+          git push
