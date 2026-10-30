@@ -1541,6 +1541,28 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
             ),
           ),
           IconButton(
+            tooltip: 'Safety center',
+            onPressed: () {
+              final ride = _activeRide;
+              final latitude = _pickup?.latitude ??
+                  _asDouble(ride?['pickup_latitude']);
+              final longitude = _pickup?.longitude ??
+                  _asDouble(ride?['pickup_longitude']);
+              RrydSafetyCenter.show(
+                context,
+                appKey: 'passenger',
+                rideSummary: ride == null
+                    ? null
+                    : 'Ride #${ride['id']} · ${ride['status']} · '
+                        '${ride['pickup_location']} to ${ride['destination']}',
+                locationLabel: _pickup?.label,
+                latitude: latitude,
+                longitude: longitude,
+              );
+            },
+            icon: const Icon(Icons.shield_outlined),
+          ),
+          IconButton(
             tooltip: 'Account settings',
             onPressed: _showAccountSettings,
             icon: const Icon(Icons.settings_outlined),
