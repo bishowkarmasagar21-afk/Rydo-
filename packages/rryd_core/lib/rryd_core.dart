@@ -9,6 +9,7 @@ export 'src/models/rryd_location.dart';
 export 'src/models/rryd_profile.dart';
 export 'src/models/rryd_profile_repository.dart';
 export 'src/preferences/rryd_app_settings.dart';
+export 'src/repositories/rryd_driver_repository.dart';
 export 'src/repositories/rryd_passenger_ride_repository.dart';
 export 'src/services/rryd_location_service.dart';
 export 'src/theme/rryd_theme.dart';
