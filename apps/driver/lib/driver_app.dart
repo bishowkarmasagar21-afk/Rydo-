@@ -306,6 +306,244 @@ class _DriverHomePageState extends State<DriverHomePage> {
     }
   }
 
+  Future<void> _showDriverSettings() async {
+    final nameController =
+        TextEditingController(text: widget.profile.fullName);
+    final phoneController = TextEditingController(text: widget.profile.phone);
+    bool saving = false;
+    String? message;
+    bool isError = false;
+
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (sheetContext) => StatefulBuilder(
+          builder: (context, setSheetState) => SafeArea(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                18,
+                18,
+                18,
+                18 + MediaQuery.viewInsetsOf(context).bottom,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Driver account settings',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: nameController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        labelText: 'Full name',
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        labelText: 'Phone number',
+                        prefixIcon: Icon(Icons.phone_outlined),
+                      ),
+                    ),
+                    if (message != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        message!,
+                        style: TextStyle(
+                          color: isError
+                              ? Theme.of(context).colorScheme.error
+                              : Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    FilledButton(
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              final name = nameController.text.trim();
+                              final phone = phoneController.text.trim();
+                              if (name.length < 2 ||
+                                  phone.length < 7 ||
+                                  phone.length > 25) {
+                                setSheetState(() {
+                                  message =
+                                      'Enter a valid name and phone number.';
+                                  isError = true;
+                                });
+                                return;
+                              }
+                              setSheetState(() {
+                                saving = true;
+                                message = null;
+                              });
+                              try {
+                                await SupabaseBootstrap.client
+                                    .from('profiles')
+                                    .update({
+                                      'full_name': name,
+                                      'phone': phone,
+                                    })
+                                    .eq('id', widget.profile.id);
+                                if (!mounted) return;
+                                setSheetState(() {
+                                  message = 'Profile and phone saved.';
+                                  isError = false;
+                                });
+                                await _loadData();
+                              } catch (error) {
+                                setSheetState(() {
+                                  message = 'Profile update failed: $error';
+                                  isError = true;
+                                });
+                              } finally {
+                                setSheetState(() => saving = false);
+                              }
+                            },
+                      child: saving
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Save profile'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              final email =
+                                  SupabaseBootstrap.client.auth.currentUser?.email;
+                              if (email == null || email.isEmpty) {
+                                setSheetState(() {
+                                  message = 'No account email was found.';
+                                  isError = true;
+                                });
+                                return;
+                              }
+                              try {
+                                await RrydAuthService().requestPasswordReset(
+                                  email: email,
+                                  appScheme: 'com.rryd.driver',
+                                );
+                                setSheetState(() {
+                                  message =
+                                      'Password reset email requested. Check your inbox.';
+                                  isError = false;
+                                });
+                              } catch (error) {
+                                setSheetState(() {
+                                  message =
+                                      'Password reset request failed: $error';
+                                  isError = true;
+                                });
+                              }
+                            },
+                      icon: const Icon(Icons.lock_reset),
+                      label: const Text('Change password by email'),
+                    ),
+                    TextButton.icon(
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (dialogContext) => AlertDialog(
+                                  title: const Text('Delete driver account?'),
+                                  content: const Text(
+                                    'This action may permanently delete your Rryd account. Any active ride must be resolved first.',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(dialogContext, false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () =>
+                                          Navigator.pop(dialogContext, true),
+                                      child: const Text('Continue'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirm != true || !context.mounted) return;
+                              final finalConfirm = await showDialog<bool>(
+                                context: context,
+                                builder: (dialogContext) => AlertDialog(
+                                  title: const Text('Final confirmation'),
+                                  content: const Text(
+                                    'Permanently delete this driver account?',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(dialogContext, false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () =>
+                                          Navigator.pop(dialogContext, true),
+                                      child: const Text('Delete account'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (finalConfirm != true || !context.mounted) {
+                                return;
+                              }
+                              setSheetState(() => saving = true);
+                              try {
+                                final result = await SupabaseBootstrap.client
+                                    .rpc('delete_own_account');
+                                if (result == false) {
+                                  throw StateError(
+                                    'Supabase did not confirm account deletion.',
+                                  );
+                                }
+                                await RrydAuthService().signOut();
+                                if (sheetContext.mounted) {
+                                  Navigator.pop(sheetContext);
+                                }
+                              } catch (error) {
+                                setSheetState(() {
+                                  message =
+                                      'Account deletion was not confirmed: $error';
+                                  isError = true;
+                                  saving = false;
+                                });
+                              }
+                            },
+                      icon: const Icon(Icons.delete_forever),
+                      label: const Text('Delete driver account'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    } finally {
+      nameController.dispose();
+      phoneController.dispose();
+    }
+  }
+
   Future<void> _toggleOnline() async {
     if (_busy) return;
     final goingOnline = !_online;
@@ -949,6 +1187,11 @@ class _DriverHomePageState extends State<DriverHomePage> {
                   ? Icons.dark_mode_outlined
                   : Icons.light_mode_outlined,
             ),
+          ),
+          IconButton(
+            tooltip: 'Account settings',
+            onPressed: _showDriverSettings,
+            icon: const Icon(Icons.settings_outlined),
           ),
           IconButton(
             tooltip: strings.text('sign_out'),
