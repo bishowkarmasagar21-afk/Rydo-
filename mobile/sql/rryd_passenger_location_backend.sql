@@ -220,3 +220,6 @@ create trigger rryd_cleanup_passenger_location_after_ride_status
 after update of status on public.rides
 for each row
 execute function public.rryd_cleanup_passenger_location_after_ride_status();
+
+revoke all on function public.rryd_cleanup_passenger_location_after_ride_status()
+  from public, anon;
