@@ -391,7 +391,7 @@ class _RrydSafetySheetState extends State<_RrydSafetySheet> {
               if (_loading)
                 const Center(child: CircularProgressIndicator())
               else if (_contacts.isEmpty)
-                const Text(_t('No trusted contacts saved yet.', 'अहिलेसम्म कुनै विश्वसनीय सम्पर्क सेभ गरिएको छैन।'))
+                Text(_t('No trusted contacts saved yet.', 'अहिलेसम्म कुनै विश्वसनीय सम्पर्क सेभ गरिएको छैन।'))
               else
                 ..._contacts.map(
                   (contact) => Card(
@@ -427,7 +427,7 @@ class _RrydSafetySheetState extends State<_RrydSafetySheet> {
                 TextField(
                   controller: _nameController,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: _t('Contact name', 'सम्पर्क व्यक्तिको नाम'),
                     prefixIcon: Icon(Icons.person_outline),
                   ),
@@ -436,7 +436,7 @@ class _RrydSafetySheetState extends State<_RrydSafetySheet> {
                 TextField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: _t('Contact phone number', 'सम्पर्क फोन नम्बर'),
                     prefixIcon: Icon(Icons.phone_outlined),
                   ),
@@ -445,7 +445,11 @@ class _RrydSafetySheetState extends State<_RrydSafetySheet> {
                 OutlinedButton.icon(
                   onPressed: _saving ? null : _addContact,
                   icon: const Icon(Icons.person_add_alt_1),
-                  label: Text(_saving ? '_सेभ हुँदैछ…' : 'विश्वसनीय सम्पर्क सेभ गर्नुहोस्'),
+                  label: Text(
+                    _saving
+                        ? _t('Saving…', 'सेभ हुँदैछ…')
+                        : _t('Save trusted contact', 'विश्वसनीय सम्पर्क सेभ गर्नुहोस्'),
+                  ),
                 ),
               ],
               if (_message != null) ...[
