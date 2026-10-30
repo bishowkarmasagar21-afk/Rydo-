@@ -1243,6 +1243,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
               RrydSafetyCenter.show(
                 context,
                 appKey: 'driver',
+                languageCode: widget.settings.language.code,
                 rideSummary: ride == null
                     ? null
                     : 'Ride #${ride['id']} · ${ride['status']} · '
