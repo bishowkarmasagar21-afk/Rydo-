@@ -50,6 +50,17 @@ void main() {
     );
   });
 
+
+  test('trusted emergency contact can be serialized and restored', () {
+    const contact = RrydEmergencyContact(
+      name: 'Family Contact',
+      phone: '+9779800000000',
+    );
+    final restored = RrydEmergencyContact.fromMap(contact.toMap());
+    expect(restored.name, contact.name);
+    expect(restored.phone, contact.phone);
+  });
+
   test('localized strings contain English and Nepali labels', () {
     expect(RrydStrings(const Locale('en')).text('sign_in'), 'Sign in');
     expect(RrydStrings(const Locale('ne')).text('sign_in'), 'साइन इन');
