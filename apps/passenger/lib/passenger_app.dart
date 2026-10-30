@@ -1761,7 +1761,10 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
                     child: OutlinedButton.icon(
                       onPressed: _startingPassengerLocationShare
                           ? null
-                          : () => _startPassengerLocationSharing(ride),
+                          : () {
+                              _locationDeclinedRideId = null;
+                              _startPassengerLocationSharing(ride);
+                            },
                       icon: const Icon(Icons.my_location),
                       label: const Text('Share pickup location with driver'),
                     ),
