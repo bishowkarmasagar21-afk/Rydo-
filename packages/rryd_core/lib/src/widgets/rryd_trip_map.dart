@@ -12,7 +12,9 @@ class RrydTripMap extends StatelessWidget {
     this.destination,
     this.route = const [],
     this.driverLocation,
+    this.passengerLocation,
     this.driverRoute = const [],
+    this.applicationId = 'com.rryd.passenger',
     this.onMapTap,
     this.showCurrentMapPinHint = true,
   });
@@ -21,7 +23,9 @@ class RrydTripMap extends StatelessWidget {
   final RrydLocationPoint? destination;
   final List<LatLng> route;
   final RrydLocationPoint? driverLocation;
+  final RrydLocationPoint? passengerLocation;
   final List<LatLng> driverRoute;
+  final String applicationId;
   final ValueChanged<LatLng>? onMapTap;
   final bool showCurrentMapPinHint;
 
@@ -68,6 +72,19 @@ class RrydTripMap extends StatelessWidget {
         ),
       );
     }
+    if (passengerLocation != null) {
+      markers.add(
+        Marker(
+          point: passengerLocation!.latLng,
+          width: 46,
+          height: 54,
+          child: const _MapPin(
+            color: Color(0xFF8B5CF6),
+            icon: Icons.person_pin_circle_rounded,
+          ),
+        ),
+      );
+    }
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
@@ -88,7 +105,7 @@ class RrydTripMap extends StatelessWidget {
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.rryd.passenger',
+                userAgentPackageName: applicationId,
                 maxZoom: 19,
               ),
               if (route.length >= 2)
