@@ -72,7 +72,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
   bool _requestReadFailed = false;
   String? _notice;
   bool _noticeIsError = false;
-  String _gpsStatus = strings.text('location_not_requested');
+  String _gpsStatus = '';
 
   static const _activeStatuses = {'accepted', 'arriving', 'started'};
 
@@ -306,8 +306,8 @@ class _DriverHomePageState extends State<DriverHomePage> {
       setState(() {
         _online = goingOnline;
         _gpsStatus = goingOnline
-            ? 'Online · sending location while the app is active'
-            : 'Offline · location sharing stopped';
+            ? RrydStrings.of(context).text('location_sending')
+            : RrydStrings.of(context).text('location_stopped');
       });
       if (goingOnline && position != null) {
         await _sendLocation(position);
@@ -409,7 +409,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text(strings.text('confirm_ride_action')),
+        title: Text(RrydStrings.of(context).text('confirm_ride_action')),
         content: Text(labels[action] ?? 'Continue?'),
         actions: [
           TextButton(
@@ -544,7 +544,12 @@ class _DriverHomePageState extends State<DriverHomePage> {
                             style: theme.textTheme.bodySmall,
                           ),
                           const SizedBox(height: 6),
-                          Text(_gpsStatus, style: theme.textTheme.bodySmall),
+                          Text(
+                            _gpsStatus.isEmpty
+                                ? strings.text('location_not_requested')
+                                : _gpsStatus,
+                            style: theme.textTheme.bodySmall,
+                          ),
                           const SizedBox(height: 14),
                           FilledButton.icon(
                             onPressed: _busy ? null : _toggleOnline,
@@ -649,7 +654,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                             FilledButton.icon(
                               onPressed: _busy ? null : _submitVehicle,
                               icon: const Icon(Icons.add_road),
-                              label: const Text(strings.text('submit_vehicle')),
+                              label: Text(strings.text('submit_vehicle')),
                             ),
                           ],
                         ),
@@ -783,6 +788,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
   }
 
   Widget _vehicleCard(Map<String, dynamic> vehicle) {
+    final strings = RrydStrings.of(context);
     final type = (vehicle['vehicle_type'] ?? 'Vehicle').toString();
     final model = (vehicle['vehicle_model'] ?? type).toString();
     final number = (vehicle['vehicle_number'] ?? 'Number not listed').toString();
@@ -831,6 +837,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
   }
 
   Widget _requestCard(Map<String, dynamic> ride) {
+    final strings = RrydStrings.of(context);
     final type = (ride['vehicle_type'] ?? '').toString();
     final compatible = _approvedVehicleTypes.contains(type);
     final fare = ride['estimated_fare'] ?? ride['fare'];
@@ -880,6 +887,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
   }
 
   Widget _activeRideCard(Map<String, dynamic> ride) {
+    final strings = RrydStrings.of(context);
     final status = (ride['status'] ?? '').toString().toLowerCase();
     String? nextAction;
     String? actionLabel;
