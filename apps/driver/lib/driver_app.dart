@@ -1237,6 +1237,24 @@ class _DriverHomePageState extends State<DriverHomePage> {
             ),
           ),
           IconButton(
+            tooltip: 'Safety center',
+            onPressed: () {
+              final ride = _activeRide;
+              RrydSafetyCenter.show(
+                context,
+                appKey: 'driver',
+                rideSummary: ride == null
+                    ? null
+                    : 'Ride #${ride['id']} · ${ride['status']} · '
+                        '${ride['pickup_location']} to ${ride['destination']}',
+                locationLabel: _driverPoint?.label,
+                latitude: _driverPoint?.latitude,
+                longitude: _driverPoint?.longitude,
+              );
+            },
+            icon: const Icon(Icons.shield_outlined),
+          ),
+          IconButton(
             tooltip: 'Account settings',
             onPressed: _showDriverSettings,
             icon: const Icon(Icons.settings_outlined),
