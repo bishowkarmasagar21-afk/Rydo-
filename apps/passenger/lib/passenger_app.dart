@@ -526,15 +526,8 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
       );
     } catch (error) {
       if (!mounted) return;
-      final fallback = RrydLocationPoint(
-        label: 'Map pin ${point.latitude.toStringAsFixed(5)}, '
-            '${point.longitude.toStringAsFixed(5)}',
-        latitude: point.latitude,
-        longitude: point.longitude,
-      );
-      _setSelectedPoint(fallback);
       _setNotice(
-        '${RrydStrings.of(context).text('pin_fallback')} ($error)',
+        'This map point could not be verified as inside Nepal. Choose another point or search for a Nepal address. ($error)',
         isError: true,
       );
     }
