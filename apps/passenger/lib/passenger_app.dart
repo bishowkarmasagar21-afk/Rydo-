@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:rryd_core/rryd_core.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PassengerApp extends StatelessWidget {
   const PassengerApp({super.key, required this.settings});
@@ -64,6 +67,13 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
   RrydLocationPoint? _pickup;
   RrydLocationPoint? _destination;
   RrydRouteResult? _route;
+  RrydLocationPoint? _driverLocation;
+  List<LatLng> _driverRoute = [];
+  Map<String, dynamic>? _driverDetails;
+  Timer? _driverPollTimer;
+  bool _loadingDriverDetails = false;
+  String? _driverRouteKey;
+  String? _activeRideRouteKey;
   List<RrydFareRule> _fareRules = [];
   List<Map<String, dynamic>> _rides = [];
   String _vehicleType = 'bike';
@@ -119,6 +129,7 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _driverPollTimer?.cancel();
     _locationService.dispose();
     super.dispose();
   }
@@ -335,10 +346,217 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
       final rows = await _rideRepository.loadMyRides(widget.profile.id);
       if (!mounted) return;
       setState(() => _rides = rows);
+      await _restoreActiveRideLocations();
+      if (_activeRide != null) {
+        await _refreshDriverDetails();
+        _startDriverPolling();
+      } else {
+        _stopDriverPolling();
+        setState(() {
+          _driverDetails = null;
+          _driverLocation = null;
+          _driverRoute = [];
+          _driverRouteKey = null;
+          _activeRideRouteKey = null;
+        });
+      }
     } catch (error) {
       _setNotice('Could not refresh your ride list: $error', isError: true);
     } finally {
       if (mounted) setState(() => _loadingRides = false);
+    }
+  }
+
+  double? _asDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '');
+  }
+
+  Future<void> _restoreActiveRideLocations() async {
+    final ride = _activeRide;
+    if (ride == null) return;
+
+    final pickupLat = _asDouble(ride['pickup_latitude']);
+    final pickupLon = _asDouble(ride['pickup_longitude']);
+    final destinationLat = _asDouble(ride['destination_latitude']);
+    final destinationLon = _asDouble(ride['destination_longitude']);
+
+    RrydLocationPoint? pickup;
+    RrydLocationPoint? destination;
+    if (pickupLat != null && pickupLon != null) {
+      final point = RrydLocationPoint(
+        label: (ride['pickup_location'] ?? 'Saved pickup').toString(),
+        latitude: pickupLat,
+        longitude: pickupLon,
+      );
+      if (point.isInsideNepal) pickup = point;
+    }
+    if (destinationLat != null && destinationLon != null) {
+      final point = RrydLocationPoint(
+        label: (ride['destination'] ?? 'Saved destination').toString(),
+        latitude: destinationLat,
+        longitude: destinationLon,
+      );
+      if (point.isInsideNepal) destination = point;
+    }
+
+    if (pickup == null || destination == null) return;
+    final key = '${ride['id']}:${pickup.latitude.toStringAsFixed(5)}:'
+        '${pickup.longitude.toStringAsFixed(5)}:'
+        '${destination.latitude.toStringAsFixed(5)}:'
+        '${destination.longitude.toStringAsFixed(5)}';
+    if (_activeRideRouteKey == key && _route != null) return;
+
+    setState(() {
+      _pickup = pickup;
+      _destination = destination;
+      _activeRideRouteKey = key;
+    });
+
+    try {
+      final route = await _locationService.getDrivingRoute(
+        from: pickup,
+        to: destination,
+      );
+      if (!mounted || _activeRide?.toString() != ride.toString()) return;
+      setState(() => _route = route);
+    } catch (_) {
+      // The ride record and fixed pickup/destination markers remain available
+      // even when a map-routing provider cannot return a route.
+    }
+  }
+
+  void _startDriverPolling() {
+    if (_driverPollTimer != null) return;
+    _driverPollTimer = Timer.periodic(
+      const Duration(seconds: 8),
+      (_) => _refreshDriverDetails(),
+    );
+  }
+
+  void _stopDriverPolling() {
+    _driverPollTimer?.cancel();
+    _driverPollTimer = null;
+  }
+
+  Future<void> _refreshDriverDetails() async {
+    final ride = _activeRide;
+    if (ride == null ||
+        ride['driver_id'] == null ||
+        _loadingDriverDetails ||
+        widget.profile.role != 'passenger') {
+      return;
+    }
+
+    final rideId = int.tryParse(ride['id'].toString());
+    if (rideId == null) return;
+    _loadingDriverDetails = true;
+    try {
+      final details =
+          await _rideRepository.loadDriverDetailsForRide(rideId);
+      if (!mounted || _activeRide?['id'].toString() != rideId.toString()) {
+        return;
+      }
+      if (details == null) {
+        setState(() {
+          _driverDetails = null;
+          _driverLocation = null;
+          _driverRoute = [];
+        });
+        return;
+      }
+
+      final latitude = _asDouble(
+        details['driver_latitude'] ??
+            details['current_latitude'] ??
+            details['latitude'],
+      );
+      final longitude = _asDouble(
+        details['driver_longitude'] ??
+            details['current_longitude'] ??
+            details['longitude'],
+      );
+      final updatedRaw =
+          details['location_updated_at'] ?? details['updated_at'];
+      final updatedAt =
+          updatedRaw == null ? null : DateTime.tryParse(updatedRaw.toString());
+      final fresh = updatedAt != null &&
+          DateTime.now().difference(updatedAt).inSeconds >= 0 &&
+          DateTime.now().difference(updatedAt) <
+              const Duration(minutes: 2);
+
+      RrydLocationPoint? driverPoint;
+      if (latitude != null && longitude != null) {
+        final candidate = RrydLocationPoint(
+          label: (details['driver_name'] ?? 'Assigned driver').toString(),
+          latitude: latitude,
+          longitude: longitude,
+        );
+        if (candidate.isInsideNepal && fresh) driverPoint = candidate;
+      }
+
+      setState(() {
+        _driverDetails = details;
+        _driverLocation = driverPoint;
+      });
+
+      final status = (_activeRide?['status'] ?? '').toString().toLowerCase();
+      if (driverPoint != null &&
+          _pickup != null &&
+          (status == 'accepted' || status == 'arriving')) {
+        final key = '${rideId}:${driverPoint.latitude.toStringAsFixed(3)}:'
+            '${driverPoint.longitude.toStringAsFixed(3)}:'
+            '${_pickup!.latitude.toStringAsFixed(5)}:'
+            '${_pickup!.longitude.toStringAsFixed(5)}';
+        if (_driverRouteKey != key) {
+          _driverRouteKey = key;
+          try {
+            final route = await _locationService.getDrivingRoute(
+              from: driverPoint,
+              to: _pickup!,
+            );
+            if (!mounted ||
+                _activeRide?['id'].toString() != rideId.toString()) return;
+            setState(() => _driverRoute = route.points);
+          } catch (_) {
+            if (mounted) setState(() => _driverRoute = []);
+          }
+        }
+      } else {
+        setState(() {
+          _driverRoute = [];
+          _driverRouteKey = null;
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        _setNotice(
+          'Assigned driver details are not available right now: $error',
+          isError: true,
+        );
+      }
+    } finally {
+      _loadingDriverDetails = false;
+    }
+  }
+
+  Future<void> _callDriver() async {
+    final phone = (_driverDetails?['driver_phone'] ??
+            _driverDetails?['phone'] ??
+            '')
+        .toString()
+        .replaceAll(RegExp(r'[^+0-9]'), '');
+    if (phone.isEmpty) {
+      _setNotice('The assigned driver contact number is not available.',
+          isError: true);
+      return;
+    }
+    final uri = Uri(scheme: 'tel', path: phone);
+    try {
+      final opened = await launchUrl(uri);
+      if (!opened) throw StateError('The phone dialer could not be opened.');
+    } catch (error) {
+      _setNotice('Could not open the phone dialer: $error', isError: true);
     }
   }
 
@@ -515,6 +733,8 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
                       pickup: _pickup,
                       destination: _destination,
                       route: _route?.points ?? const [],
+                      driverLocation: _driverLocation,
+                      driverRoute: _driverRoute,
                       onMapTap: _handleMapTap,
                     ),
                   ),
@@ -870,6 +1090,10 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
               '${strings.text('ride_id')}: ${ride['id']}',
               style: theme.textTheme.bodySmall,
             ),
+            if (_driverDetails != null) ...[
+              const SizedBox(height: 12),
+              _driverContactCard(strings, theme),
+            ],
             const SizedBox(height: 8),
             Row(
               children: [
@@ -888,6 +1112,66 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
                   ),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _driverContactCard(RrydStrings strings, ThemeData theme) {
+    final details = _driverDetails ?? const <String, dynamic>{};
+    final name =
+        (details['driver_name'] ?? details['full_name'] ?? 'Assigned driver')
+            .toString();
+    final vehicle =
+        (details['vehicle_type'] ?? _activeRide?['vehicle_type'] ?? '').toString();
+    final model =
+        (details['vehicle_model'] ?? details['model'] ?? '').toString();
+    final number = (details['vehicle_registration'] ??
+            details['vehicle_number'] ??
+            '')
+        .toString();
+    final phone =
+        (details['driver_phone'] ?? details['phone'] ?? '').toString();
+    final locationUpdated = details['location_updated_at']?.toString() ?? '';
+    return Card(
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Assigned driver',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(name),
+            if (vehicle.isNotEmpty || model.isNotEmpty)
+              Text('${vehicle.toUpperCase()} ${model.isEmpty ? '' : '· $model'}'),
+            if (number.isNotEmpty) Text('Registration: $number'),
+            if (locationUpdated.isNotEmpty)
+              Text(
+                'Location update: $locationUpdated',
+                style: theme.textTheme.bodySmall,
+              ),
+            const SizedBox(height: 8),
+            if (phone.isNotEmpty)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: _callDriver,
+                  icon: const Icon(Icons.call),
+                  label: const Text('Call driver'),
+                ),
+              )
+            else
+              Text(
+                'Driver phone is not available.',
+                style: theme.textTheme.bodySmall,
+              ),
           ],
         ),
       ),
