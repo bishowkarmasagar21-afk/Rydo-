@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:rryd_core/rryd_core.dart';
 
 class PassengerApp extends StatelessWidget {
