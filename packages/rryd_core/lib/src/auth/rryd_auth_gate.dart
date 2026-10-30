@@ -26,6 +26,7 @@ class RrydAuthGate extends StatefulWidget {
     required this.settings,
     required this.homeBuilder,
     this.allowPassengerRegistration = false,
+    this.allowDriverRegistration = false,
   });
 
   final String appRole;
@@ -34,6 +35,7 @@ class RrydAuthGate extends StatefulWidget {
   final RrydAppSettings settings;
   final RrydAuthenticatedBuilder homeBuilder;
   final bool allowPassengerRegistration;
+  final bool allowDriverRegistration;
 
   @override
   State<RrydAuthGate> createState() => _RrydAuthGateState();
@@ -144,6 +146,7 @@ class _RrydAuthGateState extends State<RrydAuthGate> {
         appScheme: widget.appScheme,
         settings: widget.settings,
         allowPassengerRegistration: widget.allowPassengerRegistration,
+        allowDriverRegistration: widget.allowDriverRegistration,
       );
     }
 
@@ -191,20 +194,11 @@ class _RrydAuthGateState extends State<RrydAuthGate> {
         );
       }
 
-      if (!profile.isVerified) {
-        return _RrydNoticeScreen(
-          title: strings.text('driver_pending'),
-          message: 'Rryd Admin must approve your driver profile before you can go online or receive requests.',
-          icon: Icons.hourglass_top_rounded,
-          secondaryLabel: strings.text('sign_out'),
-          onSecondary: _auth.signOut,
-        );
-      }
     } else {
       // A driver can still open the Passenger app with the same Auth identity.
       // The request_ride RPC must also be updated server-side to allow this
       // dual-app account before passenger booking is enabled for driver profiles.
-      if (profile.role != 'passenger' && profile.role != 'driver') {
+      if (profile.role != 'passenger') {
         return _RrydNoticeScreen(
           title: strings.text('wrong_role'),
           message: 'The profile role is not eligible for the Passenger app.',
@@ -226,12 +220,14 @@ class RrydEmailAuthScreen extends StatefulWidget {
     required this.appScheme,
     required this.settings,
     this.allowPassengerRegistration = false,
+    this.allowDriverRegistration = false,
   });
 
   final String appTitle;
   final String appScheme;
   final RrydAppSettings settings;
   final bool allowPassengerRegistration;
+  final bool allowDriverRegistration;
 
   @override
   State<RrydEmailAuthScreen> createState() => _RrydEmailAuthScreenState();
@@ -270,12 +266,19 @@ class _RrydEmailAuthScreenState extends State<RrydEmailAuthScreen> {
 
     try {
       if (_register) {
-        final response = await _auth.registerPassenger(
-          fullName: _name.text,
-          phone: _phone.text,
-          email: _email.text,
-          password: _password.text,
-        );
+        final response = widget.allowDriverRegistration
+            ? await _auth.registerDriver(
+                fullName: _name.text,
+                phone: _phone.text,
+                email: _email.text,
+                password: _password.text,
+              )
+            : await _auth.registerPassenger(
+                fullName: _name.text,
+                phone: _phone.text,
+                email: _email.text,
+                password: _password.text,
+              );
 
         if (response.session == null) {
           _setMessage(
@@ -536,7 +539,8 @@ class _RrydEmailAuthScreenState extends State<RrydEmailAuthScreen> {
                                       : strings.text('sign_in'),
                                 ),
                         ),
-                        if (widget.allowPassengerRegistration) ...[
+                        if (widget.allowPassengerRegistration ||
+                            widget.allowDriverRegistration) ...[
                           const SizedBox(height: 12),
                           TextButton(
                             onPressed: _busy
@@ -555,7 +559,9 @@ class _RrydEmailAuthScreenState extends State<RrydEmailAuthScreen> {
                         ],
                         const SizedBox(height: 8),
                         Text(
-                          'Phone number is saved as profile contact. SMS OTP is not sent during this initial email/password launch setup.',
+                          widget.allowDriverRegistration
+                              ? 'Your driver profile and vehicle(s) must be reviewed by Rryd Admin before you can receive rides.'
+                              : 'Phone number is saved as profile contact. SMS OTP is not sent during this initial email/password setup.',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
