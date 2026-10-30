@@ -497,6 +497,14 @@ class _DriverHomePageState extends State<DriverHomePage> {
                                 ),
                               );
                               if (confirm != true || !context.mounted) return;
+                              if (_activeRide != null) {
+                                setSheetState(() {
+                                  message =
+                                      'Finish or cancel your active ride before deleting your account.';
+                                  isError = true;
+                                });
+                                return;
+                              }
                               final finalConfirm = await showDialog<bool>(
                                 context: context,
                                 builder: (dialogContext) => AlertDialog(
@@ -519,6 +527,14 @@ class _DriverHomePageState extends State<DriverHomePage> {
                                 ),
                               );
                               if (finalConfirm != true || !context.mounted) {
+                                return;
+                              }
+                              if (_activeRide != null) {
+                                setSheetState(() {
+                                  message =
+                                      'An active ride was found. Account deletion was stopped.';
+                                  isError = true;
+                                });
                                 return;
                               }
                               setSheetState(() => saving = true);
@@ -565,6 +581,13 @@ class _DriverHomePageState extends State<DriverHomePage> {
   Future<void> _toggleOnline() async {
     if (_busy) return;
     final goingOnline = !_online;
+    if (!goingOnline && _activeRide != null) {
+      _setNotice(
+        'Finish or cancel your assigned ride before going offline.',
+        isError: true,
+      );
+      return;
+    }
     if (goingOnline) {
       if (!widget.profile.isVerified || widget.profile.isSuspended) {
         _setNotice(
@@ -1221,11 +1244,22 @@ class _DriverHomePageState extends State<DriverHomePage> {
           IconButton(
             tooltip: strings.text('sign_out'),
             onPressed: () async {
+              if (_activeRide != null) {
+                _setNotice(
+                  'Finish or cancel your assigned ride before signing out.',
+                  isError: true,
+                );
+                return;
+              }
               if (_online) {
                 try {
                   await _repository.setOnline(false);
-                } catch (_) {
-                  // Sign-out continues even if the offline RPC is unavailable.
+                } catch (error) {
+                  _setNotice(
+                    'Could not confirm offline status. Sign-out was stopped: $error',
+                    isError: true,
+                  );
+                  return;
                 }
               }
               await _locationSubscription?.cancel();
