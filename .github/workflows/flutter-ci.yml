@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 jobs:
-  analyze-and-test:
+  analyze-test-android:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -52,6 +52,18 @@ jobs:
         working-directory: apps/passenger
         run: flutter analyze
 
+      - name: Build Passenger Android debug APK
+        working-directory: apps/passenger
+        run: flutter build apk --debug
+
+      - name: Upload Passenger debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: rryd-passenger-android-debug
+          path: apps/passenger/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Resolve Driver dependencies
         working-directory: apps/driver
         run: flutter pub get
@@ -59,3 +71,47 @@ jobs:
       - name: Analyze Driver app
         working-directory: apps/driver
         run: flutter analyze
+
+      - name: Build Driver Android debug APK
+        working-directory: apps/driver
+        run: flutter build apk --debug
+
+      - name: Upload Driver debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: rryd-driver-android-debug
+          path: apps/driver/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  ios-simulator-build:
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve shared package
+        working-directory: packages/rryd_core
+        run: flutter pub get
+
+      - name: Resolve Passenger dependencies
+        working-directory: apps/passenger
+        run: flutter pub get
+
+      - name: Build Passenger iOS simulator app
+        working-directory: apps/passenger
+        run: flutter build ios --simulator --no-codesign
+
+      - name: Resolve Driver dependencies
+        working-directory: apps/driver
+        run: flutter pub get
+
+      - name: Build Driver iOS simulator app
+        working-directory: apps/driver
+        run: flutter build ios --simulator --no-codesign
