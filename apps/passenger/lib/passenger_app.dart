@@ -87,6 +87,7 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
   bool _loadingAvailability = false;
   bool _loadingRides = false;
   int? _availableCount;
+  String? _displayName;
 
   static const _activeStatuses = {
     'requested',
@@ -123,6 +124,7 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
   @override
   void initState() {
     super.initState();
+    _displayName = widget.profile.fullName;
     _loadInitialData();
   }
 
@@ -132,6 +134,264 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
     _driverPollTimer?.cancel();
     _locationService.dispose();
     super.dispose();
+  }
+
+  Future<void> _showAccountSettings() async {
+    final nameController = TextEditingController(
+      text: _displayName ?? widget.profile.fullName,
+    );
+    final phoneController = TextEditingController(text: widget.profile.phone);
+    bool saving = false;
+    String? message;
+    bool messageIsError = false;
+
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (sheetContext) => StatefulBuilder(
+          builder: (context, setSheetState) => SafeArea(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                18,
+                18,
+                18,
+                18 + MediaQuery.viewInsetsOf(context).bottom,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Account settings',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: nameController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        labelText: 'Full name',
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        labelText: 'Phone number',
+                        prefixIcon: Icon(Icons.phone_outlined),
+                      ),
+                    ),
+                    if (message != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        message!,
+                        style: TextStyle(
+                          color: messageIsError
+                              ? Theme.of(context).colorScheme.error
+                              : Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    FilledButton(
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              final name = nameController.text.trim();
+                              final phone = phoneController.text.trim();
+                              if (name.length < 2 ||
+                                  phone.length < 7 ||
+                                  phone.length > 25) {
+                                setSheetState(() {
+                                  message =
+                                      'Enter a valid name and phone number.';
+                                  messageIsError = true;
+                                });
+                                return;
+                              }
+
+                              setSheetState(() {
+                                saving = true;
+                                message = null;
+                              });
+                              try {
+                                final client = SupabaseBootstrap.client;
+                                final nameResult = await client.rpc(
+                                  'rydd_update_my_passenger_name',
+                                  params: {'p_full_name': name},
+                                );
+                                if (nameResult == false) {
+                                  throw StateError(
+                                    'Supabase did not confirm the name update.',
+                                  );
+                                }
+                                final phoneResult = await client.rpc(
+                                  'rydd_update_my_phone',
+                                  params: {'p_phone': phone},
+                                );
+                                if (phoneResult == false) {
+                                  throw StateError(
+                                    'Supabase did not confirm the phone update.',
+                                  );
+                                }
+                                if (!mounted) return;
+                                setState(() => _displayName = name);
+                                setSheetState(() {
+                                  message = 'Profile and phone saved.';
+                                  messageIsError = false;
+                                });
+                              } catch (error) {
+                                setSheetState(() {
+                                  message = 'Could not save profile: $error';
+                                  messageIsError = true;
+                                });
+                              } finally {
+                                setSheetState(() => saving = false);
+                              }
+                            },
+                      child: saving
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Text(RrydStrings.of(context).text('save')),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              final email =
+                                  SupabaseBootstrap.client.auth.currentUser?.email;
+                              if (email == null || email.isEmpty) {
+                                setSheetState(() {
+                                  message = 'No account email was found.';
+                                  messageIsError = true;
+                                });
+                                return;
+                              }
+                              try {
+                                await RrydAuthService().requestPasswordReset(
+                                  email: email,
+                                  appScheme: 'com.rryd.passenger',
+                                );
+                                setSheetState(() {
+                                  message =
+                                      'Password reset email requested. Check your inbox.';
+                                  messageIsError = false;
+                                });
+                              } catch (error) {
+                                setSheetState(() {
+                                  message =
+                                      'Password reset request failed: $error';
+                                  messageIsError = true;
+                                });
+                              }
+                            },
+                      icon: const Icon(Icons.lock_reset),
+                      label: const Text('Change password by email'),
+                    ),
+                    TextButton.icon(
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              final first = await showDialog<bool>(
+                                context: context,
+                                builder: (dialogContext) => AlertDialog(
+                                  title: const Text('Delete passenger account?'),
+                                  content: const Text(
+                                    'This action may permanently delete your Rryd account and cannot be undone.',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(dialogContext, false),
+                                      child: Text(
+                                        RrydStrings.of(dialogContext)
+                                            .text('cancel'),
+                                      ),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () =>
+                                          Navigator.pop(dialogContext, true),
+                                      child: const Text('Continue'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (first != true || !context.mounted) return;
+                              final finalConfirm = await showDialog<bool>(
+                                context: context,
+                                builder: (dialogContext) => AlertDialog(
+                                  title: const Text('Final confirmation'),
+                                  content: const Text(
+                                    'Permanently delete this account?',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(dialogContext, false),
+                                      child: Text(
+                                        RrydStrings.of(dialogContext)
+                                            .text('cancel'),
+                                      ),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () =>
+                                          Navigator.pop(dialogContext, true),
+                                      child: const Text('Delete account'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (finalConfirm != true || !context.mounted) {
+                                return;
+                              }
+                              setSheetState(() => saving = true);
+                              try {
+                                final result = await SupabaseBootstrap.client
+                                    .rpc('delete_own_account');
+                                if (result == false) {
+                                  throw StateError(
+                                    'Supabase did not confirm account deletion.',
+                                  );
+                                }
+                                await RrydAuthService().signOut();
+                                if (sheetContext.mounted) {
+                                  Navigator.pop(sheetContext);
+                                }
+                              } catch (error) {
+                                setSheetState(() {
+                                  message =
+                                      'Account deletion was not confirmed: $error';
+                                  messageIsError = true;
+                                  saving = false;
+                                });
+                              }
+                            },
+                      icon: const Icon(Icons.delete_forever),
+                      label: const Text('Delete passenger account'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    } finally {
+      nameController.dispose();
+      phoneController.dispose();
+    }
   }
 
   Future<void> _loadInitialData() async {
@@ -684,6 +944,11 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
             ),
           ),
           IconButton(
+            tooltip: 'Account settings',
+            onPressed: _showAccountSettings,
+            icon: const Icon(Icons.settings_outlined),
+          ),
+          IconButton(
             tooltip: strings.text('sign_out'),
             onPressed: () => RrydAuthService().signOut(),
             icon: const Icon(Icons.logout),
@@ -701,7 +966,7 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
                 children: [
                   Text(
                     '${strings.text('welcome')}, '
-                    '${widget.profile.fullName.isEmpty ? 'Passenger' : widget.profile.fullName}',
+                    '${(_displayName ?? widget.profile.fullName).isEmpty ? 'Passenger' : (_displayName ?? widget.profile.fullName)}',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
