@@ -119,6 +119,20 @@ class RrydPassengerRideRepository {
     return rows.cast<Map<String, dynamic>>();
   }
 
+  Future<Map<String, dynamic>?> loadDriverDetailsForRide(int rideId) async {
+    final response = await SupabaseBootstrap.client.rpc(
+      'get_driver_details_for_my_ride',
+      params: {'p_ride_id': rideId},
+    );
+
+    if (response == null) return null;
+    if (response is Map) return Map<String, dynamic>.from(response);
+    if (response is List && response.isNotEmpty && response.first is Map) {
+      return Map<String, dynamic>.from(response.first as Map);
+    }
+    return null;
+  }
+
   Future<void> cancelRide(int rideId) async {
     final result = await SupabaseBootstrap.client.rpc(
       'cancel_ride',
