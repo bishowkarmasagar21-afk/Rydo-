@@ -156,13 +156,6 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
     });
   }
 
-  void _clearRoute() {
-    setState(() {
-      _route = null;
-      _availableCount = null;
-    });
-  }
-
   Future<void> _searchAddress() async {
     final strings = RrydStrings.of(context);
     if (_searching) return;
@@ -485,6 +478,27 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
+                  if (_notice != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: (_noticeIsError
+                                ? theme.colorScheme.error
+                                : theme.colorScheme.primary)
+                            .withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _notice!,
+                        style: TextStyle(
+                          color: _noticeIsError
+                              ? theme.colorScheme.error
+                              : theme.colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Text(
                     strings.text('booking_next'),
