@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:rryd_core/rryd_core.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class DriverApp extends StatelessWidget {
   const DriverApp({super.key, required this.settings});
@@ -54,6 +56,8 @@ class DriverHomePage extends StatefulWidget {
 
 class _DriverHomePageState extends State<DriverHomePage> {
   final _repository = RrydDriverRepository();
+  final _locationService = RrydLocationService();
+  final _chatController = TextEditingController();
   final _vehicleFormKey = GlobalKey<FormState>();
   final _vehicleModelController = TextEditingController();
   final _vehicleNumberController = TextEditingController();
@@ -62,6 +66,14 @@ class _DriverHomePageState extends State<DriverHomePage> {
   List<Map<String, dynamic>> _vehicles = [];
   List<Map<String, dynamic>> _myRides = [];
   List<Map<String, dynamic>> _requests = [];
+  List<Map<String, dynamic>> _chatMessages = [];
+  Map<String, dynamic>? _passengerDetails;
+  RrydLocationPoint? _driverPoint;
+  RrydLocationPoint? _pickupPoint;
+  RrydLocationPoint? _destinationPoint;
+  RrydLocationPoint? _passengerPoint;
+  List<LatLng> _routeToPassenger = [];
+  final Set<String> _knownChatMessageIds = {};
   StreamSubscription<Position>? _locationSubscription;
   Timer? _pollTimer;
   DateTime? _lastLocationWrite;
@@ -70,9 +82,14 @@ class _DriverHomePageState extends State<DriverHomePage> {
   bool _busy = false;
   bool _hasInitialRequestSnapshot = false;
   bool _requestReadFailed = false;
+  bool _loadingCommunication = false;
+  bool _sendingMessage = false;
+  bool _chatHasInitialSnapshot = false;
+  String _communicationStatus = 'No active ride chat.';
   String? _notice;
   bool _noticeIsError = false;
   String _gpsStatus = '';
+  String? _passengerRouteKey;
 
   static const _activeStatuses = {'accepted', 'arriving', 'started'};
 
@@ -119,6 +136,8 @@ class _DriverHomePageState extends State<DriverHomePage> {
   void dispose() {
     _pollTimer?.cancel();
     _locationSubscription?.cancel();
+    _locationService.dispose();
+    _chatController.dispose();
     _vehicleModelController.dispose();
     _vehicleNumberController.dispose();
     super.dispose();
@@ -147,6 +166,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
       final rides = await _repository.loadMyRides(widget.profile.id);
       if (!mounted) return;
       setState(() => _myRides = rides);
+      await _refreshRideCommunication();
     } catch (error) {
       _setNotice('Could not load your ride history: $error', isError: true);
     }
@@ -233,6 +253,15 @@ class _DriverHomePageState extends State<DriverHomePage> {
   }
 
   Future<void> _sendLocation(Position position) async {
+    final point = RrydLocationPoint(
+      label: 'Driver location',
+      latitude: position.latitude,
+      longitude: position.longitude,
+    );
+    if (point.isInsideNepal) {
+      if (mounted) setState(() => _driverPoint = point);
+    }
+
     final last = _lastLocationWrite;
     if (last != null &&
         DateTime.now().difference(last) < const Duration(seconds: 10)) {
@@ -348,6 +377,452 @@ class _DriverHomePageState extends State<DriverHomePage> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  double? _coordinate(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '');
+  }
+
+  RrydLocationPoint? _ridePoint(
+    Map<String, dynamic> ride, {
+    required String labelKey,
+    required String latitudeKey,
+    required String longitudeKey,
+    required String defaultLabel,
+  }) {
+    final latitude = _coordinate(ride[latitudeKey]);
+    final longitude = _coordinate(ride[longitudeKey]);
+    if (latitude == null || longitude == null) return null;
+    final point = RrydLocationPoint(
+      label: (ride[labelKey] ?? defaultLabel).toString(),
+      latitude: latitude,
+      longitude: longitude,
+    );
+    return point.isInsideNepal ? point : null;
+  }
+
+  Future<void> _refreshRideCommunication() async {
+    final ride = _activeRide;
+    if (ride == null) {
+      if (!mounted) return;
+      setState(() {
+        _passengerDetails = null;
+        _passengerPoint = null;
+        _pickupPoint = null;
+        _destinationPoint = null;
+        _routeToPassenger = [];
+        _passengerRouteKey = null;
+        _chatMessages = [];
+        _knownChatMessageIds.clear();
+        _chatHasInitialSnapshot = false;
+        _communicationStatus = 'No active ride chat.';
+      });
+      return;
+    }
+
+    final rideId = int.tryParse(ride['id'].toString());
+    if (rideId == null || _loadingCommunication) return;
+    _loadingCommunication = true;
+
+    try {
+      final pickup = _ridePoint(
+        ride,
+        labelKey: 'pickup_location',
+        latitudeKey: 'pickup_latitude',
+        longitudeKey: 'pickup_longitude',
+        defaultLabel: 'Confirmed pickup',
+      );
+      final destination = _ridePoint(
+        ride,
+        labelKey: 'destination',
+        latitudeKey: 'destination_latitude',
+        longitudeKey: 'destination_longitude',
+        defaultLabel: 'Destination',
+      );
+      if (mounted) {
+        setState(() {
+          _pickupPoint = pickup;
+          _destinationPoint = destination;
+        });
+      }
+
+      // Passenger details are retrieved only through the ride-scoped RPC.
+      try {
+        final details =
+            await _repository.loadPassengerDetailsForRide(rideId);
+        if (mounted && _activeRide?['id'].toString() == rideId.toString()) {
+          setState(() => _passengerDetails = details);
+        }
+      } catch (error) {
+        if (mounted) {
+          setState(() => _passengerDetails = null);
+          _setNotice(
+            'Passenger contact is unavailable: $error',
+            isError: true,
+          );
+        }
+      }
+
+      final status = (ride['status'] ?? '').toString().toLowerCase();
+      if (status == 'accepted') {
+        try {
+          final location =
+              await _repository.loadPassengerLocationForRide(rideId);
+          final latitude = _coordinate(
+            location?['latitude'] ??
+                location?['passenger_latitude'] ??
+                location?['current_latitude'],
+          );
+          final longitude = _coordinate(
+            location?['longitude'] ??
+                location?['passenger_longitude'] ??
+                location?['current_longitude'],
+          );
+          final updatedRaw = location?['updated_at'] ??
+              location?['location_updated_at'] ??
+              location?['created_at'];
+          final updated = updatedRaw == null
+              ? null
+              : DateTime.tryParse(updatedRaw.toString());
+          final fresh = updated != null &&
+              DateTime.now().difference(updated).inSeconds >= 0 &&
+              DateTime.now().difference(updated) <
+                  const Duration(minutes: 2);
+
+          RrydLocationPoint? point;
+          if (latitude != null && longitude != null && fresh) {
+            final candidate = RrydLocationPoint(
+              label: 'Passenger shared location',
+              latitude: latitude,
+              longitude: longitude,
+            );
+            if (candidate.isInsideNepal) point = candidate;
+          }
+
+          if (!mounted ||
+              _activeRide?['id'].toString() != rideId.toString()) return;
+          setState(() {
+            _passengerPoint = point;
+            _communicationStatus = point == null
+                ? 'Waiting for a fresh passenger pickup location.'
+                : 'Passenger pickup location is fresh.';
+          });
+
+          if (point != null && _driverPoint != null) {
+            final key = '${rideId}:'
+                '${point.latitude.toStringAsFixed(4)}:'
+                '${point.longitude.toStringAsFixed(4)}:'
+                '${_driverPoint!.latitude.toStringAsFixed(4)}:'
+                '${_driverPoint!.longitude.toStringAsFixed(4)}';
+            if (_passengerRouteKey != key) {
+              _passengerRouteKey = key;
+              try {
+                final route = await _locationService.getDrivingRoute(
+                  from: _driverPoint!,
+                  to: point,
+                );
+                if (mounted &&
+                    _activeRide?['id'].toString() == rideId.toString()) {
+                  setState(() => _routeToPassenger = route.points);
+                }
+              } catch (_) {
+                if (mounted) setState(() => _routeToPassenger = []);
+              }
+            }
+          } else if (mounted) {
+            setState(() {
+              _routeToPassenger = [];
+              _passengerRouteKey = null;
+            });
+          }
+        } catch (error) {
+          if (mounted) {
+            setState(() {
+              _passengerPoint = null;
+              _routeToPassenger = [];
+              _passengerRouteKey = null;
+              _communicationStatus =
+                  'Passenger pickup location is unavailable: $error';
+            });
+          }
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _passengerPoint = null;
+            _routeToPassenger = [];
+            _passengerRouteKey = null;
+            _communicationStatus =
+                'Live pickup sharing is stopped. The confirmed pickup pin remains visible.';
+          });
+        }
+      }
+
+      if (_activeStatuses.contains(status)) {
+        try {
+          final messages = await _repository.loadRideMessages(rideId);
+          if (!mounted ||
+              _activeRide?['id'].toString() != rideId.toString()) return;
+          final ids = messages
+              .map((message) => (message['id'] ??
+                      '${message['created_at']}:'
+                          '${message['sender_id']}:'
+                          '${message['message']}')
+                  .toString())
+              .toSet();
+          if (_chatHasInitialSnapshot) {
+            final incoming = messages.any((message) {
+              final id = (message['id'] ??
+                      '${message['created_at']}:'
+                          '${message['sender_id']}:'
+                          '${message['message']}')
+                  .toString();
+              return !_knownChatMessageIds.contains(id) &&
+                  message['sender_id'].toString() != widget.profile.id;
+            });
+            if (incoming) SystemSound.play(SystemSoundType.alert);
+          }
+          setState(() {
+            _chatMessages = messages;
+            _knownChatMessageIds
+              ..clear()
+              ..addAll(ids);
+            _chatHasInitialSnapshot = true;
+            _communicationStatus =
+                'Ride chat · ${messages.length} message(s)';
+          });
+        } catch (error) {
+          if (mounted) {
+            setState(() {
+              _communicationStatus =
+                  'Chat unavailable. Check ride_messages access and RLS: $error';
+              _chatMessages = [];
+            });
+          }
+        }
+      }
+    } finally {
+      _loadingCommunication = false;
+    }
+  }
+
+  Future<void> _sendRideMessage() async {
+    final ride = _activeRide;
+    if (ride == null || _sendingMessage) return;
+    final status = (ride['status'] ?? '').toString().toLowerCase();
+    if (!_activeStatuses.contains(status)) {
+      _setNotice('Chat is available only for your assigned active ride.',
+          isError: true);
+      return;
+    }
+    final message = _chatController.text.trim();
+    if (message.isEmpty) return;
+    if (message.length > 1000) {
+      _setNotice('Messages can contain at most 1000 characters.',
+          isError: true);
+      return;
+    }
+    final rideId = int.tryParse(ride['id'].toString());
+    if (rideId == null) {
+      _setNotice('Ride ID is not in the expected format.', isError: true);
+      return;
+    }
+
+    setState(() => _sendingMessage = true);
+    try {
+      await _repository.sendRideMessage(
+        rideId: rideId,
+        senderId: widget.profile.id,
+        message: message,
+      );
+      _chatController.clear();
+      await _refreshRideCommunication();
+      _setNotice('Message saved to this ride chat.');
+    } catch (error) {
+      _setNotice('Message was not sent: $error', isError: true);
+    } finally {
+      if (mounted) setState(() => _sendingMessage = false);
+    }
+  }
+
+  Future<void> _callPassenger() async {
+    final phone = (_passengerDetails?['passenger_phone'] ??
+            _passengerDetails?['phone'] ??
+            _passengerDetails?['phone_number'] ??
+            '')
+        .toString()
+        .replaceAll(RegExp(r'[^+0-9]'), '');
+    if (phone.isEmpty) {
+      _setNotice('Passenger phone number is not available.', isError: true);
+      return;
+    }
+    try {
+      final opened = await launchUrl(Uri(scheme: 'tel', path: phone));
+      if (!opened) throw StateError('The phone dialer could not be opened.');
+    } catch (error) {
+      _setNotice('Could not open the phone dialer: $error', isError: true);
+    }
+  }
+
+  Widget _rideCommunicationCard(Map<String, dynamic> ride) {
+    final theme = Theme.of(context);
+    final details = _passengerDetails ?? const <String, dynamic>{};
+    final passengerName =
+        (details['passenger_name'] ?? details['full_name'] ?? 'Passenger')
+            .toString();
+    final phone = (details['passenger_phone'] ??
+            details['phone'] ??
+            details['phone_number'] ??
+            '')
+        .toString();
+    final status = (ride['status'] ?? '').toString().toLowerCase();
+    final chatAvailable = _activeStatuses.contains(status);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_passengerDetails != null)
+          Card(
+            color: theme.colorScheme.surfaceContainerHighest,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Assigned passenger',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(passengerName),
+                  if (phone.isNotEmpty)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        onPressed: _callPassenger,
+                        icon: const Icon(Icons.call),
+                        label: const Text('Call passenger'),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          )
+        else
+          Text(
+            'Passenger contact is not available from the ride-details service.',
+            style: theme.textTheme.bodySmall,
+          ),
+        if (status == 'accepted' ||
+            status == 'arriving' ||
+            status == 'started') ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 230,
+            child: RrydTripMap(
+              pickup: _pickupPoint,
+              destination: _destinationPoint,
+              driverLocation: _driverPoint,
+              driverRoute: _routeToPassenger,
+              showCurrentMapPinHint: false,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _communicationStatus,
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Ride chat',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 220),
+            decoration: BoxDecoration(
+              border: Border.all(color: theme.dividerColor),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: _chatMessages.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text('No messages yet.'),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _chatMessages.length,
+                    itemBuilder: (context, index) {
+                      final message = _chatMessages[index];
+                      final mine = message['sender_id'].toString() ==
+                          widget.profile.id;
+                      return Align(
+                        alignment: mine
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.all(6),
+                          padding: const EdgeInsets.all(10),
+                          constraints: const BoxConstraints(maxWidth: 280),
+                          decoration: BoxDecoration(
+                            color: mine
+                                ? theme.colorScheme.primaryContainer
+                                : theme.colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            (message['message'] ?? '').toString(),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _chatController,
+                  enabled: chatAvailable && !_sendingMessage,
+                  maxLength: 1000,
+                  minLines: 1,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Message passenger',
+                    counterText: '',
+                  ),
+                  onSubmitted: (_) => _sendRideMessage(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.filled(
+                onPressed: !chatAvailable || _sendingMessage
+                    ? null
+                    : _sendRideMessage,
+                icon: _sendingMessage
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.send),
+              ),
+            ],
+          ),
+          Text(
+            'Chat is restricted by Supabase ride_messages policies. '
+            'Only messages confirmed by Supabase are shown.',
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
+      ],
+    );
   }
 
   Future<void> _acceptRide(Map<String, dynamic> ride) async {
@@ -930,6 +1405,8 @@ class _DriverHomePageState extends State<DriverHomePage> {
                   _busy ? null : () => _performRideAction('cancel_ride'),
               child: const Text('Cancel ride'),
             ),
+            const SizedBox(height: 12),
+            _rideCommunicationCard(ride),
           ],
         ),
       ),
