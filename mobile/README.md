@@ -55,6 +55,13 @@ The current web driver portal in `driver.html` uses:
 8. The Nominatim search and OSRM demo routing endpoints are development-only and subject to usage policies/availability. The OpenStreetMap public tile service also has a usage policy; these endpoints are not a contracted production map stack.
 9. Passenger/Driver pages are not yet production-ready: native folders and initial flows are being built, but the exact live Supabase project, RLS, role model, deep-link redirect configuration, production geocoder/router, and payment integration must be confirmed.
 
+## Post-trip ratings backend status
+
+- Both mobile apps now expose a rating action for completed trips. A user can submit one rating per ride.
+- The reviewed SQL draft is `mobile/sql/rryd_ride_ratings.sql`. It creates an RLS-protected table and `rryd_submit_ride_rating` RPC. Only the passenger and assigned driver can rate each other, and only after the ride is completed.
+- The rating UI stays unavailable until the ratings table and RPC exist. Apply the SQL only after the correct production Supabase project is connected and its `rides` schema and RLS have been checked.
+- Ratings are immutable from mobile clients in this initial draft. Editing, moderation, public profile averages and admin dispute handling are separate follow-up work.
+
 ## Passenger live-location and Driver notification backend status
 
 - Passenger location sharing is implemented as ride-scoped consent: it starts only after a driver is assigned and the ride is `accepted`; it stops when the ride leaves that status. It updates while the Passenger app is active. Background sharing after the app is minimized or closed is not yet implemented.
