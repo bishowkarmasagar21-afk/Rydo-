@@ -139,7 +139,6 @@ class RrydStrings {
       'vehicle_approval_required': 'Register a vehicle and wait for admin approval before going online.',
       'vehicle_submitted': 'Vehicle submitted. It cannot be used for ride requests until Rryd Admin approves it.',
       'vehicle_submit_failed': 'Vehicle could not be submitted',
-      'sign_out': 'Sign out',
     },
     'ne': {
       'tagline': 'आफ्नै तरिकाले यात्रा गर्नुहोस्।',
