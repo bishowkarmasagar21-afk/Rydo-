@@ -270,8 +270,7 @@ class RrydStrings {
       'vehicle_approval_required': 'अनलाइन हुनुअघि सवारी दर्ता गरेर प्रशासनको स्वीकृति पर्खनुहोस्।',
       'vehicle_submitted': 'सवारी पठाइयो। Rryd प्रशासनले स्वीकृत नगरेसम्म राइड लिन प्रयोग गर्न मिल्दैन।',
       'vehicle_submit_failed': 'सवारी पठाउन सकिएन',
-      'sign_out': 'साइन आउट',
-
+    },
   };
 
   String text(String key) =>
