@@ -64,6 +64,20 @@ class RrydDriverRepository {
     }
   }
 
+  Future<void> registerVehicle({
+    required String driverId,
+    required String vehicleType,
+    required String vehicleModel,
+    required String vehicleNumber,
+  }) async {
+    await SupabaseBootstrap.client.from('vehicles').insert({
+      'driver_id': driverId,
+      'vehicle_type': vehicleType,
+      'vehicle_model': vehicleModel.trim(),
+      'vehicle_number': vehicleNumber.trim(),
+    });
+  }
+
   Future<void> acceptRide(int rideId) async {
     final result = await SupabaseBootstrap.client.rpc(
       'accept_ride',
