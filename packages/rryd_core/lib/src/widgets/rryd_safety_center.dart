@@ -28,6 +28,7 @@ class RrydSafetyCenter {
   static Future<void> show(
     BuildContext context, {
     required String appKey,
+    String languageCode = 'en',
     String? rideSummary,
     String? locationLabel,
     double? latitude,
@@ -39,6 +40,7 @@ class RrydSafetyCenter {
       showDragHandle: true,
       builder: (_) => _RrydSafetySheet(
         appKey: appKey,
+        languageCode: languageCode,
         rideSummary: rideSummary,
         locationLabel: locationLabel,
         latitude: latitude,
@@ -84,6 +86,7 @@ class RrydSafetyCenter {
 class _RrydSafetySheet extends StatefulWidget {
   const _RrydSafetySheet({
     required this.appKey,
+    required this.languageCode,
     this.rideSummary,
     this.locationLabel,
     this.latitude,
@@ -91,6 +94,7 @@ class _RrydSafetySheet extends StatefulWidget {
   });
 
   final String appKey;
+  final String languageCode;
   final String? rideSummary;
   final String? locationLabel;
   final double? latitude;
@@ -139,6 +143,9 @@ class _RrydSafetySheetState extends State<_RrydSafetySheet> {
       });
     }
   }
+
+  String _t(String english, String nepali) =>
+      widget.languageCode == 'ne' ? nepali : english;
 
   void _setMessage(String value, {bool error = false}) {
     if (!mounted) return;
@@ -307,7 +314,7 @@ class _RrydSafetySheetState extends State<_RrydSafetySheet> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Rryd Safety Center',
+                      _t('Rryd Safety Center', 'Rryd सुरक्षा केन्द्र'),
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w900,
                       ),
@@ -317,56 +324,74 @@ class _RrydSafetySheetState extends State<_RrydSafetySheet> {
               ),
               const SizedBox(height: 6),
               Text(
-                'For immediate danger, contact emergency services directly. '
-                'Rryd does not automatically dispatch police or notify its staff from this screen.',
+                _t(
+                  'For immediate danger, contact emergency services directly. Rryd does not automatically dispatch police or notify its staff from this screen.',
+                  'तत्काल जोखिम भए सिधै आपतकालीन सेवामा फोन गर्नुहोस्। यस स्क्रिनबाट Rryd ले प्रहरी बोलाउँदैन वा कर्मचारीलाई स्वतः खबर गर्दैन।',
+                ),
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 14),
               _emergencyButton(
-                title: 'Nepal Police',
-                description: 'Police control',
+                title: _t('Nepal Police', 'नेपाल प्रहरी'),
+                description: _t('Police control', 'प्रहरी कन्ट्रोल'),
                 number: '100',
                 icon: Icons.local_police_outlined,
                 color: theme.colorScheme.error,
               ),
               _emergencyButton(
-                title: 'Fire service',
-                description: 'Fire and rescue',
+                title: _t('Fire service', 'दमकल सेवा'),
+                description: _t('Fire and rescue', 'आगलागी तथा उद्धार'),
                 number: '101',
                 icon: Icons.local_fire_department_outlined,
                 color: Colors.deepOrange,
               ),
               _emergencyButton(
-                title: 'Ambulance',
-                description: 'Medical emergency',
+                title: _t('Ambulance', 'एम्बुलेन्स'),
+                description: _t('Medical emergency', 'चिकित्सा आपतकाल'),
                 number: '102',
                 icon: Icons.medical_services_outlined,
                 color: Colors.teal,
               ),
+              _emergencyButton(
+                title: _t('Traffic Police', 'ट्राफिक प्रहरी'),
+                description: _t('Traffic emergency', 'ट्राफिक आपतकाल'),
+                number: '103',
+                icon: Icons.traffic,
+                color: Colors.blue,
+              ),
+              _emergencyButton(
+                title: _t('Tourist Police', 'पर्यटक प्रहरी'),
+                description: _t('Tourist police helpline', 'पर्यटक प्रहरी हेल्पलाइन'),
+                number: '1144',
+                icon: Icons.support_agent,
+                color: Colors.indigo,
+              ),
               Text(
-                'Ambulance number 102 may not be available in every part of Nepal. '
-                'Use a local ambulance provider where necessary.',
+                _t(
+                  'Ambulance coverage may vary by location. Use a local ambulance provider if 102 is unavailable.',
+                  'एम्बुलेन्स सेवा स्थानअनुसार फरक हुन सक्छ। १०२ उपलब्ध नभए स्थानीय एम्बुलेन्स सेवामा सम्पर्क गर्नुहोस्।',
+                ),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 18),
               Text(
-                'Trusted contacts',
+                _t('Trusted contacts', 'विश्वसनीय सम्पर्क'),
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                'Save up to three people you trust. Their details stay on this device and are not uploaded to Rryd.',
+                _t('Save up to three people you trust. Their details stay on this device and are not uploaded to Rryd.', 'तपाईंले विश्वास गर्ने तीन जनासम्मको सम्पर्क सेभ गर्नुहोस्। विवरण यही फोनमा रहन्छ र Rryd मा अपलोड हुँदैन।'),
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 10),
               if (_loading)
                 const Center(child: CircularProgressIndicator())
               else if (_contacts.isEmpty)
-                const Text('No trusted contacts saved yet.')
+                const Text(_t('No trusted contacts saved yet.', 'अहिलेसम्म कुनै विश्वसनीय सम्पर्क सेभ गरिएको छैन।'))
               else
                 ..._contacts.map(
                   (contact) => Card(
@@ -403,7 +428,7 @@ class _RrydSafetySheetState extends State<_RrydSafetySheet> {
                   controller: _nameController,
                   textCapitalization: TextCapitalization.words,
                   decoration: const InputDecoration(
-                    labelText: 'Contact name',
+                    labelText: _t('Contact name', 'सम्पर्क व्यक्तिको नाम'),
                     prefixIcon: Icon(Icons.person_outline),
                   ),
                 ),
@@ -412,7 +437,7 @@ class _RrydSafetySheetState extends State<_RrydSafetySheet> {
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(
-                    labelText: 'Contact phone number',
+                    labelText: _t('Contact phone number', 'सम्पर्क फोन नम्बर'),
                     prefixIcon: Icon(Icons.phone_outlined),
                   ),
                 ),
@@ -420,7 +445,7 @@ class _RrydSafetySheetState extends State<_RrydSafetySheet> {
                 OutlinedButton.icon(
                   onPressed: _saving ? null : _addContact,
                   icon: const Icon(Icons.person_add_alt_1),
-                  label: Text(_saving ? 'Saving…' : 'Save trusted contact'),
+                  label: Text(_saving ? '_सेभ हुँदैछ…' : 'विश्वसनीय सम्पर्क सेभ गर्नुहोस्'),
                 ),
               ],
               if (_message != null) ...[
@@ -436,8 +461,8 @@ class _RrydSafetySheetState extends State<_RrydSafetySheet> {
               ],
               const SizedBox(height: 8),
               Text(
-                'SMS is opened for your review. Rryd does not send it silently. '
-                'Your mobile operator may charge for SMS or calls.',
+                _t('SMS is opened for your review. Rryd does not send it silently. ', 'SMS तपाईंको जाँचका लागि खुल्छ। Rryd ले चुपचाप सन्देश पठाउँदैन। ')
+                _t('Your mobile operator may charge for SMS or calls.', 'SMS वा कलका लागि मोबाइल अपरेटरले शुल्क लिन सक्छ।'),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
