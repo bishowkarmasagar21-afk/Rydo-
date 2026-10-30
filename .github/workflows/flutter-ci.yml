@@ -1,0 +1,61 @@
+name: Flutter mobile checks
+
+on:
+  push:
+    branches:
+      - mobile/**
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "mobile/**"
+      - ".github/workflows/flutter-ci.yml"
+  pull_request:
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "mobile/**"
+      - ".github/workflows/flutter-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve shared package
+        working-directory: packages/rryd_core
+        run: flutter pub get
+
+      - name: Analyze shared package
+        working-directory: packages/rryd_core
+        run: flutter analyze
+
+      - name: Test shared package
+        working-directory: packages/rryd_core
+        run: flutter test
+
+      - name: Resolve Passenger dependencies
+        working-directory: apps/passenger
+        run: flutter pub get
+
+      - name: Analyze Passenger app
+        working-directory: apps/passenger
+        run: flutter analyze
+
+      - name: Resolve Driver dependencies
+        working-directory: apps/driver
+        run: flutter pub get
+
+      - name: Analyze Driver app
+        working-directory: apps/driver
+        run: flutter analyze
