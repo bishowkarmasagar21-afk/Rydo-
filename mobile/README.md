@@ -11,13 +11,13 @@ This directory tracks the native mobile-app work. The existing website and admin
 ## Product decisions
 
 - Separate Passenger and Driver apps.
-- One Supabase Auth identity should be usable in both apps.
-- Passenger Settings includes a Become a Driver application.
+- Passenger and Driver are separate app listings. The current database profile has one `role` value (`passenger` or `driver`); simultaneous passenger-and-driver access for one identity requires an explicit backend role design and has not been enabled yet.
+- Driver accounts are registered in the Driver app and must be verified by an administrator before going online or accepting a ride.
 - Drivers may register multiple vehicles. Each vehicle requires its own approval.
-- Driver selects one approved vehicle before going online; driver must go offline to change it.
-- A driver may have only one active ride. Server-side validation must enforce this, not just UI checks.
-- Ride requests remain available until accepted or cancelled; accepted requests disappear for other drivers.
-- Driver search radius expands progressively; proposed starting radii are 3, 5, 8 and 12 km and must be configurable.
+- Any admin-approved vehicle type may qualify the driver for requests of that vehicle type; a single active-vehicle selection rule has not been agreed or implemented.
+- The app prevents accepting another ride while an active ride is loaded. The live `accept_ride` function must also enforce this atomically before launch.
+- Ride requests are loaded from unassigned `requested` rides. The actual driver SELECT policy and server-side assignment behavior must be verified against the live project.
+- Driver search-radius and expansion policy have not been decided; do not hard-code arbitrary radii.
 - Cash and digital payments are intended. Digital payment must not be marked paid without verified provider confirmation.
 - Current commission reference is 15%; fare values must be read from active `fare_rules`, never hard-coded.
 - Fare display rounds to the nearest NPR (0.50 rounds up).
@@ -52,6 +52,8 @@ The current web driver portal in `driver.html` uses:
 5. Driver passenger-location and notification contracts need to be verified against the live database/RPCs before implementation.
 6. The repository code references a Supabase project URL ending in `kqtvuorasqyzjbnlkkxs.supabase.co`. The connected Supabase workspace currently lists only two different projects, both inactive; access to the referenced project has not yet been confirmed. Do not use or restore an older inactive project as a substitute.
 7. The repository is public. A publishable Supabase key is intended for client apps but must be protected by correct RLS. Never commit a Supabase secret/service-role key, payment secret, signing key, or private credential.
+8. The Nominatim search and OSRM demo routing endpoints are development-only and subject to usage policies/availability. The OpenStreetMap public tile service also has a usage policy; these endpoints are not a contracted production map stack.
+9. Passenger/Driver pages are not yet production-ready: native folders and initial flows are being built, but the exact live Supabase project, RLS, role model, deep-link redirect configuration, production geocoder/router, and payment integration must be confirmed.
 
 ## Development safety
 
