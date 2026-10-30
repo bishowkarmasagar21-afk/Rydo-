@@ -1551,6 +1551,7 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
               RrydSafetyCenter.show(
                 context,
                 appKey: 'passenger',
+                languageCode: widget.settings.language.code,
                 rideSummary: ride == null
                     ? null
                     : 'Ride #${ride['id']} · ${ride['status']} · '
