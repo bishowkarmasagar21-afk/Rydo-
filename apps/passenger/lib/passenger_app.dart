@@ -341,6 +341,14 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
                                 ),
                               );
                               if (first != true || !context.mounted) return;
+                              if (_activeRide != null) {
+                                setSheetState(() {
+                                  message =
+                                      'Finish or cancel your active ride before deleting your account.';
+                                  messageIsError = true;
+                                });
+                                return;
+                              }
                               final finalConfirm = await showDialog<bool>(
                                 context: context,
                                 builder: (dialogContext) => AlertDialog(
@@ -366,6 +374,14 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
                                 ),
                               );
                               if (finalConfirm != true || !context.mounted) {
+                                return;
+                              }
+                              if (_activeRide != null) {
+                                setSheetState(() {
+                                  message =
+                                      'An active ride was found. Account deletion was stopped.';
+                                  messageIsError = true;
+                                });
                                 return;
                               }
                               setSheetState(() => saving = true);
@@ -1351,7 +1367,16 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
           ),
           IconButton(
             tooltip: strings.text('sign_out'),
-            onPressed: () => RrydAuthService().signOut(),
+            onPressed: () {
+              if (_activeRide != null) {
+                _setNotice(
+                  'Finish or cancel your active ride before signing out.',
+                  isError: true,
+                );
+                return;
+              }
+              RrydAuthService().signOut();
+            },
             icon: const Icon(Icons.logout),
           ),
         ],
