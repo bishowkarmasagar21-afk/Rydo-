@@ -48,6 +48,7 @@ class _RrydAuthGateState extends State<RrydAuthGate> {
   RrydProfile? _profile;
   Object? _profileError;
   bool _loading = true;
+  bool _passwordRecovery = false;
 
   @override
   void initState() {
@@ -66,6 +67,11 @@ class _RrydAuthGateState extends State<RrydAuthGate> {
     }
 
     _authSubscription = _auth.onAuthStateChange.listen((state) {
+      if (state.event == AuthChangeEvent.passwordRecovery) {
+        if (!mounted) return;
+        setState(() => _passwordRecovery = true);
+        return;
+      }
       final nextUser = state.session?.user;
       if (nextUser?.id == _user?.id) return;
 
@@ -122,6 +128,16 @@ class _RrydAuthGateState extends State<RrydAuthGate> {
         title: strings.text('configuration_missing'),
         message: strings.text('configuration_help'),
         icon: Icons.cloud_off_outlined,
+      );
+    }
+
+    if (_passwordRecovery && _user != null) {
+      return RrydPasswordRecoveryScreen(
+        onCompleted: () async {
+          if (!mounted) return;
+          setState(() => _passwordRecovery = false);
+          await _loadProfile(_user!.id);
+        },
       );
     }
 
@@ -210,6 +226,154 @@ class _RrydAuthGateState extends State<RrydAuthGate> {
     }
 
     return widget.homeBuilder(context, profile);
+  }
+}
+
+class RrydPasswordRecoveryScreen extends StatefulWidget {
+  const RrydPasswordRecoveryScreen({
+    super.key,
+    required this.onCompleted,
+  });
+
+  final Future<void> Function() onCompleted;
+
+  @override
+  State<RrydPasswordRecoveryScreen> createState() =>
+      _RrydPasswordRecoveryScreenState();
+}
+
+class _RrydPasswordRecoveryScreenState
+    extends State<RrydPasswordRecoveryScreen> {
+  final _password = TextEditingController();
+  final _confirmPassword = TextEditingController();
+  bool _showPassword = false;
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _password.dispose();
+    _confirmPassword.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final password = _password.text;
+    if (password.length < 8) {
+      setState(() => _error = 'Use at least 8 characters.');
+      return;
+    }
+    if (password != _confirmPassword.text) {
+      setState(() => _error = 'The passwords do not match.');
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await SupabaseBootstrap.client.auth.updateUser(
+        UserAttributes(password: password),
+      );
+      await widget.onCompleted();
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Rryd · New password')),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(22),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(22),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Icon(
+                        Icons.lock_reset_rounded,
+                        size: 46,
+                        color: RrydTheme.orange,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Set a new password',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Choose a new password for your Rryd account.',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 22),
+                      TextField(
+                        controller: _password,
+                        obscureText: !_showPassword,
+                        decoration: InputDecoration(
+                          labelText: 'New password',
+                          suffixIcon: IconButton(
+                            onPressed: () => setState(
+                              () => _showPassword = !_showPassword,
+                            ),
+                            icon: Icon(
+                              _showPassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _confirmPassword,
+                        obscureText: !_showPassword,
+                        decoration: const InputDecoration(
+                          labelText: 'Confirm new password',
+                        ),
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          _error!,
+                          style: TextStyle(color: theme.colorScheme.error),
+                        ),
+                      ],
+                      const SizedBox(height: 18),
+                      FilledButton(
+                        onPressed: _busy ? null : _save,
+                        child: _busy
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('Save new password'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
