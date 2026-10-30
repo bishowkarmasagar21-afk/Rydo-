@@ -342,7 +342,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                     TextField(
                       controller: nameController,
                       textCapitalization: TextCapitalization.words,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Full name',
                         prefixIcon: Icon(Icons.person_outline),
                       ),
@@ -351,7 +351,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                     TextField(
                       controller: phoneController,
                       keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Phone number',
                         prefixIcon: Icon(Icons.phone_outlined),
                       ),
@@ -1033,7 +1033,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                   maxLength: 1000,
                   minLines: 1,
                   maxLines: 3,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Message passenger',
                     counterText: '',
                   ),
@@ -1295,7 +1295,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                   ),
                   const SizedBox(height: 8),
                   if (_vehicles.isEmpty)
-                    const Card(
+                    Card(
                       child: Padding(
                         padding: EdgeInsets.all(16),
                         child: Text(
@@ -1328,7 +1328,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                             const SizedBox(height: 12),
                             DropdownButtonFormField<String>(
                               initialValue: _newVehicleType,
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: strings.text('vehicle_type'),
                               ),
                               items: const [
@@ -1348,7 +1348,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                             TextFormField(
                               controller: _vehicleModelController,
                               textCapitalization: TextCapitalization.words,
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: strings.text('vehicle_model'),
                                 prefixIcon: Icon(Icons.directions_car_outlined),
                               ),
@@ -1361,7 +1361,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                             TextFormField(
                               controller: _vehicleNumberController,
                               textCapitalization: TextCapitalization.characters,
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: strings.text('vehicle_number'),
                                 prefixIcon: Icon(Icons.confirmation_number_outlined),
                               ),
@@ -1448,7 +1448,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                     ],
                   ),
                   if (!_online)
-                    const Card(
+                    Card(
                       child: Padding(
                         padding: EdgeInsets.all(16),
                         child: Text(
@@ -1457,7 +1457,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                       ),
                     )
                   else if (_requestReadFailed)
-                    const Card(
+                    Card(
                       child: Padding(
                         padding: EdgeInsets.all(16),
                         child: Text(
@@ -1466,7 +1466,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
                       ),
                     )
                   else if (_requests.isEmpty)
-                    const Card(
+                    Card(
                       child: Padding(
                         padding: EdgeInsets.all(16),
                         child: Text(strings.text('no_requests')),
