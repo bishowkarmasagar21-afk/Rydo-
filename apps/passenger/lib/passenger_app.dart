@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:rryd_core/rryd_core.dart';
@@ -78,6 +79,11 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
   bool _loadingChat = false;
   bool _chatHasInitialSnapshot = false;
   bool _sendingMessage = false;
+  StreamSubscription<Position>? _passengerLocationSubscription;
+  int? _sharingLocationRideId;
+  int? _locationDeclinedRideId;
+  DateTime? _lastPassengerLocationWrite;
+  bool _startingPassengerLocationShare = false;
   bool _loadingDriverDetails = false;
   String? _driverRouteKey;
   String? _activeRideRouteKey;
@@ -140,6 +146,7 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
     _searchController.dispose();
     _chatController.dispose();
     _driverPollTimer?.cancel();
+    _passengerLocationSubscription?.cancel();
     _locationService.dispose();
     super.dispose();
   }
@@ -611,9 +618,11 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
       if (_activeRide != null) {
         await _refreshDriverDetails();
         await _refreshRideMessages();
+        await _syncPassengerLocationSharing();
         _startDriverPolling();
       } else {
         _stopDriverPolling();
+        await _stopPassengerLocationSharing();
         setState(() {
           _driverDetails = null;
           _driverLocation = null;
@@ -813,6 +822,184 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
     } finally {
       _loadingDriverDetails = false;
     }
+  }
+
+  Future<void> _syncPassengerLocationSharing() async {
+    final ride = _activeRide;
+    if (ride == null || ride['driver_id'] == null) {
+      await _stopPassengerLocationSharing();
+      return;
+    }
+    final status = (ride['status'] ?? '').toString().toLowerCase();
+    if (status == 'accepted') {
+      await _startPassengerLocationSharing(ride);
+    } else {
+      await _stopPassengerLocationSharing();
+    }
+  }
+
+  Future<void> _startPassengerLocationSharing(
+    Map<String, dynamic> ride,
+  ) async {
+    final rideId = int.tryParse(ride['id'].toString());
+    if (rideId == null ||
+        _startingPassengerLocationShare ||
+        _sharingLocationRideId == rideId ||
+        !mounted) {
+      return;
+    }
+    if (_locationDeclinedRideId == rideId) return;
+
+    _startingPassengerLocationShare = true;
+    try {
+      final accepted = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Share pickup location?'),
+          content: const Text(
+            'Your live GPS location will be shared only with the driver assigned to this ride while they are coming to pick you up. Sharing stops when the driver marks arriving.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Not now'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Share for this ride'),
+            ),
+          ],
+        ),
+      );
+      if (accepted != true || !mounted) {
+        _locationDeclinedRideId = rideId;
+        _setNotice('Live pickup location was not shared. You can enable it from the active ride card.');
+        return;
+      }
+
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw StateError('Turn on Location Services to share pickup location.');
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied) {
+        throw StateError('Location permission was not granted.');
+      }
+      if (permission == LocationPermission.deniedForever) {
+        throw StateError(
+          'Location permission is blocked. Enable it in your phone settings.',
+        );
+      }
+
+      final current = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 20),
+        ),
+      );
+      if (!_isValidNepalCoordinate(current.latitude, current.longitude)) {
+        throw StateError('Your GPS position is outside the supported Nepal area.');
+      }
+      // Verify the first share point by reverse geocoding. Later GPS updates
+      // are constrained to the same Nepal coordinate bounds.
+      await _locationService.reverseGeocode(
+        latitude: current.latitude,
+        longitude: current.longitude,
+      );
+      if (!mounted ||
+          _activeRide?['id'].toString() != rideId.toString() ||
+          (_activeRide?['status'] ?? '').toString().toLowerCase() != 'accepted') {
+        return;
+      }
+
+      await _publishPassengerLocation(rideId, current);
+      _sharingLocationRideId = rideId;
+      _locationDeclinedRideId = null;
+      _passengerLocationSubscription = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 25,
+        ),
+      ).listen(
+        (position) => _publishPassengerLocation(rideId, position),
+        onError: (Object error) {
+          if (mounted) {
+            _setNotice(
+              'Live pickup location sharing paused: $error',
+              isError: true,
+            );
+          }
+        },
+      );
+      _setNotice(
+        'Live pickup location is being shared with your assigned driver until they mark arriving.',
+      );
+    } catch (error) {
+      _locationDeclinedRideId = rideId;
+      _setNotice(
+        'Could not start live pickup location sharing: $error',
+        isError: true,
+      );
+    } finally {
+      _startingPassengerLocationShare = false;
+    }
+  }
+
+  bool _isValidNepalCoordinate(double latitude, double longitude) =>
+      latitude >= 26 &&
+      latitude <= 31 &&
+      longitude >= 80 &&
+      longitude <= 89;
+
+  Future<void> _publishPassengerLocation(
+    int rideId,
+    Position position,
+  ) async {
+    final ride = _activeRide;
+    if (ride == null ||
+        ride['id'].toString() != rideId.toString() ||
+        (ride['status'] ?? '').toString().toLowerCase() != 'accepted') {
+      await _stopPassengerLocationSharing();
+      return;
+    }
+    if (!_isValidNepalCoordinate(position.latitude, position.longitude)) {
+      _setNotice('GPS moved outside the supported Nepal area. Sharing paused.',
+          isError: true);
+      await _stopPassengerLocationSharing();
+      return;
+    }
+
+    final last = _lastPassengerLocationWrite;
+    if (last != null &&
+        DateTime.now().difference(last) < const Duration(seconds: 15)) {
+      return;
+    }
+    _lastPassengerLocationWrite = DateTime.now();
+    try {
+      await _rideRepository.updateMyPassengerLocation(
+        rideId: rideId,
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+    } catch (error) {
+      if (mounted) {
+        _setNotice(
+          'Your location was not shared with the driver: $error',
+          isError: true,
+        );
+      }
+    }
+  }
+
+  Future<void> _stopPassengerLocationSharing() async {
+    await _passengerLocationSubscription?.cancel();
+    _passengerLocationSubscription = null;
+    _sharingLocationRideId = null;
+    _lastPassengerLocationWrite = null;
   }
 
   Future<void> _refreshRideMessages() async {
@@ -1560,6 +1747,30 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
             if (ride['driver_id'] != null &&
                 {'accepted', 'arriving', 'started'}.contains(status)) ...[
               const SizedBox(height: 12),
+              if (status == 'accepted') ...[
+                Text(
+                  _sharingLocationRideId == int.tryParse(ride['id'].toString())
+                      ? 'Live pickup location is being shared with your assigned driver.'
+                      : 'Your pickup location is not currently being shared.',
+                  style: theme.textTheme.bodySmall,
+                ),
+                if (_sharingLocationRideId !=
+                    int.tryParse(ride['id'].toString()))
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: _startingPassengerLocationShare
+                          ? null
+                          : () => _startPassengerLocationSharing(ride),
+                      icon: const Icon(Icons.my_location),
+                      label: const Text('Share pickup location with driver'),
+                    ),
+                  ),
+              ] else
+                Text(
+                  'Live pickup location sharing has stopped because the driver marked arriving or started the trip.',
+                  style: theme.textTheme.bodySmall,
+                ),
               _rideChatCard(theme),
             ],
             const SizedBox(height: 8),
