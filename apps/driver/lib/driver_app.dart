@@ -963,7 +963,9 @@ class _DriverHomePageState extends State<DriverHomePage> {
             child: RrydTripMap(
               pickup: _pickupPoint,
               destination: _destinationPoint,
+              passengerLocation: _passengerPoint,
               driverLocation: _driverPoint,
+              applicationId: 'com.rryd.driver',
               driverRoute: _routeToPassenger,
               showCurrentMapPinHint: false,
             ),
