@@ -64,6 +64,58 @@ class RrydDriverRepository {
     }
   }
 
+  Future<Map<String, dynamic>?> loadPassengerDetailsForRide(
+    int rideId,
+  ) async {
+    final response = await SupabaseBootstrap.client.rpc(
+      'get_passenger_details_for_my_ride',
+      params: {'p_ride_id': rideId},
+    );
+    if (response == null) return null;
+    if (response is Map) return Map<String, dynamic>.from(response);
+    if (response is List && response.isNotEmpty && response.first is Map) {
+      return Map<String, dynamic>.from(response.first as Map);
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> loadPassengerLocationForRide(
+    int rideId,
+  ) async {
+    final response = await SupabaseBootstrap.client.rpc(
+      'get_passenger_location_for_my_ride',
+      params: {'p_ride_id': rideId},
+    );
+    if (response == null) return null;
+    if (response is Map) return Map<String, dynamic>.from(response);
+    if (response is List && response.isNotEmpty && response.first is Map) {
+      return Map<String, dynamic>.from(response.first as Map);
+    }
+    return null;
+  }
+
+  Future<List<Map<String, dynamic>>> loadRideMessages(int rideId) async {
+    final rows = await SupabaseBootstrap.client
+        .from('ride_messages')
+        .select('*')
+        .eq('ride_id', rideId)
+        .order('created_at', ascending: true)
+        .limit(100);
+    return rows.cast<Map<String, dynamic>>();
+  }
+
+  Future<void> sendRideMessage({
+    required int rideId,
+    required String senderId,
+    required String message,
+  }) async {
+    await SupabaseBootstrap.client.from('ride_messages').insert({
+      'ride_id': rideId,
+      'sender_id': senderId,
+      'message': message.trim(),
+    });
+  }
+
   Future<void> registerVehicle({
     required String driverId,
     required String vehicleType,
