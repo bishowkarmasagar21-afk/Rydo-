@@ -180,6 +180,24 @@ class _DriverHomePageState extends State<DriverHomePage> {
           final newIds = requestIds.difference(_knownRequestIds);
           if (newIds.isNotEmpty) {
             SystemSound.play(SystemSoundType.alert);
+            for (final request in requests) {
+              if (!newIds.contains(request['id'].toString())) continue;
+              final rideId = int.tryParse(request['id'].toString());
+              if (rideId == null) continue;
+              try {
+                await RrydNotificationService.showRideRequest(
+                  rideId: rideId,
+                  pickup: (request['pickup_location'] ?? 'Pickup').toString(),
+                  destination: (request['destination'] ?? 'Destination').toString(),
+                  vehicleType: (request['vehicle_type'] ?? '').toString(),
+                );
+              } catch (error) {
+                _setNotice(
+                  'A new ride was found, but the notification could not be displayed: $error',
+                  isError: true,
+                );
+              }
+            }
             _setNotice(
               '${newIds.length} new ride request(s). Review the details before accepting.',
             );
@@ -567,7 +585,12 @@ class _DriverHomePageState extends State<DriverHomePage> {
     setState(() => _busy = true);
     try {
       Position? position;
-      if (goingOnline) position = await _getCurrentPosition();
+      if (goingOnline) {
+        position = await _getCurrentPosition();
+        // Permission denial does not block a driver from going online, but
+        // the app will warn that system notifications may not be displayed.
+        await RrydNotificationService.requestPermission();
+      }
       await _repository.setOnline(goingOnline);
       if (!mounted) return;
       setState(() {
