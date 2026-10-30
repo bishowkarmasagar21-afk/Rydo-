@@ -38,6 +38,24 @@ class RrydAuthService {
     );
   }
 
+  Future<AuthResponse> registerDriver({
+    required String fullName,
+    required String phone,
+    required String email,
+    required String password,
+  }) {
+    return _client.auth.signUp(
+      email: email.trim(),
+      password: password,
+      data: {
+        'full_name': fullName.trim(),
+        'phone': phone.trim(),
+        'role': 'driver',
+      },
+      emailRedirectTo: 'com.rryd.driver://auth-callback',
+    );
+  }
+
   Future<void> requestPasswordReset({
     required String email,
     required String appScheme,
