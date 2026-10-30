@@ -89,8 +89,12 @@ class RrydLocationService {
       final latitude = double.tryParse(item['lat']?.toString() ?? '');
       final longitude = double.tryParse(item['lon']?.toString() ?? '');
       final label = item['display_name']?.toString() ?? '';
+      final address = item['address'];
+      final countryCode = address is Map
+          ? address['country_code']?.toString().toLowerCase()
+          : null;
       if (latitude == null || longitude == null || label.isEmpty) continue;
-      if (!_isInsideNepal(latitude, longitude)) continue;
+      if (countryCode != 'np' || !_isInsideNepal(latitude, longitude)) continue;
 
       results.add(RrydPlaceSearchResult(
         label: label,
@@ -140,8 +144,15 @@ class RrydLocationService {
       throw const FormatException('Unexpected address lookup response.');
     }
     final address = decoded['display_name']?.toString();
+    final addressParts = decoded['address'];
+    final countryCode = addressParts is Map
+        ? addressParts['country_code']?.toString().toLowerCase()
+        : null;
     if (address == null || address.isEmpty) {
       throw StateError('No address was found for this map point.');
+    }
+    if (countryCode != 'np') {
+      throw StateError('Choose a location inside Nepal.');
     }
 
     final result = RrydPlaceSearchResult(
