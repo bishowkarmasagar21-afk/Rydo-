@@ -465,8 +465,8 @@ class _RrydSafetySheetState extends State<_RrydSafetySheet> {
               ],
               const SizedBox(height: 8),
               Text(
-                _t('SMS is opened for your review. Rryd does not send it silently. ', 'SMS तपाईंको जाँचका लागि खुल्छ। Rryd ले चुपचाप सन्देश पठाउँदैन। ')
-                _t('Your mobile operator may charge for SMS or calls.', 'SMS वा कलका लागि मोबाइल अपरेटरले शुल्क लिन सक्छ।'),
+                '${_t('SMS is opened for your review. Rryd does not send it silently. ', 'SMS तपाईंको जाँचका लागि खुल्छ। Rryd ले चुपचाप सन्देश पठाउँदैन। ')}'
+                '${_t('Your mobile operator may charge for SMS or calls.', 'SMS वा कलका लागि मोबाइल अपरेटरले शुल्क लिन सक्छ।')}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
