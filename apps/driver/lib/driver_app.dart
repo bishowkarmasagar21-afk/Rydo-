@@ -31,6 +31,7 @@ class DriverApp extends StatelessWidget {
             appScheme: 'com.rryd.driver',
             settings: settings,
             allowPassengerRegistration: false,
+            allowDriverRegistration: true,
             homeBuilder: (context, profile) =>
                 DriverHomePage(profile: profile, settings: settings),
           ),
@@ -53,7 +54,11 @@ class DriverHomePage extends StatefulWidget {
 
 class _DriverHomePageState extends State<DriverHomePage> {
   final _repository = RrydDriverRepository();
+  final _vehicleFormKey = GlobalKey<FormState>();
+  final _vehicleModelController = TextEditingController();
+  final _vehicleNumberController = TextEditingController();
   final Set<String> _knownRequestIds = {};
+  String _newVehicleType = 'bike';
   List<Map<String, dynamic>> _vehicles = [];
   List<Map<String, dynamic>> _myRides = [];
   List<Map<String, dynamic>> _requests = [];
@@ -114,6 +119,8 @@ class _DriverHomePageState extends State<DriverHomePage> {
   void dispose() {
     _pollTimer?.cancel();
     _locationSubscription?.cancel();
+    _vehicleModelController.dispose();
+    _vehicleNumberController.dispose();
     super.dispose();
   }
 
@@ -315,6 +322,29 @@ class _DriverHomePageState extends State<DriverHomePage> {
       await _loadData();
     } catch (error) {
       _setNotice('Could not change online status: $error', isError: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _submitVehicle() async {
+    if (_busy || !_vehicleFormKey.currentState!.validate()) return;
+    setState(() => _busy = true);
+    try {
+      await _repository.registerVehicle(
+        driverId: widget.profile.id,
+        vehicleType: _newVehicleType,
+        vehicleModel: _vehicleModelController.text.trim(),
+        vehicleNumber: _vehicleNumberController.text.trim(),
+      );
+      _vehicleModelController.clear();
+      _vehicleNumberController.clear();
+      await _loadData();
+      _setNotice(
+        'Vehicle submitted. It cannot be used for ride requests until Rryd Admin approves it.',
+      );
+    } catch (error) {
+      _setNotice('Vehicle could not be submitted: $error', isError: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -546,6 +576,82 @@ class _DriverHomePageState extends State<DriverHomePage> {
                     )
                   else
                     ..._vehicles.map(_vehicleCard),
+                  const SizedBox(height: 10),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Form(
+                        key: _vehicleFormKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'Register a vehicle',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Each vehicle is reviewed separately. Approval is required before it can receive rides.',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 12),
+                            DropdownButtonFormField<String>(
+                              initialValue: _newVehicleType,
+                              decoration: const InputDecoration(
+                                labelText: 'Vehicle type',
+                              ),
+                              items: const [
+                                DropdownMenuItem(value: 'bike', child: Text('Bike')),
+                                DropdownMenuItem(value: 'car', child: Text('Car')),
+                                DropdownMenuItem(value: 'tuk_tuk', child: Text('Tuk Tuk')),
+                              ],
+                              onChanged: _busy
+                                  ? null
+                                  : (value) {
+                                      if (value != null) {
+                                        setState(() => _newVehicleType = value);
+                                      }
+                                    },
+                            ),
+                            const SizedBox(height: 10),
+                            TextFormField(
+                              controller: _vehicleModelController,
+                              textCapitalization: TextCapitalization.words,
+                              decoration: const InputDecoration(
+                                labelText: 'Vehicle model',
+                                prefixIcon: Icon(Icons.directions_car_outlined),
+                              ),
+                              validator: (value) =>
+                                  (value == null || value.trim().length < 2)
+                                      ? 'Enter the vehicle model.'
+                                      : null,
+                            ),
+                            const SizedBox(height: 10),
+                            TextFormField(
+                              controller: _vehicleNumberController,
+                              textCapitalization: TextCapitalization.characters,
+                              decoration: const InputDecoration(
+                                labelText: 'Vehicle registration number',
+                                prefixIcon: Icon(Icons.confirmation_number_outlined),
+                              ),
+                              validator: (value) =>
+                                  (value == null || value.trim().length < 3)
+                                      ? 'Enter the vehicle registration number.'
+                                      : null,
+                            ),
+                            const SizedBox(height: 12),
+                            FilledButton.icon(
+                              onPressed: _busy ? null : _submitVehicle,
+                              icon: const Icon(Icons.add_road),
+                              label: const Text('Submit vehicle for approval'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 18),
                   Text(
                     'Earnings overview',
