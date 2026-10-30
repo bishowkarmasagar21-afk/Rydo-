@@ -164,11 +164,10 @@ class RrydDriverRepository {
       action,
       params: {'p_ride_id': rideId},
     );
+    // Existing Rryd web portal treats a successful non-error RPC response
+    // as submitted unless the function explicitly returns false.
     if (result == false) {
       throw StateError('The server did not confirm this ride action.');
-    }
-    if (result != true && result is! Map && result is! List) {
-      throw StateError('The server returned an unexpected ride-action result.');
     }
   }
 }
