@@ -83,7 +83,7 @@ class RrydDriverRepository {
     int rideId,
   ) async {
     final response = await SupabaseBootstrap.client.rpc(
-      'get_passenger_location_for_my_ride',
+      'rryd_get_passenger_location_for_my_ride',
       params: {'p_ride_id': rideId},
     );
     if (response == null) return null;
