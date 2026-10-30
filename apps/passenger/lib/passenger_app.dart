@@ -66,6 +66,7 @@ class PassengerHomePage extends StatefulWidget {
 class _PassengerHomePageState extends State<PassengerHomePage> {
   final _locationService = RrydLocationService();
   final _rideRepository = RrydPassengerRideRepository();
+  final _ratingsRepository = RrydRatingsRepository();
   final _searchController = TextEditingController();
   final _chatController = TextEditingController();
 
@@ -78,6 +79,8 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
   List<Map<String, dynamic>> _chatMessages = [];
   final Set<String> _knownChatMessageIds = {};
   final Set<String> _knownCompletedRideIds = {};
+  final Set<String> _ratedRideIds = {};
+  bool _ratingsBackendAvailable = false;
   bool _hasLoadedRideSnapshot = false;
   Timer? _driverPollTimer;
   bool _loadingChat = false;
@@ -652,6 +655,19 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
         ..addAll(completedIds);
       _hasLoadedRideSnapshot = true;
       setState(() => _rides = rows);
+      try {
+        final ratedIds =
+            await _ratingsRepository.loadMyRatedRideIds(widget.profile.id);
+        if (!mounted) return;
+        setState(() {
+          _ratedRideIds
+            ..clear()
+            ..addAll(ratedIds);
+          _ratingsBackendAvailable = true;
+        });
+      } catch (_) {
+        if (mounted) setState(() => _ratingsBackendAvailable = false);
+      }
       if (newlyCompletedRide != null && mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
@@ -2114,6 +2130,42 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
     );
   }
 
+  Future<void> _rateDriver(Map<String, dynamic> ride) async {
+    final rideId = int.tryParse(ride['id'].toString());
+    if (rideId == null) {
+      _setNotice('Ride ID is not in the expected format.', isError: true);
+      return;
+    }
+    if (!_ratingsBackendAvailable) {
+      _setNotice(
+        'Ratings are not enabled on the backend yet. The reviewed SQL migration must be applied first.',
+        isError: true,
+      );
+      return;
+    }
+    await RrydRatingSheet.show(
+      context,
+      title: widget.settings.language.code == 'ne'
+          ? 'चालकलाई रेटिङ दिनुहोस्'
+          : 'Rate your driver',
+      languageCode: widget.settings.language.code,
+      onSubmit: (rating, feedback) async {
+        await _ratingsRepository.submitRating(
+          rideId: rideId,
+          rating: rating,
+          feedback: feedback,
+        );
+        if (!mounted) return;
+        setState(() => _ratedRideIds.add(rideId.toString()));
+        _setNotice(
+          widget.settings.language.code == 'ne'
+              ? 'तपाईंको रेटिङ सुरक्षित भयो।'
+              : 'Your rating was saved.',
+        );
+      },
+    );
+  }
+
   Widget _rideHistoryCard(Map<String, dynamic> ride, ThemeData theme) {
     final status = (ride['status'] ?? 'unknown').toString().toLowerCase();
     final date = (ride['created_at'] ?? '').toString();
@@ -2159,6 +2211,31 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
                   icon: const Icon(Icons.receipt_long),
                   label: const Text('View receipt'),
                 ),
+              ),
+            ),
+          if (isCompleted && ride['driver_id'] != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: _ratedRideIds.contains(ride['id'].toString())
+                    ? const Chip(
+                        avatar: Icon(Icons.star, size: 16),
+                        label: Text('Rated'),
+                      )
+                    : !_ratingsBackendAvailable
+                        ? const Text(
+                            'Rating will be available after Rryd enables the ratings service.',
+                          )
+                        : OutlinedButton.icon(
+                            onPressed: () => _rateDriver(ride),
+                            icon: const Icon(Icons.star_outline),
+                            label: Text(
+                              widget.settings.language.code == 'ne'
+                                  ? 'चालकलाई रेटिङ दिनुहोस्'
+                                  : 'Rate driver',
+                            ),
+                          ),
               ),
             ),
         ],
