@@ -479,7 +479,11 @@ class _DriverHomePageState extends State<DriverHomePage> {
             tooltip: strings.text('sign_out'),
             onPressed: () async {
               if (_online) {
-                await _repository.setOnline(false).catchError((_) {});
+                try {
+                  await _repository.setOnline(false);
+                } catch (_) {
+                  // Sign-out continues even if the offline RPC is unavailable.
+                }
               }
               await _locationSubscription?.cancel();
               await RrydAuthService().signOut();
