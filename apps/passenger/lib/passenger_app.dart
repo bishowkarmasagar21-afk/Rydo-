@@ -8,6 +8,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:rryd_core/rryd_core.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'receipt_service.dart';
+
 class PassengerApp extends StatelessWidget {
   const PassengerApp({super.key, required this.settings});
 
@@ -75,6 +77,8 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
   Map<String, dynamic>? _driverDetails;
   List<Map<String, dynamic>> _chatMessages = [];
   final Set<String> _knownChatMessageIds = {};
+  final Set<String> _knownCompletedRideIds = {};
+  bool _hasLoadedRideSnapshot = false;
   Timer? _driverPollTimer;
   bool _loadingChat = false;
   bool _chatHasInitialSnapshot = false;
@@ -629,7 +633,39 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
     try {
       final rows = await _rideRepository.loadMyRides(widget.profile.id);
       if (!mounted) return;
+      final completedRows = rows.where(
+        (ride) => (ride['status'] ?? '').toString().toLowerCase() == 'completed',
+      ).toList(growable: false);
+      final completedIds =
+          completedRows.map((ride) => ride['id'].toString()).toSet();
+      Map<String, dynamic>? newlyCompletedRide;
+      if (_hasLoadedRideSnapshot) {
+        final newIds = completedIds.difference(_knownCompletedRideIds);
+        if (newIds.isNotEmpty) {
+          newlyCompletedRide = completedRows.firstWhere(
+            (ride) => newIds.contains(ride['id'].toString()),
+          );
+        }
+      }
+      _knownCompletedRideIds
+        ..clear()
+        ..addAll(completedIds);
+      _hasLoadedRideSnapshot = true;
       setState(() => _rides = rows);
+      if (newlyCompletedRide != null && mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text('Ride #${newlyCompletedRide['id']} completed. Your receipt is ready.'),
+              duration: const Duration(seconds: 10),
+              action: SnackBarAction(
+                label: 'Receipt',
+                onPressed: () => _showReceipt(newlyCompletedRide!),
+              ),
+            ),
+          );
+      }
       await _restoreActiveRideLocations();
       if (_activeRide != null) {
         await _refreshDriverDetails();
@@ -1130,6 +1166,150 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
     } finally {
       if (mounted) setState(() => _sendingMessage = false);
     }
+  }
+
+  Future<void> _showReceipt(Map<String, dynamic> ride) async {
+    if ((ride['status'] ?? '').toString().toLowerCase() != 'completed') {
+      _setNotice('A receipt is available only after the ride is completed.',
+          isError: true);
+      return;
+    }
+
+    final fare = ride['final_fare'] ??
+        ride['actual_fare'] ??
+        ride['fare'] ??
+        ride['estimated_fare'];
+    final distance = ride['distance_km'];
+    final paymentStatus = (ride['payment_status'] ?? 'Not recorded').toString();
+    final createdAt = (ride['completed_at'] ?? ride['created_at'] ?? '').toString();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.receipt_long,
+                    color: RrydTheme.orange,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Rryd trip receipt',
+                      style: Theme.of(sheetContext).textTheme.titleLarge,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.pop(sheetContext),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text('Ride #${ride['id']} · COMPLETED'),
+              const Divider(height: 22),
+              _receiptLine('Pickup', (ride['pickup_location'] ?? 'Not recorded').toString()),
+              _receiptLine('Destination', (ride['destination'] ?? 'Not recorded').toString()),
+              _receiptLine('Vehicle', (ride['vehicle_type'] ?? 'Not recorded').toString()),
+              _receiptLine(
+                'Distance',
+                distance is num ? '${distance.toStringAsFixed(2)} km' : 'Not recorded',
+              ),
+              _receiptLine('Completed', createdAt.isEmpty ? 'Not recorded' : createdAt),
+              _receiptLine('Payment method', (ride['payment_method'] ?? 'Not recorded').toString()),
+              _receiptLine('Payment status', paymentStatus),
+              const Divider(height: 22),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Final fare',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  Text(
+                    fare is num
+                        ? 'NPR ${fare.round()}'
+                        : (num.tryParse(fare?.toString() ?? '') == null
+                            ? 'Not recorded'
+                            : 'NPR ${num.parse(fare.toString()).round()}'),
+                    style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
+                          color: RrydTheme.orange,
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () async {
+                  try {
+                    await RrydReceiptService.printOrSave(ride);
+                  } catch (error) {
+                    if (mounted) {
+                      _setNotice('Could not create PDF receipt: $error',
+                          isError: true);
+                    }
+                  }
+                },
+                icon: const Icon(Icons.picture_as_pdf),
+                label: const Text('Save or print PDF receipt'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  try {
+                    await RrydReceiptService.share(ride);
+                  } catch (error) {
+                    if (mounted) {
+                      _setNotice('Could not share PDF receipt: $error',
+                          isError: true);
+                    }
+                  }
+                },
+                icon: const Icon(Icons.share),
+                label: const Text('Share PDF receipt'),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Receipt details come from the completed ride record. Payment status is shown exactly as recorded by Rryd.',
+                style: Theme.of(sheetContext).textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _receiptLine(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 116,
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ),
+          Expanded(child: Text(value)),
+        ],
+      ),
+    );
   }
 
   Widget _rideChatCard(ThemeData theme) {
@@ -1912,25 +2092,53 @@ class _PassengerHomePageState extends State<PassengerHomePage> {
   }
 
   Widget _rideHistoryCard(Map<String, dynamic> ride, ThemeData theme) {
-    final status = (ride['status'] ?? 'unknown').toString();
-    final date = ride['created_at']?.toString() ?? '';
-    final fare = ride['final_fare'] ?? ride['fare'] ?? ride['estimated_fare'];
+    final status = (ride['status'] ?? 'unknown').toString().toLowerCase();
+    final date = (ride['created_at'] ?? '').toString();
+    final fare = ride['final_fare'] ??
+        ride['actual_fare'] ??
+        ride['fare'] ??
+        ride['estimated_fare'];
+    final isCompleted = status == 'completed';
+
     return Card(
-      child: ListTile(
-        leading: const Icon(Icons.route_outlined),
-        title: Text(
-          '${ride['pickup_location'] ?? 'Pickup'} → '
-          '${ride['destination'] ?? 'Destination'}',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          'Ride #${ride['id']} · $status'
-          '${date.isEmpty ? '' : ' · $date'}',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: fare == null ? null : Text('NPR ${fare.toString()}'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.route_outlined),
+            title: Text(
+              '${ride['pickup_location'] ?? 'Pickup'} → '
+              '${ride['destination'] ?? 'Destination'}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(
+              'Ride #${ride['id']} · $status'
+              '${date.isEmpty ? '' : ' · $date'}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: fare == null
+                ? null
+                : Text(
+                    fare is num
+                        ? 'NPR ${fare.round()}'
+                        : 'NPR ${num.tryParse(fare.toString())?.round() ?? '—'}',
+                  ),
+          ),
+          if (isCompleted)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  onPressed: () => _showReceipt(ride),
+                  icon: const Icon(Icons.receipt_long),
+                  label: const Text('View receipt'),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
