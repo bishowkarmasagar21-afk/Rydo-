@@ -476,6 +476,8 @@ function renderCurrentRide(){
   $("communicationCard").classList.remove("hidden");
   const r=activeRide,status=String(r.status||"").toLowerCase();let actions="";
   if(status==="accepted")actions+='<button class="primary" onclick="rideAction(\'driver_arriving\')">Mark Arrived</button>';
+  if(["accepted","arriving"].includes(status))actions+='<button class="primary" onclick="navigateRideTarget(\'pickup\')">🧭 Navigate to pickup</button>';
+  if(status==="started")actions+='<button class="primary" onclick="navigateRideTarget(\'destination\')">🧭 Navigate to destination</button>';
   if(status==="arriving")actions+='<button class="primary" onclick="rideAction(\'start_ride\')">Start Ride</button>';
   if(status==="started")actions+='<button class="success" onclick="rideAction(\'complete_ride\')">Complete Ride</button>';
   if(["accepted","arriving"].includes(status))actions+='<button class="danger" onclick="cancelCurrentRide()">Cancel Ride</button>';
@@ -491,6 +493,16 @@ async function rideAction(rpc){
 window.rideAction=rideAction;
 async function cancelCurrentRide(){if(!activeRide)return;await rideAction("cancel_ride")}
 window.cancelCurrentRide=cancelCurrentRide;
+function navigateRideTarget(target){
+  if(!activeRide)return notify("There is no active ride to navigate.");
+  const isPickup=target==="pickup";
+  const lat=Number(isPickup?activeRide.pickup_latitude:activeRide.destination_latitude);
+  const lon=Number(isPickup?activeRide.pickup_longitude:activeRide.destination_longitude);
+  if(!validNepalPoint(lat,lon))return notify("The saved "+(isPickup?"pickup":"destination")+" coordinates are unavailable. Ask the passenger to confirm the location.");
+  const url="https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(lat+","+lon)+"&travelmode=driving";
+  window.open(url,"_blank","noopener,noreferrer");
+}
+window.navigateRideTarget=navigateRideTarget;
 
 /* RIDE COMMUNICATION + PASSENGER TRACKING
    Chat contract: ride_messages(ride_id, sender_id, message, created_at).
@@ -588,8 +600,14 @@ async function refreshPassengerLocation(manual=false){
     else{text("passengerRouteStatus","Road route to passenger appears when both GPS positions are fresh.");if(passengerRouteLayer){passengerMap.removeLayer(passengerRouteLayer);passengerRouteLayer=null}}
   }catch(error){
     if(!activeRide||String(activeRide.id)!==rideId)return;
-    textPassengerTracking("Passenger location unavailable: "+errorText(error)+". The passenger portal must publish GPS and the secure ride-specific location RPC must exist.");
-    $("passengerTrackingStatus").className="passenger-location-line track-stale";text("passengerRouteStatus","No route drawn because verified shared passenger GPS is unavailable.");if(manual)console.warn("Passenger location RPC",error)
+    textPassengerTracking("Passenger live GPS is unavailable: "+errorText(error)+". Using the confirmed pickup pin for navigation.");
+    $("passengerTrackingStatus").className="passenger-location-line track-stale";
+    const pickupLat=Number(activeRide.pickup_latitude),pickupLon=Number(activeRide.pickup_longitude);
+    if(validNepalPoint(pickupLat,pickupLon)&&Number.isFinite(driverLat)&&Number.isFinite(driverLon)){
+      await routeToPassenger(pickupLat,pickupLon,rideId);
+      text("passengerRouteStatus","Route to the confirmed pickup pin is shown. Use Navigate to pickup for turn-by-turn directions.");
+    }else text("passengerRouteStatus","Enable driver GPS to draw a route to the confirmed pickup pin.");
+    if(manual)console.warn("Passenger location RPC",error)
   }
 }
 async function routeToPassenger(lat,lon,rideId){
@@ -600,7 +618,7 @@ async function routeToPassenger(lat,lon,rideId){
     if(data.code!=="Ok"||!data.routes?.length)throw Error("No drivable route to passenger");if(!activeRide||String(activeRide.id)!==String(rideId))return;
     const route=data.routes[0];if(passengerRouteLayer)passengerMap.removeLayer(passengerRouteLayer);
     passengerRouteLayer=L.geoJSON(route.geometry,{style:{color:"#ff7417",weight:5,opacity:.9,dashArray:"8 6"}}).addTo(passengerMap);
-    text("passengerRouteStatus","Road route to passenger: "+(route.distance/1000).toFixed(2)+" km · about "+Math.max(1,Math.ceil(route.duration/60))+" min. Estimate only; no live-traffic guarantee.")
+    text("passengerRouteStatus","Road route to pickup: "+(route.distance/1000).toFixed(2)+" km · about "+Math.max(1,Math.ceil(route.duration/60))+" min. Estimate only; no live-traffic guarantee. Turn-by-turn directions open in Google Maps.")
   }catch(error){lastPassengerRouteKey="";text("passengerRouteStatus","Passenger marker is available, but route calculation failed: "+errorText(error))}
 }
 
