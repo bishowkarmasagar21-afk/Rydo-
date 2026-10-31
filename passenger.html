@@ -318,7 +318,7 @@ async function loadFareRules(){
   }catch(error){fareRulesError=errorText(error);console.error("Fare rules",error);}
   updateFareDisplay();
 }
-function estimateFare(type=selectedVehicle,distance=routeDistanceKm){const r=fareRules[type];if(!fareRulesLoaded||!r||!Number.isFinite(Number(distance))||Number(distance)<=0)return null;return roundFare(r.base+r.perKm*Number(distance));}
+function estimateFare(type=selectedVehicle,distance=routeDistanceKm){const r=fareRules[type];if(!fareRulesLoaded||!r||!Number.isFinite(Number(distance))||Number(distance)<=0)return null;const canonicalDistance=Number(Number(distance).toFixed(2));return roundFare(r.base+r.perKm*canonicalDistance);}
 function updateFareDisplay(){
   const ids={bike:"bikePrice",car:"carPrice",tuk_tuk:"tuk_tukPrice"};
   for(const [type,id] of Object.entries(ids)){const f=estimateFare(type);text(id,f===null?"NPR —":money(f));}
@@ -421,7 +421,7 @@ async function requestRide(){
     const {data:sessionData,error:sessionErr}=await db.auth.getSession();if(sessionErr)throw sessionErr;session=sessionData.session;if(!session?.user?.id||session.user.id!==auth.user.id)throw Error("Session mismatch. Reload and sign in again.");
     const {data:p,error:pErr}=await db.from("profiles").select("id,role,is_suspended").eq("id",auth.user.id).maybeSingle();if(pErr)throw pErr;if(!p)throw Error("No profile exists for this signed-in user. Check the profile creation trigger.");if(p.role!=="passenger")throw Error("The signed-in account is not a passenger account.");if(p.is_suspended===true)throw Error("Your passenger account is suspended.");
     setMessage("appMessage","Sending the booking request to Supabase. Driver availability and final booking validation are handled by the server…","info");
-    const args={p_pickup_location:pickupPoint.label,p_destination:destinationPoint.label,p_vehicle_type:selectedVehicle,p_distance_km:Number(routeDistanceKm.toFixed(3)),p_payment_method:paymentMethod,p_pickup_latitude:pickupPoint.lat,p_pickup_longitude:pickupPoint.lon,p_destination_latitude:destinationPoint.lat,p_destination_longitude:destinationPoint.lon};
+    const args={p_pickup_location:pickupPoint.label,p_destination:destinationPoint.label,p_vehicle_type:selectedVehicle,p_distance_km:Number(routeDistanceKm.toFixed(2)),p_payment_method:paymentMethod,p_pickup_latitude:pickupPoint.lat,p_pickup_longitude:pickupPoint.lon,p_destination_latitude:destinationPoint.lat,p_destination_longitude:destinationPoint.lon};
     lastRequestAt=Date.now();
     const {data,error}=await db.rpc("request_ride",args);if(error)throw error;
     const rideId=extractRideId(data);
