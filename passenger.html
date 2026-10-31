@@ -122,6 +122,7 @@ body.light{color-scheme:light;--bg:#edf4f9;--panel:#fff;--panel2:#f5f9fc;--text:
       <div class="card" id="currentPanel">
         <div class="row"><h2 class="grow">Current ride</h2><button class="ghost" id="refreshRideBtn" type="button">Refresh</button></div>
         <div id="currentRide"><p class="muted">Sign in to view a ride.</p></div>
+        <div id="passengerLocationSharingStatus" class="message info" aria-live="polite">Live location is shared only after a driver accepts and only when you enable it.</div>
         <div id="driverDetails"></div>
         <div id="rideSafetyPanel" class="hidden">
           <div class="subtle"></div><h3>Trip safety and sharing</h3>
@@ -224,6 +225,7 @@ let map=null,pickupMarker=null,destinationMarker=null,routeLayer=null,driverMark
 let pickupPoint=null,destinationPoint=null,routeDistanceKm=0,routeDurationMinutes=0,routeGeometry=null;
 let fareRules={},fareRulesLoaded=false,fareRulesError="",mapPickTarget="",routeRequestSeq=0,driverRouteSeq=0,lastDriverRouteKey="",lastReceiptPopupId=null;
 let currentRide=null,rideRows=[],ridePollTimer=null,availabilityTimer=null,isLoading=false;
+let passengerGpsWatch=null,passengerLocationConsent=false,lastPassengerLocationSentAt=0,passengerLocationSendBusy=false;
 let lastKnownStatus="",lastKnownRideId=null,receiptTimer=null,notificationAllowed=false,soundEnabled=false,audioContext=null;
 let lastNominatimAt=0,nominatimQueue=Promise.resolve(),lastRequestAt=0;
 
@@ -297,6 +299,7 @@ async function loadPassenger(){
   finally{loadingProfile=false;}
 }
 function resetLoggedOut(){
+  stopPassengerLocationWatch(false);
   session=null;profile=null;loadedProfileUserId=null;loadingProfile=false;currentRide=null;rideRows=[];stopPolling();
   if(map){for(const layer of [pickupMarker,destinationMarker,routeLayer])if(layer)map.removeLayer(layer);}
   pickupMarker=destinationMarker=routeLayer=null;pickupPoint=destinationPoint=null;routeDistanceKm=0;routeDurationMinutes=0;routeGeometry=null;clearDriverTracking();closeReceipt();lastKnownStatus="";lastKnownRideId=null;lastRequestAt=0;
@@ -440,6 +443,7 @@ async function refreshCurrentRide(){
   try{
     const {data,error}=await db.from("rides").select("*").eq("passenger_id",session.user.id).order("created_at",{ascending:false}).limit(50);if(error)throw error;
     rideRows=data||[];const prev=currentRide;currentRide=rideRows.find(r=>isActive(r.status))||null;
+    syncPassengerLocationSharing(currentRide);
     if(currentRide)await restoreMapFromRide(currentRide);
     renderCurrentRide();renderHistory();
     if(currentRide){await loadAssignedDriver(currentRide);show("rideSafetyPanel",true);show("messagePanel",true);show("ratingPanel",false);}
@@ -482,11 +486,63 @@ async function updateDriverApproachRoute(ride,lat,lon){
     text("driverApproachEta",`Approx. driver-to-pickup route: ${(r.distance/1000).toFixed(2)} km · ${Math.max(1,Math.ceil(r.duration/60))} min (no live-traffic guarantee).`);
   }catch(error){if(seq===driverRouteSeq){lastDriverRouteKey="";text("driverApproachEta","Driver-to-pickup road route is temporarily unavailable. The marker may still be shown if its location is fresh.");}}
 }
+function syncPassengerLocationSharing(ride){
+  const eligible=!!(ride&&String(ride.status||"").toLowerCase()==="accepted"&&ride.driver_id);
+  if(!eligible){stopPassengerLocationWatch(true);passengerLocationConsent=false;updatePassengerLocationSharingUI();return;}
+  updatePassengerLocationSharingUI();
+}
+function updatePassengerLocationSharingUI(){
+  const el=$("passengerLocationSharingStatus");if(!el)return;
+  if(!currentRide||String(currentRide.status||"").toLowerCase()!=="accepted"||!currentRide.driver_id){
+    el.className="message info";el.textContent="Live passenger location sharing is available only after a driver accepts and ends when pickup is confirmed.";return;
+  }
+  if(passengerGpsWatch!==null){
+    el.className="message ok";el.textContent="Your live location is being shared with the driver assigned to ride #"+currentRide.id+". You can stop sharing at any time."; 
+    const stop=document.createElement("button");stop.type="button";stop.className="ghost";stop.textContent="Stop sharing";stop.style.marginTop="8px";stop.addEventListener("click",()=>stopPassengerLocationWatch(true));el.appendChild(stop);return;
+  }
+  el.className="message info";el.textContent="The driver needs your pickup location to find you. Your GPS is not shared until you choose to enable it.";
+  const enable=document.createElement("button");enable.type="button";enable.className="primary";enable.textContent="Enable live location sharing";enable.style.marginTop="8px";enable.addEventListener("click",startPassengerLocationWatch);el.appendChild(enable);
+}
+async function startPassengerLocationWatch(){
+  if(!currentRide||String(currentRide.status||"").toLowerCase()!=="accepted"||!currentRide.driver_id)return;
+  if(!navigator.geolocation){setMessage("appMessage","This browser does not support GPS. Share your pickup pin with the driver instead.","error");return;}
+  if(!window.isSecureContext){setMessage("appMessage","Live GPS requires a secure HTTPS connection. Open Rryd over HTTPS and try again.","error");return;}
+  passengerLocationConsent=true;updatePassengerLocationSharingUI();
+  passengerGpsWatch=navigator.geolocation.watchPosition(async pos=>{
+    if(!passengerLocationConsent||!currentRide||String(currentRide.status||"").toLowerCase()!=="accepted")return;
+    const lat=Number(pos.coords.latitude),lon=Number(pos.coords.longitude),accuracy=Number(pos.coords.accuracy);
+    if(!isNepalBounds(lat,lon)){setMessage("appMessage","Your GPS point could not be verified inside Nepal. Location was not shared.","error");return;}
+    if(Date.now()-lastPassengerLocationSentAt<7000||passengerLocationSendBusy)return;
+    passengerLocationSendBusy=true;lastPassengerLocationSentAt=Date.now();const rideId=Number(currentRide.id);
+    try{
+      const {data,error}=await db.rpc("update_my_passenger_ride_location",{p_ride_id:rideId,p_latitude:lat,p_longitude:lon,p_accuracy_m:Number.isFinite(accuracy)?accuracy:null});
+      if(error)throw error;if(data===false)throw Error("Supabase did not confirm the location update.");
+      if(currentRide&&Number(currentRide.id)===rideId)text("passengerLocationSharingStatus","Your GPS is being shared with the driver assigned to ride #"+rideId+". Last update: "+new Date().toLocaleTimeString()+".");
+    }catch(error){console.error("Passenger GPS publish failed",error);if(currentRide&&Number(currentRide.id)===rideId)setMessage("appMessage","Live location could not be shared: "+errorText(error)+". The fixed pickup pin is still available.","error");}
+    finally{passengerLocationSendBusy=false;}
+  },error=>{
+    passengerGpsWatch=null;passengerLocationConsent=false;updatePassengerLocationSharingUI();
+    setMessage("appMessage","GPS permission or location failed: "+error.message+". Allow location access in your browser, then enable sharing again.","error");
+  },{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
+  updatePassengerLocationSharingUI();
+}
+async function stopPassengerLocationWatch(clearServer=true){
+  passengerLocationConsent=false;
+  if(passengerGpsWatch!==null&&navigator.geolocation)navigator.geolocation.clearWatch(passengerGpsWatch);
+  passengerGpsWatch=null;lastPassengerLocationSentAt=0;
+  const rideId=currentRide?.id;
+  if(clearServer&&rideId&&session?.user&&db){
+    try{const {error}=await db.rpc("clear_my_passenger_ride_location",{p_ride_id:Number(rideId)});if(error)console.warn("Could not clear passenger GPS immediately",error);}
+    catch(error){console.warn("Could not clear passenger GPS immediately",error);}
+  }
+  updatePassengerLocationSharingUI();
+}
 function renderCurrentRide(){
   const box=$("currentRide");if(!currentRide){box.innerHTML='<p class="muted">No active ride. Your next booking will appear here.</p>';return;}
   const r=currentRide,s=String(r.status||"requested").toLowerCase();
   if(lastKnownRideId===String(r.id)&&lastKnownStatus&&lastKnownStatus!==s)notifyUser("Rryd ride update","Ride status changed to "+statusName(s)+".",true);
   lastKnownRideId=String(r.id);lastKnownStatus=s;
+  updatePassengerLocationSharingUI();
   const isFinal=s==="completed";const showFare=isFinal?(r.final_fare??r.actual_fare??r.fare):(r.estimated_fare??r.fare);
   const date=r.created_at?new Date(r.created_at).toLocaleString():"—";
   box.innerHTML=`<div class="ride"><div class="ride-head"><strong>Ride #${esc(r.id)}</strong><span class="status ${s==="completed"?"completed":s==="cancelled"?"cancelled":""}">${esc(statusName(s))}</span></div><p><b>Pickup:</b> ${esc(r.pickup_location??r.pickup??"—")}</p><p><b>Destination:</b> ${esc(r.destination??"—")}</p><p><b>Vehicle:</b> ${esc(r.vehicle_type??"—")}</p><p><b>Distance:</b> ${Number(r.distance_km||routeDistanceKm||0).toFixed(2)} km</p><p><b>${isFinal?"Final fare":"Estimated/current fare"}:</b> ${money(showFare)}</p><p><b>Payment:</b> ${esc(r.payment_method||"cash")} · ${esc(r.payment_status||"status not recorded")}</p><p class="muted small">Requested: ${esc(date)}</p><div class="row" id="rideActionButtons"></div></div>`;
