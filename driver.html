@@ -230,7 +230,9 @@ const SUPABASE_URL="https://kqtvuorasqyzjbnlkkxs.supabase.co";
 const SUPABASE_KEY="sb_publishable_zZFJiy0YWZgOXFesVuAQcA_wd7rleMb";
 const REQUEST_POLL_MS=5000, LOCATION_REFRESH_MS=10000, PASSENGER_LOCATION_POLL_MS=8000;
 const PASSENGER_DETAILS_RPC="get_passenger_details_for_my_ride";
+/* No passenger GPS table/RPC exists in the active database yet. */
 const PASSENGER_LOCATION_RPC="get_passenger_location_for_my_ride";
+const PASSENGER_LOCATION_ENABLED=false;
 const CHAT_TABLE="ride_messages";
 const ACTIVE_STATUSES=["accepted","arriving","started"];
 const $=id=>document.getElementById(id);
@@ -325,7 +327,7 @@ async function init(){
   try{
     const {data,error}=await sb.auth.getSession();if(error)throw error;
     text("connectionStatus","Supabase client initialized.");
-    if(location.hash.includes("type=recovery")||location.hash.includes("access_token=")){showReset();return}
+    if(location.hash.includes("type=recovery")){showReset();return}
     if(data.session?.user){user=data.session.user;await enterPortal()}else showAuth();
     sb.auth.onAuthStateChange((event,sess)=>{
       if(event==="PASSWORD_RECOVERY"){showReset();return}
@@ -438,12 +440,15 @@ async function loadRequests(initial){
   const {data,error}=await sb.from("rides").select("*").eq("status","requested").is("driver_id",null).order("created_at",{ascending:false}).limit(40);
   if(error){console.error("Ride requests query failed",error);requestQueryError=`Could not load ride requests: ${error.message}. The rides SELECT policy must permit eligible drivers to read unassigned requested rides (driver_id IS NULL). HTML cannot bypass database RLS.`;requests=[];renderRequests();return}
   requestQueryError="";let found=data||[];const types=approvedVehicles().map(v=>String(v.vehicle_type||"").toLowerCase());if(types.length)found=found.filter(r=>types.includes(String(r.vehicle_type||"").toLowerCase()));
+  const currentIds=new Set(found.map(r=>String(r.id)));
+  for(const id of [...pendingSoundIds])if(!currentIds.has(id))pendingSoundIds.delete(id);
+  if(!pendingSoundIds.size)stopRequestAlarm();
   const newItems=found.filter(r=>!knownRequestIds.has(String(r.id)));
   if(!initial&&profile?.is_online&&newItems.length){newItems.forEach(r=>{pendingSoundIds.add(String(r.id));browserNotify("New Rryd ride request",`${r.pickup_location||"Pickup"} to ${r.destination||"Destination"}`)});if(audioEnabled)startRequestAlarm();else text("soundStatus","New request detected. Press Enable Sound to hear the alert.")}
-  knownRequestIds=new Set(found.map(r=>String(r.id)));requests=found;renderRequests();
+  knownRequestIds=currentIds;requests=found;renderRequests();
 }
 function requestCard(r){return `<div class="request"><div><div class="route">📍 ${esc(r.pickup_location||"Pickup unavailable")}<br>↓<br>🏁 ${esc(r.destination||"Destination unavailable")}</div><p class="muted small">${esc(typeName(r.vehicle_type))} · ${esc(r.created_at||"")}</p><b class="green">${money(r.estimated_fare??r.fare)}</b> <span class="muted small">passenger estimate</span></div><div class="request-actions"><button class="primary" onclick="acceptRide('${esc(r.id)}')">Accept</button><button onclick="declineRequest('${esc(r.id)}')">Hide</button></div></div>`}
-function renderRequests(){const html=requestQueryError?`<div class="notice">${esc(requestQueryError)}</div>`:(requests.map(requestCard).join("")||'<div class="notice">No unassigned ride requests are currently visible.</div>');$("allRequests").innerHTML=html;$("dashboardRequests").innerHTML=html;text("requestCount",requests.length);text("bellCount",notifications.length+requests.length)}
+function renderRequests(){const html=requestQueryError?`<div class="notice">${esc(requestQueryError)}</div>`:(requests.map(requestCard).join("")||'<div class="notice">No unassigned ride requests are currently visible.</div>');$("allRequests").innerHTML=html;$("dashboardRequests").innerHTML=html;text("requestCount",requests.length);text("bellCount",notifications.filter(n=>!n.is_read).length+requests.length)}
 function renderDashboardRequests(){renderRequests()}
 async function acceptRide(id){
   if(!profile?.is_online)return notify("Go online before accepting a ride.");
@@ -473,7 +478,7 @@ function renderCurrentRide(){
   if(status==="accepted")actions+='<button class="primary" onclick="rideAction(\'driver_arriving\')">Mark Arrived</button>';
   if(status==="arriving")actions+='<button class="primary" onclick="rideAction(\'start_ride\')">Start Ride</button>';
   if(status==="started")actions+='<button class="success" onclick="rideAction(\'complete_ride\')">Complete Ride</button>';
-  actions+='<button class="danger" onclick="cancelCurrentRide()">Cancel Ride</button>';
+  if(["accepted","arriving"].includes(status))actions+='<button class="danger" onclick="cancelCurrentRide()">Cancel Ride</button>';
   $("currentRide").innerHTML=`<span class="pill">${esc(status)}</span><h2 style="margin-top:14px">${esc(r.pickup_location||"Pickup")} → ${esc(r.destination||"Destination")}</h2><p class="muted">${esc(typeName(r.vehicle_type))} · Ride #${esc(r.id)}</p><div class="stats"><div class="stat">Passenger fare<div class="number">${money(r.final_fare??r.fare??r.estimated_fare)}</div></div><div class="stat">Status<div class="number">${esc(status)}</div></div><div class="stat">Requested<div class="small">${esc(r.created_at||"—")}</div></div></div><div class="notice">Pickup: ${esc(r.pickup_latitude??"Unavailable")}, ${esc(r.pickup_longitude??"Unavailable")}<br>Destination: ${esc(r.destination_latitude??"Unavailable")}, ${esc(r.destination_longitude??"Unavailable")}</div><div class="row" style="margin-top:14px">${actions}</div>`;
   if(map&&r.pickup_latitude!=null&&r.pickup_longitude!=null){const lat=Number(r.pickup_latitude),lon=Number(r.pickup_longitude);if(Number.isFinite(lat)&&Number.isFinite(lon))map.setView([lat,lon],14)}
   if(!["accepted","arriving"].includes(status)){textPassengerTracking("Passenger live location sharing is not active during this ride status. The confirmed pickup pin remains available.");clearPassengerMarker()}
@@ -484,7 +489,7 @@ async function rideAction(rpc){
   catch(e){notify("Ride action failed: "+errorText(e))}
 }
 window.rideAction=rideAction;
-async function cancelCurrentRide(){if(!activeRide)return;if(confirm("Cancel this ride?"))await rideAction("cancel_ride")}
+async function cancelCurrentRide(){if(!activeRide)return;await rideAction("cancel_ride")}
 window.cancelCurrentRide=cancelCurrentRide;
 
 /* RIDE COMMUNICATION + PASSENGER TRACKING
@@ -520,8 +525,8 @@ async function loadPassengerContact(ride){
   if(!activeRide||String(activeRide.id)!==rideId)return;
   if(d){const phone=sanitizePhone(d.passenger_phone??d.phone??d.phone_number??"");passengerContact={name:d.passenger_name??d.full_name??d.name??"Passenger",phone}}
   if(!passengerContact){$("passengerContact").innerHTML='<div class="notice">Passenger contact is not available. Configure '+esc(PASSENGER_DETAILS_RPC)+' with a ride-assignment check, or an RLS policy that permits the assigned driver to read only this passenger’s contact.<br><button type="button" id="retryPassengerContactBtn" style="margin-top:8px">Retry passenger contact</button></div>';const retry=$("retryPassengerContactBtn");if(retry)retry.addEventListener("click",()=>{contactRideId=null;loadPassengerContact(activeRide)});return}
-  const phone=passengerContact.phone;$("passengerContact").innerHTML=`<div class="vehicle"><div class="vehicleicon">👤</div><div class="vehicleinfo"><b>${esc(passengerContact.name)}</b><p class="muted small">Passenger · Ride #${esc(ride.id)}</p><span class="pill">Assigned to this ride</span></div></div><div class="contact-actions">${phone?`<a class="primary" href="tel:${esc(phone)}">☎ Call passenger</a>`:'<button disabled>Phone unavailable</button>'}<button type="button" id="refreshPassengerLocationBtn">Refresh passenger location</button></div>`;
-  const b=$("refreshPassengerLocationBtn");if(b)b.addEventListener("click",()=>refreshPassengerLocation(true));
+  const phone=passengerContact.phone;$("passengerContact").innerHTML=`<div class="vehicle"><div class="vehicleicon">👤</div><div class="vehicleinfo"><b>${esc(passengerContact.name)}</b><p class="muted small">Passenger · Ride #${esc(ride.id)}</p><span class="pill">Assigned to this ride</span></div></div><div class="contact-actions">${phone?`<a class="primary" href="tel:${esc(phone)}">☎ Call passenger</a>`:'<button disabled>Phone unavailable</button>'}${PASSENGER_LOCATION_ENABLED?'<button type="button" id="refreshPassengerLocationBtn">Refresh passenger location</button>':'<button type="button" disabled>Live tracking not configured</button>'}</div>`;
+  const b=$("refreshPassengerLocationBtn");if(b&&PASSENGER_LOCATION_ENABLED)b.addEventListener("click",()=>refreshPassengerLocation(true));
 }
 async function refreshCommunication(){
   if(!user||!sb)return;if(!activeRide){clearCommunicationState();return}
@@ -530,8 +535,10 @@ async function refreshCommunication(){
   if(["accepted","arriving","started"].includes(String(activeRide.status||"").toLowerCase())){
     if(chatRideId!==id){chatRideId=id;chatMessageIds=new Set();chatInitialLoad=true;chatUnreadCount=0;text("chatUnread","0 new")}
     await loadRideMessages();
-    if(String(activeRide.status).toLowerCase()==="accepted")await refreshPassengerLocation(false);
-    else{textPassengerTracking("Passenger pickup sharing should have ended when the driver marked arrived. The pickup pin remains available.");clearPassengerMarker()}
+    if(String(activeRide.status).toLowerCase()==="accepted"){
+      if(PASSENGER_LOCATION_ENABLED)await refreshPassengerLocation(false);
+      else{textPassengerTracking("Live passenger GPS is not connected yet. The secure passenger-location database endpoint has not been deployed; the confirmed pickup pin remains available.");clearPassengerMarker()}
+    }else{textPassengerTracking("Passenger pickup sharing should have ended when the driver marked arrived. The pickup pin remains available.");clearPassengerMarker()}
   }else{$("chatMessages").innerHTML='<p class="muted">Chat opens after a driver is assigned.</p>';setChatStatus("No assigned driver yet.");textPassengerTracking("Passenger tracking is available after assignment and before pickup confirmation.");clearPassengerMarker()}
 }
 async function loadRideMessages(){
@@ -560,6 +567,7 @@ document.querySelectorAll("[data-quick-reply]").forEach(btn=>btn.addEventListene
 
 async function refreshPassengerLocation(manual=false){
   if(!activeRide||!user)return;
+  if(!PASSENGER_LOCATION_ENABLED){textPassengerTracking("Live passenger GPS is not configured in the database yet.");return;}
   if(!manual&&Date.now()-(window.rrydLastPassengerLocationPoll||0)<PASSENGER_LOCATION_POLL_MS)return;window.rrydLastPassengerLocationPoll=Date.now();
   const status=String(activeRide.status||"").toLowerCase();
   if(status!=="accepted"){textPassengerTracking("Passenger location sharing should stop when pickup is confirmed. Use the fixed pickup pin.");clearPassengerMarker();return}
@@ -606,7 +614,7 @@ function renderEarnings(){
   text("todayTotal",money(todayNet));text("earningTotal",money(total));text("driverNet",money(net));text("adminCommission",money(commission));text("completedCount",done.length);text("earnToday",money(todayNet));text("earnNet",money(net));text("earnCommission",money(commission))
 }
 function renderEverything(){updateEligibility();renderVehicles();renderRequests();renderCurrentRide();renderHistory();renderRecent();renderEarnings()}
-async function loadNotifications(){if(!user)return;const {data,error}=await sb.from("notifications").select("*").eq("user_id",user.id).order("created_at",{ascending:false}).limit(40);if(error){console.warn("Notifications query failed; check recipient column and RLS",error);return}notifications=data||[];text("bellCount",notifications.length+requests.length)}
+async function loadNotifications(){if(!user)return;const {data,error}=await sb.from("notifications").select("*").eq("user_id",user.id).order("created_at",{ascending:false}).limit(40);if(error){console.warn("Notifications query failed; check recipient column and RLS",error);return}notifications=data||[];text("bellCount",notifications.filter(n=>!n.is_read).length+requests.length)}
 
 function initMap(){
   if(!window.L)return;
@@ -653,9 +661,8 @@ function submitSupport(){
 }
 window.submitSupport=submitSupport;
 async function deleteAccount(){
-  if(!confirm("Delete your account? This may be irreversible."))return;
-  for(const name of ["delete_own_account","delete_my_account"]){try{const {error}=await sb.rpc(name);if(error){console.warn(name,error);continue}await sb.auth.signOut();user=null;profile=null;stopBackground();showAuth();notify("Account-deletion RPC returned successfully.");return}catch(e){console.warn(name,e)}}
-  notify("Account deletion was not confirmed. The deletion RPC may be unavailable or permission denied.")
+  if(!confirm("Account deletion is permanent. Continue?"))return;
+  notify("Account deletion is not configured on this Supabase project yet. A secure server-side deletion endpoint is required; this portal will not expose a service-role key or pretend the account was deleted.");
 }
 window.deleteAccount=deleteAccount;
 async function signOut(){stopBackground();try{const {error}=await sb.auth.signOut();if(error)throw error}catch(e){console.warn(e)}user=null;profile=null;activeRide=null;showAuth();notify("Signed out.")}
