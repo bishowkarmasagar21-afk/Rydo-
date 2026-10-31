@@ -230,9 +230,9 @@ const SUPABASE_URL="https://kqtvuorasqyzjbnlkkxs.supabase.co";
 const SUPABASE_KEY="sb_publishable_zZFJiy0YWZgOXFesVuAQcA_wd7rleMb";
 const REQUEST_POLL_MS=5000, LOCATION_REFRESH_MS=10000, PASSENGER_LOCATION_POLL_MS=8000;
 const PASSENGER_DETAILS_RPC="get_passenger_details_for_my_ride";
-/* No passenger GPS table/RPC exists in the active database yet. */
+/* Passenger location is available through the ride-scoped, authenticated RPC. */
 const PASSENGER_LOCATION_RPC="get_passenger_location_for_my_ride";
-const PASSENGER_LOCATION_ENABLED=false;
+const PASSENGER_LOCATION_ENABLED=true;
 const CHAT_TABLE="ride_messages";
 const ACTIVE_STATUSES=["accepted","arriving","started"];
 const $=id=>document.getElementById(id);
@@ -525,7 +525,7 @@ async function loadPassengerContact(ride){
   if(!activeRide||String(activeRide.id)!==rideId)return;
   if(d){const phone=sanitizePhone(d.passenger_phone??d.phone??d.phone_number??"");passengerContact={name:d.passenger_name??d.full_name??d.name??"Passenger",phone}}
   if(!passengerContact){$("passengerContact").innerHTML='<div class="notice">Passenger contact is not available. Configure '+esc(PASSENGER_DETAILS_RPC)+' with a ride-assignment check, or an RLS policy that permits the assigned driver to read only this passenger’s contact.<br><button type="button" id="retryPassengerContactBtn" style="margin-top:8px">Retry passenger contact</button></div>';const retry=$("retryPassengerContactBtn");if(retry)retry.addEventListener("click",()=>{contactRideId=null;loadPassengerContact(activeRide)});return}
-  const phone=passengerContact.phone;$("passengerContact").innerHTML=`<div class="vehicle"><div class="vehicleicon">👤</div><div class="vehicleinfo"><b>${esc(passengerContact.name)}</b><p class="muted small">Passenger · Ride #${esc(ride.id)}</p><span class="pill">Assigned to this ride</span></div></div><div class="contact-actions">${phone?`<a class="primary" href="tel:${esc(phone)}">☎ Call passenger</a>`:'<button disabled>Phone unavailable</button>'}${PASSENGER_LOCATION_ENABLED?'<button type="button" id="refreshPassengerLocationBtn">Refresh passenger location</button>':'<button type="button" disabled>Live tracking not configured</button>'}</div>`;
+  const phone=passengerContact.phone;$("passengerContact").innerHTML=`<div class="vehicle"><div class="vehicleicon">👤</div><div class="vehicleinfo"><b>${esc(passengerContact.name)}</b><p class="muted small">Passenger · Ride #${esc(ride.id)}</p><span class="pill">Assigned to this ride</span></div></div><div class="contact-actions">${phone?`<a class="primary" href="tel:${esc(phone)}">☎ Call passenger</a>`:'<button disabled>Phone unavailable</button>'}${PASSENGER_LOCATION_ENABLED?'<button type="button" id="refreshPassengerLocationBtn">Refresh passenger location</button>':'<button type="button" disabled>Live tracking not configured</button>'}</div><p class="muted small">Passenger GPS is shared only with you for this accepted ride, if the passenger has enabled sharing.</p>`;
   const b=$("refreshPassengerLocationBtn");if(b&&PASSENGER_LOCATION_ENABLED)b.addEventListener("click",()=>refreshPassengerLocation(true));
 }
 async function refreshCommunication(){
@@ -537,7 +537,7 @@ async function refreshCommunication(){
     await loadRideMessages();
     if(String(activeRide.status).toLowerCase()==="accepted"){
       if(PASSENGER_LOCATION_ENABLED)await refreshPassengerLocation(false);
-      else{textPassengerTracking("Live passenger GPS is not connected yet. The secure passenger-location database endpoint has not been deployed; the confirmed pickup pin remains available.");clearPassengerMarker()}
+      else{textPassengerTracking("Live passenger GPS sharing is disabled.");clearPassengerMarker()}
     }else{textPassengerTracking("Passenger pickup sharing should have ended when the driver marked arrived. The pickup pin remains available.");clearPassengerMarker()}
   }else{$("chatMessages").innerHTML='<p class="muted">Chat opens after a driver is assigned.</p>';setChatStatus("No assigned driver yet.");textPassengerTracking("Passenger tracking is available after assignment and before pickup confirmation.");clearPassengerMarker()}
 }
@@ -574,11 +574,12 @@ async function refreshPassengerLocation(manual=false){
   const rideId=String(activeRide.id);textPassengerTracking("Checking the passenger's shared location…");
   try{
     const {data,error}=await sb.rpc(PASSENGER_LOCATION_RPC,{p_ride_id:Number(activeRide.id)});if(error)throw error;
-    const d=Array.isArray(data)?data[0]:data;if(!d)throw Error("The passenger has not shared a location yet.");
+    const d=Array.isArray(data)?data[0]:data;if(!d)throw Error("The passenger has not enabled live location sharing yet, or their last GPS update is older than 2 minutes.");
     if(!activeRide||String(activeRide.id)!==rideId)return;
     const lat=Number(d.latitude??d.passenger_latitude??d.current_latitude),lon=Number(d.longitude??d.passenger_longitude??d.current_longitude);
     if(!validNepalPoint(lat,lon))throw Error("Location endpoint returned invalid coordinates.");
     const raw=d.updated_at??d.location_updated_at??d.created_at,updated=raw?new Date(raw).getTime():0,fresh=updated>0&&Date.now()-updated<120000;
+    if(!fresh)throw Error("Passenger GPS is older than 2 minutes. Waiting for a fresh update.");
     if(!passengerMarker)passengerMarker=L.marker([lat,lon],{icon:L.divIcon({className:"",html:'<div style="font-size:27px">📍</div>',iconSize:[32,32],iconAnchor:[16,28]})}).addTo(passengerMap).bindPopup("Passenger shared location");else passengerMarker.setLatLng([lat,lon]);
     passengerMarker.bindPopup("Passenger shared location · "+(fresh?"updated recently":"stale location"));passengerMap.setView([lat,lon],Math.max(passengerMap.getZoom(),15));
     textPassengerTracking(fresh?"Passenger location updated "+new Date(updated).toLocaleTimeString()+". Shared only for this assigned ride.":"Passenger location is stale. Do not treat the marker as live.");
