@@ -238,6 +238,7 @@ const ACTIVE_STATUSES=["accepted","arriving","started"];
 const $=id=>document.getElementById(id);
 
 let sb=null,user=null,profile=null,vehicles=[],requests=[],rides=[],notifications=[],requestQueryError="",activeRide=null;
+let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
 let authView="login",portalStarting=false,audioContext=null,audioEnabled=false,soundTimer=null,pendingSoundIds=new Set(),knownRequestIds=new Set();
@@ -305,10 +306,12 @@ async function enableSound(){
 window.enableSound=enableSound;
 function startRequestAlarm(){
   if(!audioEnabled||!pendingSoundIds.size||soundTimer)return;
-  const play=()=>{if(!audioEnabled||!pendingSoundIds.size){stopRequestAlarm();return}tone(880,.34,.85);tone(1100,.34,.85,.4);tone(880,.34,.85,.8);tone(1320,.5,.85,1.2)};
+  let plays=0;
+  const play=()=>{if(!audioEnabled||!pendingSoundIds.size){stopRequestAlarm();return}if(plays>=6){stopRequestAlarm();return}plays++;tone(880,.25,.72);tone(1100,.25,.72,.32);tone(880,.25,.72,.64)};
   play();soundTimer=setInterval(play,2600);
+  alarmStopTimer=setTimeout(stopRequestAlarm,16000);
 }
-function stopRequestAlarm(){if(soundTimer){clearInterval(soundTimer);soundTimer=null}}
+function stopRequestAlarm(){if(soundTimer){clearInterval(soundTimer);soundTimer=null}if(alarmStopTimer){clearTimeout(alarmStopTimer);alarmStopTimer=null}}
 function acknowledgeRequest(id){pendingSoundIds.delete(String(id));if(!pendingSoundIds.size)stopRequestAlarm()}
 function browserNotify(title,body){
   if(!("Notification"in window)||Notification.permission!=="granted")return;
@@ -447,19 +450,40 @@ async function loadRequests(initial){
   if(!initial&&profile?.is_online&&newItems.length){newItems.forEach(r=>{pendingSoundIds.add(String(r.id));browserNotify("New Rryd ride request",`${r.pickup_location||"Pickup"} to ${r.destination||"Destination"}`)});if(audioEnabled)startRequestAlarm();else text("soundStatus","New request detected. Press Enable Sound to hear the alert.")}
   knownRequestIds=currentIds;requests=found;renderRequests();
 }
-function requestCard(r){return `<div class="request"><div><div class="route">📍 ${esc(r.pickup_location||"Pickup unavailable")}<br>↓<br>🏁 ${esc(r.destination||"Destination unavailable")}</div><p class="muted small">${esc(typeName(r.vehicle_type))} · ${esc(r.created_at||"")}</p><b class="green">${money(r.estimated_fare??r.fare)}</b> <span class="muted small">passenger estimate</span></div><div class="request-actions"><button class="primary" onclick="acceptRide('${esc(r.id)}')">Accept</button><button onclick="declineRequest('${esc(r.id)}')">Hide</button></div></div>`}
+function requestCard(r){const rid=String(r.id),busy=acceptingRideIds.has(rid);return `<div class="request" data-ride-id="${esc(rid)}"><div><div class="route">📍 ${esc(r.pickup_location||"Pickup unavailable")}<br>↓<br>🏁 ${esc(r.destination||"Destination unavailable")}</div><p class="muted small">${esc(typeName(r.vehicle_type))} · ${esc(r.created_at||"")}</p><b class="green">${money(r.estimated_fare??r.fare)}</b> <span class="muted small">passenger estimate</span></div><div class="request-actions"><button class="primary" ${busy?"disabled":""} onclick="acceptRide('${esc(rid)}',this)">${busy?"Accepting…":"Accept"}</button><button onclick="declineRequest('${esc(rid)}')">Hide</button></div></div>`}
 function renderRequests(){const html=requestQueryError?`<div class="notice">${esc(requestQueryError)}</div>`:(requests.map(requestCard).join("")||'<div class="notice">No unassigned ride requests are currently visible.</div>');$("allRequests").innerHTML=html;$("dashboardRequests").innerHTML=html;text("requestCount",requests.length);text("bellCount",notifications.filter(n=>!n.is_read).length+requests.length)}
 function renderDashboardRequests(){renderRequests()}
-async function acceptRide(id){
+async function acceptRide(id,button){
+  const rideId=String(id);
+  if(acceptingRideIds.has(rideId))return;
   if(!profile?.is_online)return notify("Go online before accepting a ride.");
   if(!isVerified()||isSuspended()||!approvedVehicles().length)return notify("Your driver account and vehicle must be approved.");
   if(activeRide)return notify("Finish or cancel your current ride first.");
   if(!confirm("Accept this ride request?"))return;
+  acceptingRideIds.add(rideId);acknowledgeRequest(rideId);
+  document.querySelectorAll(".request").forEach(card=>{if(card.dataset.rideId===rideId)card.querySelectorAll("button").forEach(b=>b.disabled=true)});
+  if(button)button.textContent="Accepting…";
+  renderRequests();
   try{
-    const {data,error}=await sb.rpc("accept_ride",{p_ride_id:Number(id)});if(error)throw error;
-    if(data!==true&&!(data&&typeof data==="object"&&(data.success===true||data.accepted===true)))throw Error("Database did not confirm ride acceptance. It may already be assigned, your eligibility may have changed, or the RPC return type differs from this portal's expectation.");
-    acknowledgeRequest(id);notify("Ride accepted. Loading the assigned passenger…");await loadRides();await loadRequests(false);renderEverything();await refreshCommunication();showPage("current");
-  }catch(e){notify("Could not accept ride: "+errorText(e));await loadRequests(false)}
+    const numericId=Number(id);if(!Number.isSafeInteger(numericId)||numericId<=0)throw Error("Invalid ride request ID.");
+    const {data,error}=await sb.rpc("accept_ride",{p_ride_id:numericId});if(error)throw error;
+    if(data!==true)throw Error("The accept_ride database function did not return true. Check whether this ride was already taken and whether your driver profile and approved vehicle match it.");
+    await loadRides();
+    if(!activeRide||String(activeRide.id)!==rideId||String(activeRide.driver_id)!==String(user.id)){
+      const {data:assigned,error:verifyError}=await sb.from("rides").select("*").eq("id",numericId).eq("driver_id",user.id).maybeSingle();
+      if(verifyError)throw verifyError;
+      if(!assigned)throw Error("Supabase confirmed the request call, but this ride is not visible as assigned to your account. Check rides SELECT policy for assigned drivers.");
+      rides=[assigned,...rides.filter(x=>String(x.id)!==rideId)];activeRide=assigned;
+    }
+    requests=requests.filter(x=>String(x.id)!==rideId);knownRequestIds.delete(rideId);
+    notify("Ride accepted successfully.");await loadRequests(false);renderEverything();await refreshCommunication();showPage("current");
+  }catch(e){
+    console.error("Accept ride failed",{rideId,error:e});
+    notify("Could not accept ride: "+errorText(e));
+    try{await loadRequests(false)}catch(refreshError){console.warn(refreshError)}
+  }finally{
+    acceptingRideIds.delete(rideId);renderRequests();
+  }
 }
 window.acceptRide=acceptRide;
 function declineRequest(id){acknowledgeRequest(id);requests=requests.filter(r=>String(r.id)!==String(id));renderRequests();notify("Hidden locally only; no database decline function is configured.")}
