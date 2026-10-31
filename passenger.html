@@ -517,10 +517,11 @@ async function startPassengerLocationWatch(){
     try{
       const {data,error}=await db.rpc("update_my_passenger_ride_location",{p_ride_id:rideId,p_latitude:lat,p_longitude:lon,p_accuracy_m:Number.isFinite(accuracy)?accuracy:null});
       if(error)throw error;if(data===false)throw Error("Supabase did not confirm the location update.");
-      if(currentRide&&Number(currentRide.id)===rideId)text("passengerLocationSharingStatus","Your GPS is being shared with the driver assigned to ride #"+rideId+". Last update: "+new Date().toLocaleTimeString()+".");
+      if(currentRide&&Number(currentRide.id)===rideId)updatePassengerLocationSharingUI();
     }catch(error){console.error("Passenger GPS publish failed",error);if(currentRide&&Number(currentRide.id)===rideId)setMessage("appMessage","Live location could not be shared: "+errorText(error)+". The fixed pickup pin is still available.","error");}
     finally{passengerLocationSendBusy=false;}
   },error=>{
+    if(passengerGpsWatch!==null&&navigator.geolocation)navigator.geolocation.clearWatch(passengerGpsWatch);
     passengerGpsWatch=null;passengerLocationConsent=false;updatePassengerLocationSharingUI();
     setMessage("appMessage","GPS permission or location failed: "+error.message+". Allow location access in your browser, then enable sharing again.","error");
   },{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
