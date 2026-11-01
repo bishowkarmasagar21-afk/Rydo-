@@ -921,7 +921,7 @@ function renderRides(){
     <td>${esc(r.pickup_location||"—")} → ${esc(r.destination||"—")}</td>
     <td>${esc(r.vehicle_type||"—")}</td><td>${money(rideFare(r))}</td>
     <td>${esc(r.payment_method||"—")} · ${esc(r.payment_status||"—")}</td>
-    <td>${esc(dateText(r.created_at))}</td><td>\${r.status==="requested" ? '<button class="danger" type="button" data-admin-cancel="'+esc(r.id)+'">Cancel request</button>' : "—"}</td></tr>`).join("")}</tbody></table></div>`:
+    <td>${esc(dateText(r.created_at))}</td><td>${r.status==="requested" ? '<button class="danger" type="button" data-admin-cancel="'+esc(r.id)+'">Cancel request</button>' : "—"}</td></tr>`).join("")}</tbody></table></div>`:
     `<div class="empty">No rides match these filters.</div>`;
   $("ridesList").querySelectorAll("[data-admin-cancel]").forEach(button=>button.addEventListener("click",()=>cancelPendingRideAdmin(button.dataset.adminCancel,button)));
 }
