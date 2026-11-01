@@ -105,7 +105,7 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
       </div>
       <label>Email address *</label><input id="authEmail" type="email" required autocomplete="email">
       <label>Password *</label>
-      <div class="row"><input id="authPassword" type="password" required autocomplete="current-password"><button type="button" onclick="togglePassword('authPassword')">Show</button></div>
+      <div class="row"><input id="authPassword" type="password" required minlength="12" autocomplete="current-password"><button type="button" onclick="togglePassword('authPassword')">Show</button></div>
       <button class="primary" id="authSubmit" type="submit" style="width:100%">Login</button>
     </form>
     <button id="forgotButton" type="button" onclick="sendPasswordReset()" style="width:100%;margin-top:8px">Forgot password?</button>
@@ -118,7 +118,7 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
     <div class="authbrand"><span>R</span>ryd</div><h1>Set a new password</h1>
     <p class="muted">Choose a new password for your account.</p>
     <form id="resetForm">
-      <label>New password</label><input id="newPassword" type="password" minlength="8" required autocomplete="new-password">
+      <label>New password</label><input id="newPassword" type="password" minlength="12" required autocomplete="new-password">
       <label>Confirm new password</label><input id="confirmPassword" type="password" minlength="8" required autocomplete="new-password">
       <label><input id="showResetPassword" type="checkbox" style="width:auto"> Show passwords</label>
       <button class="primary" style="width:100%">Save new password</button>
@@ -249,6 +249,7 @@ function money(v){return "NPR "+Math.round(Number(v)||0).toLocaleString("en-IN")
 function errorText(e){return e?.message||String(e||"Unknown error")}
 function text(id,value){const el=$(id);if(el)el.textContent=value==null?"":String(value)}
 function notify(message){text("toast",message);$("toast").classList.remove("hidden");clearTimeout(window.rrydToastTimer);window.rrydToastTimer=setTimeout(()=>$("toast").classList.add("hidden"),5000)}
+function strongPassword(value){return value.length>=12&&/[A-Z]/.test(value)&&/[a-z]/.test(value)&&/[0-9]/.test(value)&&/[^A-Za-z0-9]/.test(value);}
 function authMessage(message,isError=false){text("authMessage",message);$("authMessage").style.color=isError?"var(--red)":"var(--green)"}
 function togglePassword(id){const el=$(id);el.type=el.type==="password"?"text":"password"}
 
@@ -363,7 +364,7 @@ $("authForm").addEventListener("submit",async e=>{
       const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;user=data.user;await enterPortal();
     }else{
       const full_name=$("regName").value.trim(),phone=$("regPhone").value.trim();
-      if(!full_name||phone.length<7)throw Error("Full name and a valid phone number are required.");
+      if(!full_name||phone.length<7)throw Error("Full name and a valid phone number are required.");if(!strongPassword(password))throw Error("Use 12+ characters with uppercase, lowercase, a number and a symbol.");
       const {data,error}=await sb.auth.signUp({email,password,options:{data:{full_name,phone,role:"driver"},emailRedirectTo:location.href.split("#")[0]}});if(error)throw error;
       if(data.session){user=data.user;await enterPortal()}
       else authMessage("Registration submitted. Confirm your email; your existing trigger must create the driver profile. Admin approval is still required.")
@@ -379,7 +380,7 @@ async function sendPasswordReset(){
 window.sendPasswordReset=sendPasswordReset;
 $("resetForm").addEventListener("submit",async e=>{
   e.preventDefault();const a=$("newPassword").value,b=$("confirmPassword").value;
-  if(a.length<8)return text("resetMessage","Use at least 8 characters.");
+  if(!strongPassword(a))return text("resetMessage","Use 12+ characters with uppercase, lowercase, a number and a symbol.");
   if(a!==b)return text("resetMessage","Passwords do not match.");
   try{const {error}=await sb.auth.updateUser({password:a});if(error)throw error;text("resetMessage","Password updated successfully.");setTimeout(async()=>{await sb.auth.signOut();user=null;showAuth()},1000)}
   catch(e){text("resetMessage",errorText(e))}
