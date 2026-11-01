@@ -241,7 +241,7 @@ let sb=null,user=null,profile=null,vehicles=[],requests=[],rides=[],notification
 let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
-let authView="login",portalStarting=false,audioContext=null,audioEnabled=false,soundTimer=null,pendingSoundIds=new Set(),knownRequestIds=new Set();
+let authView="login",portalStarting=false,audioContext=null,audioEnabled=false,soundTimer=null,pendingSoundIds=new Set(),knownRequestIds=new Set(),notificationView="new",resumeRefreshBusy=false;
 
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function money(v){return "NPR "+Math.round(Number(v)||0).toLocaleString("en-IN")}
@@ -319,10 +319,25 @@ function browserNotify(title,body){
 }
 function showModal(title,html){text("modalTitle",title);$("modalContent").innerHTML=html;$("modal").classList.remove("hidden")}
 function closeModal(){$("modal").classList.add("hidden")}window.closeModal=closeModal;
-function showNotifications(){
-  showModal("Notifications",notifications.length?notifications.slice(0,30).map(n=>`<div class="notice"><b>${esc(n.title||n.type||"Rryd notification")}</b><p>${esc(n.message||n.body||n.content||"")}</p><span class="muted small">${esc(n.created_at||"")}</span></div>`).join(""):'<p class="muted">No notifications are currently available.</p>');
+function showNotifications(view="new"){
+  notificationView=view==="history"?"history":"new";
+  const unread=notifications.filter(n=>!n.is_read),history=notifications;
+  const rows=notificationView==="new"?unread:history;
+  const tabs=`<div class="row" style="margin:10px 0"><button type="button" class="${notificationView==="new"?"primary":""}" onclick="showNotifications('new')">New (${unread.length})</button><button type="button" class="${notificationView==="history"?"primary":""}" onclick="showNotifications('history')">History (${history.length})</button></div>`;
+  const list=rows.length?rows.map(n=>`<div class="notice"><b>${esc(n.title||n.notification_type||"Rryd notification")}</b><p>${esc(n.message||n.body||n.content||"")}</p><span class="muted small">${esc(n.created_at||"")}${n.is_read?" · Viewed":" · New"}</span>${n.is_read?"":`<div style="margin-top:8px"><button type="button" onclick="markNotificationViewed(${Number(n.id)})">Mark as viewed</button></div>`}</div>`).join(""):(notificationView==="new"?'<p class="muted">No new notifications. New alerts will appear here.</p>':'<p class="muted">No notification history yet.</p>');
+  showModal("Notifications",tabs+list);
 }
-window.showNotifications=showNotifications;
+async function markNotificationViewed(id){
+  if(!user||!sb)return;
+  try{
+    const {error}=await sb.from("notifications").update({is_read:true}).eq("id",id).eq("user_id",user.id);
+    if(error)throw error;
+    notifications=notifications.map(n=>String(n.id)===String(id)?{...n,is_read:true}:n);
+    text("bellCount",notifications.filter(n=>!n.is_read).length+requests.length);
+    showNotifications(notificationView);
+  }catch(error){notify("Could not update notification: "+errorText(error))}
+}
+window.showNotifications=showNotifications;window.markNotificationViewed=markNotificationViewed;
 
 async function init(){
   if(!window.supabase){text("connectionStatus","Supabase library failed to load. Check your connection.");return}
@@ -375,7 +390,7 @@ async function enterPortal(){
   try{
     await loadProfile();await Promise.allSettled([loadVehicles(),loadRides(),loadNotifications()]);
     initMap();renderEverything();await loadRequests(true);await refreshGpsWatch();await refreshCommunication();stopPollingOnly();
-    pollTimer=setInterval(async()=>{if(!user||document.hidden)return;await loadRequests(false);await loadRides();await loadNotifications();renderEverything();await refreshCommunication()},REQUEST_POLL_MS);
+    pollTimer=setInterval(async()=>{if(!user)return;await loadRequests(false);await loadRides();await loadNotifications();renderEverything();await refreshCommunication()},REQUEST_POLL_MS);
     locationTimer=setInterval(sendCurrentLocation,LOCATION_REFRESH_MS);text("connectionStatus","Signed in to Rryd.");
   }catch(e){console.error(e);notify("Driver portal could not load: "+errorText(e));text("connectionStatus","Could not load all driver data: "+errorText(e))}
   finally{portalStarting=false}
@@ -657,7 +672,7 @@ function renderEarnings(){
   text("todayTotal",money(todayNet));text("earningTotal",money(total));text("driverNet",money(net));text("adminCommission",money(commission));text("completedCount",done.length);text("earnToday",money(todayNet));text("earnNet",money(net));text("earnCommission",money(commission))
 }
 function renderEverything(){updateEligibility();renderVehicles();renderRequests();renderCurrentRide();renderHistory();renderRecent();renderEarnings()}
-async function loadNotifications(){if(!user)return;const {data,error}=await sb.from("notifications").select("*").eq("user_id",user.id).order("created_at",{ascending:false}).limit(40);if(error){console.warn("Notifications query failed; check recipient column and RLS",error);return}notifications=data||[];text("bellCount",notifications.filter(n=>!n.is_read).length+requests.length)}
+async function loadNotifications(){if(!user)return;const {data,error}=await sb.from("notifications").select("*").eq("user_id",user.id).order("created_at",{ascending:false}).limit(200);if(error){console.warn("Notifications query failed; check recipient column and RLS",error);return}notifications=data||[];text("bellCount",notifications.filter(n=>!n.is_read).length+requests.length)}
 
 function initMap(){
   if(!window.L)return;
@@ -710,7 +725,29 @@ async function deleteAccount(){
 window.deleteAccount=deleteAccount;
 async function signOut(){stopBackground();try{const {error}=await sb.auth.signOut();if(error)throw error}catch(e){console.warn(e)}user=null;profile=null;activeRide=null;showAuth();notify("Signed out.")}
 window.signOut=signOut;
-document.addEventListener("visibilitychange",()=>{if(!document.hidden&&user){loadRequests(false);loadRides().then(()=>{renderEverything();return refreshCommunication()})}});
+async function refreshDriverPortalOnReturn(){
+  if(document.hidden||!user||!sb||resumeRefreshBusy)return;
+  resumeRefreshBusy=true;
+  try{
+    const {data,error}=await sb.auth.getSession();if(error)throw error;
+    if(data.session?.user)user=data.session.user;
+    else{
+      const refreshed=await sb.auth.refreshSession();
+      if(refreshed.error)throw refreshed.error;
+      if(!refreshed.data.session?.user)throw Error("The saved driver session is no longer available.");
+      user=refreshed.data.session.user;
+    }
+    await loadProfile();
+    await Promise.allSettled([loadVehicles(),loadRides(),loadNotifications()]);
+    await loadRequests(false);renderEverything();await refreshGpsWatch();await refreshCommunication();
+    text("connectionStatus","Driver session restored. Ride requests and notifications refreshed.");
+  }catch(error){
+    console.warn("Driver return refresh failed",error);
+    text("connectionStatus","Could not refresh driver data: "+errorText(error));
+  }finally{resumeRefreshBusy=false}
+}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshDriverPortalOnReturn()});
+window.addEventListener("pageshow",()=>{if(user)refreshDriverPortalOnReturn()});
 window.addEventListener("beforeunload",stopBackground);
 init();
 </script>
