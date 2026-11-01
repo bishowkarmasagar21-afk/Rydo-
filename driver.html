@@ -238,6 +238,7 @@ const ACTIVE_STATUSES=["accepted","arriving","started"];
 const $=id=>document.getElementById(id);
 
 let sb=null,user=null,profile=null,vehicles=[],requests=[],rides=[],notifications=[],requestQueryError="",activeRide=null;
+const hiddenRequestIds=new Set();
 let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
@@ -457,7 +458,7 @@ async function loadRequests(initial){
   if(!user)return;
   const {data,error}=await sb.from("rides").select("*").eq("status","requested").is("driver_id",null).order("created_at",{ascending:false}).limit(40);
   if(error){console.error("Ride requests query failed",error);requestQueryError=`Could not load ride requests: ${error.message}. The rides SELECT policy must permit eligible drivers to read unassigned requested rides (driver_id IS NULL). HTML cannot bypass database RLS.`;requests=[];renderRequests();return}
-  requestQueryError="";let found=data||[];const types=approvedVehicles().map(v=>String(v.vehicle_type||"").toLowerCase());if(types.length)found=found.filter(r=>types.includes(String(r.vehicle_type||"").toLowerCase()));
+  requestQueryError="";let found=data||[];const types=approvedVehicles().map(v=>String(v.vehicle_type||"").toLowerCase());if(types.length)found=found.filter(r=>types.includes(String(r.vehicle_type||"").toLowerCase()));found=found.filter(r=>!hiddenRequestIds.has(String(r.id)));
   const currentIds=new Set(found.map(r=>String(r.id)));
   for(const id of [...pendingSoundIds])if(!currentIds.has(id))pendingSoundIds.delete(id);
   if(!pendingSoundIds.size)stopRequestAlarm();
@@ -465,7 +466,7 @@ async function loadRequests(initial){
   if(!initial&&profile?.is_online&&newItems.length){newItems.forEach(r=>{pendingSoundIds.add(String(r.id));browserNotify("New Rryd ride request",`${r.pickup_location||"Pickup"} to ${r.destination||"Destination"}`)});if(audioEnabled)startRequestAlarm();else text("soundStatus","New request detected. Press Enable Sound to hear the alert.")}
   knownRequestIds=currentIds;requests=found;renderRequests();
 }
-function requestCard(r){const rid=String(r.id),busy=acceptingRideIds.has(rid);return `<div class="request" data-ride-id="${esc(rid)}"><div><div class="route">📍 ${esc(r.pickup_location||"Pickup unavailable")}<br>↓<br>🏁 ${esc(r.destination||"Destination unavailable")}</div><p class="muted small">${esc(typeName(r.vehicle_type))} · ${esc(r.created_at||"")}</p><b class="green">${money(r.estimated_fare??r.fare)}</b> <span class="muted small">passenger estimate</span></div><div class="request-actions"><button class="primary" ${busy?"disabled":""} onclick="acceptRide('${esc(rid)}',this)">${busy?"Accepting…":"Accept"}</button><button onclick="declineRequest('${esc(rid)}')">Hide for me</button></div></div>`}
+function requestCard(r){const rid=String(r.id),busy=acceptingRideIds.has(rid);return `<div class="request" data-ride-id="${esc(rid)}"><div><div class="route">📍 ${esc(r.pickup_location||"Pickup unavailable")}<br>↓<br>🏁 ${esc(r.destination||"Destination unavailable")}</div><p class="muted small">${esc(typeName(r.vehicle_type))} · ${esc(r.created_at||"")}</p><b class="green">${money(r.estimated_fare??r.fare)}</b> <span class="muted small">passenger estimate</span></div><div class="request-actions"><button class="primary" ${busy?"disabled":""} onclick="acceptRide('${esc(rid)}',this)">${busy?"Accepting…":"Accept"}</button><button onclick="declineRequest('${esc(rid)}')">Hide for this session</button></div></div>`}
 function renderRequests(){const html=requestQueryError?`<div class="notice">${esc(requestQueryError)}</div>`:(requests.map(requestCard).join("")||'<div class="notice">No unassigned ride requests are currently visible.</div>');$("allRequests").innerHTML=html;$("dashboardRequests").innerHTML=html;text("requestCount",requests.length);text("bellCount",notifications.filter(n=>!n.is_read).length+requests.length)}
 function renderDashboardRequests(){renderRequests()}
 async function acceptRide(id,button){
@@ -501,7 +502,7 @@ async function acceptRide(id,button){
   }
 }
 window.acceptRide=acceptRide;
-function declineRequest(id){acknowledgeRequest(id);requests=requests.filter(r=>String(r.id)!==String(id));renderRequests();notify("Hidden only from your driver list. The passenger request is still pending; the passenger or an admin must cancel it.")}
+function declineRequest(id){const rideId=String(id);hiddenRequestIds.add(rideId);acknowledgeRequest(rideId);requests=requests.filter(r=>String(r.id)!==rideId);renderRequests();notify("Request hidden for this driver session only. It remains pending for the passenger and other drivers; only the passenger or an admin can cancel it.")}
 window.declineRequest=declineRequest;
 
 async function loadRides(){
