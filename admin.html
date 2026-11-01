@@ -171,6 +171,8 @@ summary{cursor:pointer;font-weight:700}
   <p class="footer-note">Admin access is checked against your Supabase profile. A successful login alone does not grant admin access.</p>
 </section>
 
+<section id="adminMfaPanel" class="card hidden" aria-live="polite"><h2 id="adminMfaTitle">Secure admin sign-in</h2><p id="adminMfaHelp" class="muted"></p><img id="adminMfaQr" class="hidden" alt="Authenticator setup QR code" style="display:block;max-width:240px;width:100%;margin:16px auto;background:white;padding:10px;border-radius:10px"><p id="adminMfaSecret" class="muted" style="overflow-wrap:anywhere"></p><label for="adminMfaCode">6-digit authenticator code</label><input id="adminMfaCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"><button id="adminMfaVerify" class="primary" type="button" style="width:100%;margin-top:12px">Verify and continue</button><div id="adminMfaMessage" class="notice hidden"></div></section>
+
 <div id="app" class="hidden">
   <div id="globalMessage" class="notice hidden"></div>
 
@@ -441,6 +443,17 @@ async function fetchProfile(userId){
   failIf(error);
   return data;
 }
+async function requireAdminMfa(){
+ const panel=$("adminMfaPanel"),qr=$("adminMfaQr"),secret=$("adminMfaSecret"),input=$("adminMfaCode"),title=$("adminMfaTitle"),help=$("adminMfaHelp"),msg=$("adminMfaMessage"),btn=$("adminMfaVerify");
+ const {data:level,error:le}=await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();failIf(le);if(level.currentLevel==="aal2")return true;
+ const {data:fs,error:fe}=await supabaseClient.auth.mfa.listFactors();failIf(fe);const existing=(fs.totp||[]).find(x=>x.status==="verified");let factorId=existing?.id,challengeId=null;
+ if(!factorId){title.textContent="Set up admin authenticator";help.textContent="Scan the QR code with an authenticator app, then enter its current 6-digit code.";const {data,error}=await supabaseClient.auth.mfa.enroll({factorType:"totp",friendlyName:"Rryd Admin Authenticator"});failIf(error);factorId=data.id;qr.src=data.totp.qr_code;qr.classList.remove("hidden");secret.textContent="Manual setup key: "+data.totp.secret;}
+ else{title.textContent="Verify admin identity";help.textContent="Enter the current 6-digit code from your authenticator app.";qr.classList.add("hidden");secret.textContent="";const {data,error}=await supabaseClient.auth.mfa.challenge({factorId});failIf(error);challengeId=data.id;}
+ panel.classList.remove("hidden");$("loginCard").classList.add("hidden");$("app").classList.add("hidden");
+ btn.onclick=async()=>{const value=input.value.trim();if(!/^\\d{6}$/.test(value)){msg.textContent="Enter a valid 6-digit code.";msg.className="notice error";return;}btn.disabled=true;btn.textContent="Verifying…";msg.className="notice hidden";try{if(!challengeId){const {data,error}=await supabaseClient.auth.mfa.challenge({factorId});failIf(error);challengeId=data.id;}const {error}=await supabaseClient.auth.mfa.verify({factorId,challengeId,code:value});failIf(error);panel.classList.add("hidden");input.value="";await boot();}catch(e){msg.textContent=e.message||String(e);msg.className="notice error";challengeId=null;}finally{btn.disabled=false;btn.textContent="Verify and continue";}};
+ return false;
+}
+
 async function boot(){
   const {data:{session},error} = await supabaseClient.auth.getSession();
   failIf(error);
@@ -458,6 +471,7 @@ async function boot(){
       showLogin("Admin access denied. This account is not an active administrator.");
       return;
     }
+    if(!(await requireAdminMfa()))return;
     $("loginCard").classList.add("hidden");
     $("app").classList.remove("hidden");
     $("refreshBtn").disabled = false;
@@ -488,6 +502,7 @@ async function boot(){
   }
 }
 function showLogin(message){
+  $("adminMfaPanel").classList.add("hidden");
   $("app").classList.add("hidden");
   $("loginCard").classList.remove("hidden");
   $("refreshBtn").disabled = true;
