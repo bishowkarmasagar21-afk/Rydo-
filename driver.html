@@ -219,7 +219,7 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
 
 <div id="modal" class="modal hidden"><div class="modalbox"><div class="cardhead"><h2 id="modalTitle">Notifications</h2><button onclick="closeModal()">Close</button></div><div id="modalContent"></div></div></div>
 <div id="toast" class="toast hidden" role="status"></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
@@ -326,7 +326,7 @@ window.showNotifications=showNotifications;
 
 async function init(){
   if(!window.supabase){text("connectionStatus","Supabase library failed to load. Check your connection.");return}
-  sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{storageKey:"rryd-driver-auth-v1",persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
   try{
     const {data,error}=await sb.auth.getSession();if(error)throw error;
     text("connectionStatus","Supabase client initialized.");
