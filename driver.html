@@ -105,7 +105,7 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
       </div>
       <label>Email address *</label><input id="authEmail" type="email" required autocomplete="email">
       <label>Password *</label>
-      <div class="row"><input id="authPassword" type="password" required minlength="12" autocomplete="current-password"><button type="button" onclick="togglePassword('authPassword')">Show</button></div>
+      <div class="row"><input id="authPassword" type="password" required autocomplete="current-password"><button type="button" onclick="togglePassword('authPassword')">Show</button></div>
       <button class="primary" id="authSubmit" type="submit" style="width:100%">Login</button>
     </form>
     <button id="forgotButton" type="button" onclick="sendPasswordReset()" style="width:100%;margin-top:8px">Forgot password?</button>
