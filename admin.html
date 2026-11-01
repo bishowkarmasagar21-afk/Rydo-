@@ -451,11 +451,11 @@ async function boot(){
   currentUser = session.user;
   try{
     currentProfile = await fetchProfile(currentUser.id);
-    if(!currentProfile || currentProfile.role !== "admin"){
+    if(!currentProfile || currentProfile.role !== "admin" || currentProfile.is_suspended === true){
       await supabaseClient.auth.signOut();
       currentUser = null;
       currentProfile = null;
-      showLogin("This account is not authorized as an admin. Check the role in public.profiles.");
+      showLogin("Admin access denied. This account is not an active administrator.");
       return;
     }
     $("loginCard").classList.add("hidden");
@@ -464,8 +464,24 @@ async function boot(){
     $("logoutBtn").disabled = false;
     await refreshAll();
     if(refreshTimer) clearInterval(refreshTimer);
-    refreshTimer = setInterval(() => {
-      if(currentUser) refreshAll().catch(err => showMessage(rpcErrorHint(err),"error"));
+    refreshTimer = setInterval(async () => {
+      if(!currentUser) return;
+      try{
+        const latestProfile = await fetchProfile(currentUser.id);
+        if(!latestProfile || latestProfile.role !== "admin" || latestProfile.is_suspended === true){
+          if(refreshTimer) clearInterval(refreshTimer);
+          refreshTimer = null;
+          currentUser = null;
+          currentProfile = null;
+          await supabaseClient.auth.signOut();
+          showLogin("Admin access has been revoked or this account has been suspended.");
+          return;
+        }
+        currentProfile = latestProfile;
+        await refreshAll();
+      }catch(err){
+        showMessage(rpcErrorHint(err),"error");
+      }
     }, 60000);
   }catch(error){
     showLogin(rpcErrorHint(error));
@@ -490,11 +506,11 @@ $("loginForm").addEventListener("submit", async e=>{
     failIf(error);
     currentUser = data.user;
     currentProfile = await fetchProfile(currentUser.id);
-    if(!currentProfile || currentProfile.role !== "admin"){
+    if(!currentProfile || currentProfile.role !== "admin" || currentProfile.is_suspended === true){
       await supabaseClient.auth.signOut();
       currentUser = null;
       currentProfile = null;
-      throw new Error("This account is not an admin. Login was cancelled.");
+      throw new Error("This account is not an active administrator. Login was cancelled.");
     }
     await boot();
   }catch(error){
