@@ -431,7 +431,23 @@ async function requestRide(){
     const rideId=extractRideId(data);
     setMessage("appMessage","Ride request submitted to Supabase. Waiting for the database to confirm the current ride. Do not press Request again if the ride does not appear immediately.","ok");
     // The browser does not write fare columns directly. The server must persist or validate fare snapshots.
-    await refreshCurrentRide();await refreshAvailability();notifyUser("Rryd ride requested","Your ride request was sent. Waiting for driver assignment.",true);
+    await refreshCurrentRide();
+    if(rideId){
+      const {data:confirmedRide,error:confirmError}=await db.from("rides").select("*").eq("id",rideId).eq("passenger_id",auth.user.id).maybeSingle();
+      if(confirmError)throw confirmError;
+      if(confirmedRide){
+        rideRows=[confirmedRide,...rideRows.filter(r=>String(r.id)!==String(confirmedRide.id))];
+        if(isActive(confirmedRide.status)){
+          currentRide=confirmedRide;
+          syncPassengerLocationSharing(currentRide);
+          renderCurrentRide();
+          await loadAssignedDriver(currentRide);
+          show("rideSafetyPanel",true);show("messagePanel",true);show("ratingPanel",false);
+        }
+        renderHistory();
+      }
+    }
+    await refreshAvailability();notifyUser("Rryd ride requested","Your ride request was sent. Waiting for driver assignment.",true);
     if(!currentRide&&rideId){showToast("Ride request submitted",`Rryd returned ride ID ${rideId}, but the current-ride read did not return it yet. Use Refresh Current Ride and do not submit a duplicate request.`);}
   }catch(error){setMessage("appMessage","Ride request could not be confirmed: "+friendlyError(error)+". Check Current Ride before trying again to avoid a duplicate.","error");console.error("request_ride error",error);}
   finally{btn.disabled=false;btn.textContent=old;}
