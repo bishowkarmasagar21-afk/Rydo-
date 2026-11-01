@@ -192,7 +192,7 @@ body.light{color-scheme:light;--bg:#edf4f9;--panel:#fff;--panel2:#f5f9fc;--text:
 <div id="toast" class="toast hidden" role="status" aria-live="polite"><h3 id="toastTitle">Rryd</h3><div id="toastBody"></div><button class="ghost" id="toastClose" type="button" style="margin-top:8px">Close</button></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
 <script>
 "use strict";
 
@@ -271,7 +271,7 @@ function friendlyError(error){const m=errorText(error);if(/invalid api key|inval
 /* Supabase session. Ignore temporary initial callbacks; only explicit sign-out clears the portal. */
 async function initialize(){
   if(!window.supabase){setMessage("authMessage","Supabase client did not load. Check your internet connection and reload.","error");return;}
-  db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{storageKey:"rryd-passenger-auth-v1",persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
   const hash=new URLSearchParams(location.hash.replace(/^#/,""));const query=new URLSearchParams(location.search);const recovery=hash.get("type")==="recovery"||query.get("type")==="recovery";
   try{
     const {data,error}=await db.auth.getSession();if(error)throw error;session=data.session;
