@@ -238,6 +238,7 @@ const ACTIVE_STATUSES=["accepted","arriving","started"];
 const $=id=>document.getElementById(id);
 
 let sb=null,user=null,profile=null,vehicles=[],requests=[],rides=[],notifications=[],requestQueryError="",activeRide=null;
+const hiddenRequestIds=new Set();
 let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
@@ -457,7 +458,7 @@ async function loadRequests(initial){
   if(!user)return;
   const {data,error}=await sb.from("rides").select("*").eq("status","requested").is("driver_id",null).order("created_at",{ascending:false}).limit(40);
   if(error){console.error("Ride requests query failed",error);requestQueryError=`Could not load ride requests: ${error.message}. The rides SELECT policy must permit eligible drivers to read unassigned requested rides (driver_id IS NULL). HTML cannot bypass database RLS.`;requests=[];renderRequests();return}
-  requestQueryError="";let found=data||[];const types=approvedVehicles().map(v=>String(v.vehicle_type||"").toLowerCase());if(types.length)found=found.filter(r=>types.includes(String(r.vehicle_type||"").toLowerCase()));
+  requestQueryError="";let found=data||[];const types=approvedVehicles().map(v=>String(v.vehicle_type||"").toLowerCase());if(types.length)found=found.filter(r=>types.includes(String(r.vehicle_type||"").toLowerCase()));found=found.filter(r=>!hiddenRequestIds.has(String(r.id)));
   const currentIds=new Set(found.map(r=>String(r.id)));
   for(const id of [...pendingSoundIds])if(!currentIds.has(id))pendingSoundIds.delete(id);
   if(!pendingSoundIds.size)stopRequestAlarm();
@@ -465,7 +466,7 @@ async function loadRequests(initial){
   if(!initial&&profile?.is_online&&newItems.length){newItems.forEach(r=>{pendingSoundIds.add(String(r.id));browserNotify("New Rryd ride request",`${r.pickup_location||"Pickup"} to ${r.destination||"Destination"}`)});if(audioEnabled)startRequestAlarm();else text("soundStatus","New request detected. Press Enable Sound to hear the alert.")}
   knownRequestIds=currentIds;requests=found;renderRequests();
 }
-function requestCard(r){const rid=String(r.id),busy=acceptingRideIds.has(rid);return `<div class="request" data-ride-id="${esc(rid)}"><div><div class="route">📍 ${esc(r.pickup_location||"Pickup unavailable")}<br>↓<br>🏁 ${esc(r.destination||"Destination unavailable")}</div><p class="muted small">${esc(typeName(r.vehicle_type))} · ${esc(r.created_at||"")}</p><b class="green">${money(r.estimated_fare??r.fare)}</b> <span class="muted small">passenger estimate</span></div><div class="request-actions"><button class="primary" ${busy?"disabled":""} onclick="acceptRide('${esc(rid)}',this)">${busy?"Accepting…":"Accept"}</button><button onclick="declineRequest('${esc(rid)}')">Hide</button></div></div>`}
+function requestCard(r){const rid=String(r.id),busy=acceptingRideIds.has(rid);return `<div class="request" data-ride-id="${esc(rid)}"><div><div class="route">📍 ${esc(r.pickup_location||"Pickup unavailable")}<br>↓<br>🏁 ${esc(r.destination||"Destination unavailable")}</div><p class="muted small">${esc(typeName(r.vehicle_type))} · ${esc(r.created_at||"")}</p><b class="green">${money(r.estimated_fare??r.fare)}</b> <span class="muted small">passenger estimate</span></div><div class="request-actions"><button class="primary" ${busy?"disabled":""} onclick="acceptRide('${esc(rid)}',this)">${busy?"Accepting…":"Accept"}</button><button onclick="declineRequest('${esc(rid)}')">Hide for this session</button></div></div>`}
 function renderRequests(){const html=requestQueryError?`<div class="notice">${esc(requestQueryError)}</div>`:(requests.map(requestCard).join("")||'<div class="notice">No unassigned ride requests are currently visible.</div>');$("allRequests").innerHTML=html;$("dashboardRequests").innerHTML=html;text("requestCount",requests.length);text("bellCount",notifications.filter(n=>!n.is_read).length+requests.length)}
 function renderDashboardRequests(){renderRequests()}
 async function acceptRide(id,button){
@@ -501,7 +502,7 @@ async function acceptRide(id,button){
   }
 }
 window.acceptRide=acceptRide;
-function declineRequest(id){acknowledgeRequest(id);requests=requests.filter(r=>String(r.id)!==String(id));renderRequests();notify("Hidden locally only; no database decline function is configured.")}
+function declineRequest(id){const rideId=String(id);hiddenRequestIds.add(rideId);acknowledgeRequest(rideId);requests=requests.filter(r=>String(r.id)!==rideId);renderRequests();notify("Request hidden for this driver session only. It remains pending for the passenger and other drivers; only the passenger or an admin can cancel it.")}
 window.declineRequest=declineRequest;
 
 async function loadRides(){
@@ -519,7 +520,7 @@ function renderCurrentRide(){
   if(status==="started")actions+='<button class="primary" onclick="navigateRideTarget(\'destination\')">🧭 Navigate to destination</button>';
   if(status==="arriving")actions+='<button class="primary" onclick="rideAction(\'start_ride\')">Start Ride</button>';
   if(status==="started")actions+='<button class="success" onclick="rideAction(\'complete_ride\')">Complete Ride</button>';
-  if(["accepted","arriving"].includes(status))actions+='<button class="danger" onclick="cancelCurrentRide()">Cancel Ride</button>';
+  if(["accepted","arriving"].includes(status))actions+='<button class="danger" onclick="cancelCurrentRide()">Cancel assigned ride</button>';
   $("currentRide").innerHTML=`<span class="pill">${esc(status)}</span><h2 style="margin-top:14px">${esc(r.pickup_location||"Pickup")} → ${esc(r.destination||"Destination")}</h2><p class="muted">${esc(typeName(r.vehicle_type))} · Ride #${esc(r.id)}</p><div class="stats"><div class="stat">Passenger fare<div class="number">${money(r.final_fare??r.fare??r.estimated_fare)}</div></div><div class="stat">Status<div class="number">${esc(status)}</div></div><div class="stat">Requested<div class="small">${esc(r.created_at||"—")}</div></div></div><div class="notice">Pickup: ${esc(r.pickup_latitude??"Unavailable")}, ${esc(r.pickup_longitude??"Unavailable")}<br>Destination: ${esc(r.destination_latitude??"Unavailable")}, ${esc(r.destination_longitude??"Unavailable")}</div><div class="row" style="margin-top:14px">${actions}</div>`;
   if(map&&r.pickup_latitude!=null&&r.pickup_longitude!=null){const lat=Number(r.pickup_latitude),lon=Number(r.pickup_longitude);if(Number.isFinite(lat)&&Number.isFinite(lon))map.setView([lat,lon],14)}
   if(status!=="accepted"){textPassengerTracking("Passenger live location sharing is not active during this ride status. The confirmed pickup pin remains available.");clearPassengerMarker()}
@@ -642,18 +643,26 @@ async function refreshPassengerLocation(manual=false){
   window.rrydLastPassengerLocationPoll=Date.now();
 
   const rideId=String(activeRide.id);
+  const pickupLat=Number(activeRide.pickup_latitude);
+  const pickupLon=Number(activeRide.pickup_longitude);
+  if(!validNepalPoint(pickupLat,pickupLon)){
+    textPassengerTracking("The confirmed pickup coordinates are missing or invalid. Ask the passenger to confirm the pickup pin.");
+    clearPassengerMarker();
+    text("passengerRouteStatus","Cannot calculate navigation without the saved pickup pin.");
+    return;
+  }
   if(String(activeRide.status||"").toLowerCase()!=="accepted"){
     textPassengerTracking("Pickup is confirmed. Passenger live GPS sharing has ended. The fixed pickup pin remains available.");
     clearPassengerMarker();
     return;
   }
 
-  textPassengerTracking("Checking the passenger's shared location…");
+  textPassengerTracking("Checking optional passenger GPS. Navigation always targets the confirmed pickup pin.");
   try{
     const {data,error}=await sb.rpc(PASSENGER_LOCATION_RPC,{p_ride_id:Number(rideId)});
     if(error)throw error;
 
-    /* An RPC started before Mark Arrived must not restore a stale live pin. */
+    /* Never let a delayed GPS response change the confirmed pickup destination. */
     if(!activeRide||String(activeRide.id)!==rideId)return;
     if(String(activeRide.status||"").toLowerCase()!=="accepted"){
       textPassengerTracking("Pickup is confirmed. Passenger live GPS sharing has ended. The fixed pickup pin remains available.");
@@ -662,24 +671,34 @@ async function refreshPassengerLocation(manual=false){
     }
 
     const d=Array.isArray(data)?data[0]:data;
-    if(!d)throw Error("The passenger has not enabled live location sharing yet, or their last GPS update is older than 2 minutes.");
+    if(!d)throw Error("Passenger live GPS is unavailable. Navigation will use the confirmed pickup pin.");
     const lat=Number(d.latitude??d.passenger_latitude??d.current_latitude);
     const lon=Number(d.longitude??d.passenger_longitude??d.current_longitude);
-    if(!validNepalPoint(lat,lon))throw Error("Location endpoint returned invalid coordinates.");
+    if(!validNepalPoint(lat,lon))throw Error("Passenger GPS returned invalid coordinates.");
     const raw=d.updated_at??d.location_updated_at??d.created_at;
     const updated=raw?new Date(raw).getTime():0;
     const fresh=updated>0&&Date.now()-updated<120000;
-    if(!fresh)throw Error("Passenger GPS is older than 2 minutes. Waiting for a fresh update.");
+    if(!fresh)throw Error("Passenger GPS is older than 2 minutes.");
 
-    if(!passengerMarker)passengerMarker=L.marker([lat,lon],{icon:L.divIcon({className:"",html:'<div style="font-size:27px">📍</div>',iconSize:[32,32],iconAnchor:[16,28]})}).addTo(passengerMap).bindPopup("Passenger shared location");
-    else passengerMarker.setLatLng([lat,lon]);
-    passengerMarker.bindPopup("Passenger shared location · updated recently");
-    passengerMap.setView([lat,lon],Math.max(passengerMap.getZoom(),15));
-    textPassengerTracking("Passenger location updated "+new Date(updated).toLocaleTimeString()+". Shared only for this assigned ride.");
-    $("passengerTrackingStatus").className="passenger-location-line track-fresh";
+    const rad=x=>x*Math.PI/180;
+    const dLat=rad(lat-pickupLat),dLon=rad(lon-pickupLon);
+    const h=Math.sin(dLat/2)**2+Math.cos(rad(pickupLat))*Math.cos(rad(lat))*Math.sin(dLon/2)**2;
+    const gpsPickupGapKm=6371*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));
+
+    if(gpsPickupGapKm>1){
+      /* e.g. passenger GPS in Palpa while the selected booking pickup is Kathmandu. */
+      clearPassengerMarker();
+      textPassengerTracking("Passenger's current GPS is "+gpsPickupGapKm.toFixed(1)+" km from the booked pickup. It will not replace the pickup pin or driver route.");
+    }else{
+      if(!passengerMarker)passengerMarker=L.marker([lat,lon],{icon:L.divIcon({className:"",html:'<div style="font-size:27px">📍</div>',iconSize:[32,32],iconAnchor:[16,28]})}).addTo(passengerMap).bindPopup("Passenger shared location");
+      else passengerMarker.setLatLng([lat,lon]);
+      passengerMarker.bindPopup("Passenger shared location · near confirmed pickup");
+      textPassengerTracking("Passenger GPS is near the confirmed pickup. Driver navigation still targets the saved pickup pin.");
+      $("passengerTrackingStatus").className="passenger-location-line track-fresh";
+    }
 
     if(Number.isFinite(driverLat)&&Number.isFinite(driverLon)){
-      await routeToPassenger(lat,lon,rideId);
+      await routeToPassenger(pickupLat,pickupLon,rideId);
       if(!activeRide||String(activeRide.id)!==rideId)return;
       if(String(activeRide.status||"").toLowerCase()!=="accepted"){
         textPassengerTracking("Pickup is confirmed. Passenger live GPS sharing has ended. The fixed pickup pin remains available.");
@@ -687,7 +706,7 @@ async function refreshPassengerLocation(manual=false){
         return;
       }
     }else{
-      text("passengerRouteStatus","Road route to passenger appears when both GPS positions are fresh.");
+      text("passengerRouteStatus","Enable driver GPS to calculate the route to the confirmed pickup pin.");
       if(passengerRouteLayer){passengerMap.removeLayer(passengerRouteLayer);passengerRouteLayer=null;}
     }
   }catch(error){
@@ -697,22 +716,17 @@ async function refreshPassengerLocation(manual=false){
       clearPassengerMarker();
       return;
     }
-
-    textPassengerTracking("Passenger live GPS is unavailable: "+errorText(error)+". Using the confirmed pickup pin for navigation.");
-    $("passengerTrackingStatus").className="passenger-location-line track-stale";
-    const pickupLat=Number(activeRide.pickup_latitude);
-    const pickupLon=Number(activeRide.pickup_longitude);
-    if(validNepalPoint(pickupLat,pickupLon)&&Number.isFinite(driverLat)&&Number.isFinite(driverLon)){
+    clearPassengerMarker();
+    textPassengerTracking("Passenger live GPS is unavailable or differs from the booking. Use the confirmed pickup pin; live GPS will not change the route.");
+    if(Number.isFinite(driverLat)&&Number.isFinite(driverLon)){
       await routeToPassenger(pickupLat,pickupLon,rideId);
       if(!activeRide||String(activeRide.id)!==rideId)return;
       if(String(activeRide.status||"").toLowerCase()!=="accepted"){
-        textPassengerTracking("Pickup is confirmed. Passenger live GPS sharing has ended. The fixed pickup pin remains available.");
         clearPassengerMarker();
         return;
       }
-      text("passengerRouteStatus","Route to the confirmed pickup pin is shown. Use Navigate to pickup for turn-by-turn directions.");
     }else{
-      text("passengerRouteStatus","Enable driver GPS to draw a route to the confirmed pickup pin.");
+      text("passengerRouteStatus","Enable driver GPS to calculate the route to the confirmed pickup pin.");
     }
     if(manual)console.warn("Passenger location RPC",error);
   }
