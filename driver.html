@@ -183,7 +183,7 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
       </section>
 
       <section id="page-requests" class="page hidden">
-        <div class="card"><h1>Incoming Ride Requests</h1><p class="muted">Requests refresh every five seconds while signed in. An RLS error is shown rather than being hidden.</p><div id="allRequests"></div></div>
+        <div class="card"><div class="cardhead"><h1>Incoming Ride Requests</h1><button type="button" onclick="refreshDriverPortalOnReturn()">Refresh now</button></div><p class="muted">Requests refresh every five seconds while signed in. Use Refresh now after returning to this page; approval and ride acceptance are rechecked by Supabase.</p><div id="allRequests"></div></div>
       </section>
 
       <section id="page-current" class="page hidden">
@@ -242,7 +242,7 @@ const hiddenRequestIds=new Set();
 let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
-let authView="login",portalStarting=false,audioContext=null,audioEnabled=false,soundTimer=null,pendingSoundIds=new Set(),knownRequestIds=new Set(),notificationView="new",resumeRefreshBusy=false;
+let authView="login",portalStarting=false,audioContext=null,audioEnabled=false,soundTimer=null,pendingSoundIds=new Set(),knownRequestIds=new Set(),notificationView="new",resumeRefreshBusy=false,pollBusy=false,lastHeartbeatAt=0;
 
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function money(v){return "NPR "+Math.round(Number(v)||0).toLocaleString("en-IN")}
@@ -387,12 +387,41 @@ $("resetForm").addEventListener("submit",async e=>{
 });
 $("showResetPassword").addEventListener("change",e=>{$("newPassword").type=e.target.checked?"text":"password";$("confirmPassword").type=e.target.checked?"text":"password"});
 
+async function ensureFreshDriverSession(){
+  const {data,error}=await sb.auth.getSession();if(error)throw error;
+  let current=data.session;
+  if(!current?.user)throw Error("Your driver session has expired. Please sign in again.");
+  const expiresAt=Number(current.expires_at||0);
+  if(expiresAt&&expiresAt*1000<Date.now()+60000){
+    const refreshed=await sb.auth.refreshSession();
+    if(refreshed.error)throw refreshed.error;
+    current=refreshed.data.session;
+  }
+  if(!current?.user)throw Error("Supabase could not refresh your driver session. Please sign in again.");
+  const verified=await sb.auth.getUser();if(verified.error)throw verified.error;
+  if(!verified.data.user)throw Error("Supabase could not verify the signed-in driver.");
+  user=verified.data.user;
+  return user;
+}
+
 async function enterPortal(){
   if(!user||!sb||portalStarting)return;portalStarting=true;showApp();text("driverEmailLabel",user.email||"");
   try{
-    await loadProfile();await Promise.allSettled([loadVehicles(),loadRides(),loadNotifications()]);
+    await ensureFreshDriverSession();await loadProfile();await Promise.all([loadVehicles(),loadRides(),loadNotifications()]);
     initMap();renderEverything();await loadRequests(true);await refreshGpsWatch();await refreshCommunication();stopPollingOnly();
-    pollTimer=setInterval(async()=>{if(!user)return;await loadRequests(false);await loadRides();await loadNotifications();renderEverything();await refreshCommunication()},REQUEST_POLL_MS);
+    pollTimer=setInterval(async()=>{
+      if(!user||document.hidden||pollBusy)return;
+      pollBusy=true;
+      try{
+        await loadRequests(false);await loadRides();await loadNotifications();renderEverything();await refreshCommunication();
+        if(profile?.is_online&&Date.now()-lastHeartbeatAt>=30000){
+          const {error:heartbeatError}=await sb.rpc("rryd_driver_heartbeat");
+          if(heartbeatError)throw heartbeatError;
+          lastHeartbeatAt=Date.now();
+        }
+      }catch(pollError){console.warn("Driver background refresh failed",pollError);text("connectionStatus","Background refresh issue: "+errorText(pollError))}
+      finally{pollBusy=false}
+    },REQUEST_POLL_MS);
     locationTimer=setInterval(sendCurrentLocation,LOCATION_REFRESH_MS);text("connectionStatus","Signed in to Rryd.");
   }catch(e){console.error(e);notify("Driver portal could not load: "+errorText(e));text("connectionStatus","Could not load all driver data: "+errorText(e))}
   finally{portalStarting=false}
@@ -436,7 +465,7 @@ window.toggleOnline=toggleOnline;
 
 async function loadVehicles(){
   const {data,error}=await sb.from("vehicles").select("*").eq("driver_id",user.id).order("id",{ascending:false});
-  if(error){console.error("Vehicle load failed",error);vehicles=[];text("vehicleBadge","Unavailable");text("vehicleSummary","Vehicle query failed: "+error.message);return}
+  if(error){console.error("Vehicle load failed",error);vehicles=[];text("vehicleBadge","Unavailable");text("vehicleSummary","Vehicle query failed: "+error.message);updateEligibility();throw error}
   vehicles=data||[];
 }
 function typeName(v){const t=String(v||"").toLowerCase();if(t==="bike")return"Bike";if(t==="car")return"Car";if(t==="tuk_tuk"||t==="tuktuk")return"Tuk Tuk";return v||"Vehicle"}
@@ -473,23 +502,28 @@ function renderDashboardRequests(){renderRequests()}
 async function acceptRide(id,button){
   const rideId=String(id);
   if(acceptingRideIds.has(rideId))return;
-  if(!profile?.is_online)return notify("Go online before accepting a ride.");
-  if(!isVerified()||isSuspended()||!approvedVehicles().length)return notify("Your driver account and vehicle must be approved.");
-  if(activeRide)return notify("Finish or cancel your current ride first.");
   if(!confirm("Accept this ride request?"))return;
   acceptingRideIds.add(rideId);acknowledgeRequest(rideId);
   document.querySelectorAll(".request").forEach(card=>{if(card.dataset.rideId===rideId)card.querySelectorAll("button").forEach(b=>b.disabled=true)});
-  if(button)button.textContent="Accepting…";
+  if(button)button.textContent="Checking account…";
   renderRequests();
   try{
+    await ensureFreshDriverSession();
+    await loadProfile();
+    await Promise.all([loadVehicles(),loadRides()]);
+    renderEverything();
+    if(!profile?.is_online)throw Error("Your database profile is offline. Go online again, then refresh ride requests.");
+    if(!isVerified()||isSuspended()||!approvedVehicles().length)throw Error("Your driver account or matching vehicle is not currently approved. Refresh your profile or contact Rryd admin.");
+    if(activeRide)throw Error("You already have an active ride. Finish or cancel it before accepting another.");
     const numericId=Number(id);if(!Number.isSafeInteger(numericId)||numericId<=0)throw Error("Invalid ride request ID.");
+    if(button)button.textContent="Accepting…";
     const {data,error}=await sb.rpc("accept_ride",{p_ride_id:numericId});if(error)throw error;
-    if(data!==true)throw Error("The accept_ride database function did not return true. Check whether this ride was already taken and whether your driver profile and approved vehicle match it.");
+    if(data!==true)throw Error("The database did not confirm acceptance. The ride may have been taken or is no longer available.");
     await loadRides();
     if(!activeRide||String(activeRide.id)!==rideId||String(activeRide.driver_id)!==String(user.id)){
       const {data:assigned,error:verifyError}=await sb.from("rides").select("*").eq("id",numericId).eq("driver_id",user.id).maybeSingle();
       if(verifyError)throw verifyError;
-      if(!assigned)throw Error("Supabase confirmed the request call, but this ride is not visible as assigned to your account. Check rides SELECT policy for assigned drivers.");
+      if(!assigned)throw Error("The accept function returned success, but the assigned ride is not visible to this driver. Check the assigned-ride SELECT policy.");
       rides=[assigned,...rides.filter(x=>String(x.id)!==rideId)];activeRide=assigned;
     }
     requests=requests.filter(x=>String(x.id)!==rideId);knownRequestIds.delete(rideId);
@@ -497,7 +531,7 @@ async function acceptRide(id,button){
   }catch(e){
     console.error("Accept ride failed",{rideId,error:e});
     notify("Could not accept ride: "+errorText(e));
-    try{await loadRequests(false)}catch(refreshError){console.warn(refreshError)}
+    try{await loadProfile();await loadVehicles();await loadRequests(false);renderEverything()}catch(refreshError){console.warn(refreshError)}
   }finally{
     acceptingRideIds.delete(rideId);renderRequests();
   }
@@ -853,21 +887,20 @@ async function refreshDriverPortalOnReturn(){
   if(document.hidden||!user||!sb||resumeRefreshBusy)return;
   resumeRefreshBusy=true;
   try{
-    const {data,error}=await sb.auth.getSession();if(error)throw error;
-    if(data.session?.user)user=data.session.user;
-    else{
-      const refreshed=await sb.auth.refreshSession();
-      if(refreshed.error)throw refreshed.error;
-      if(!refreshed.data.session?.user)throw Error("The saved driver session is no longer available.");
-      user=refreshed.data.session.user;
-    }
+    await ensureFreshDriverSession();
     await loadProfile();
-    await Promise.allSettled([loadVehicles(),loadRides(),loadNotifications()]);
+    await Promise.all([loadVehicles(),loadRides(),loadNotifications()]);
+    if(profile?.is_online){
+      const {error:heartbeatError}=await sb.rpc("rryd_driver_heartbeat");
+      if(heartbeatError)throw heartbeatError;
+      lastHeartbeatAt=Date.now();
+    }
     await loadRequests(false);renderEverything();await refreshGpsWatch();await refreshCommunication();
-    text("connectionStatus","Driver session restored. Ride requests and notifications refreshed.");
+    text("connectionStatus","Driver session verified. Profile, vehicle approval, ride requests and current ride refreshed.");
   }catch(error){
     console.warn("Driver return refresh failed",error);
     text("connectionStatus","Could not refresh driver data: "+errorText(error));
+    notify("Driver refresh failed: "+errorText(error));
   }finally{resumeRefreshBusy=false}
 }
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshDriverPortalOnReturn()});
