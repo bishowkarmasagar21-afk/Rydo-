@@ -326,6 +326,7 @@ summary{cursor:pointer;font-weight:700}
         <div><label for="rideSearch">Search locations / IDs</label><input id="rideSearch" placeholder="Search rides"></div>
         <div class="actions"><button class="primary" id="filterRidesBtn">Apply filters</button></div>
       </div>
+      <p class="footer-note">Started rides can only be cancelled by an administrator using the emergency override. A reason is required, both ride participants are notified, and the action is recorded in the private cancellation audit.</p>
       <div id="ridesList"><div class="empty">Loading rides…</div></div>
     </div>
   </section>
@@ -921,10 +922,45 @@ function renderRides(){
     <td>${esc(r.pickup_location||"—")} → ${esc(r.destination||"—")}</td>
     <td>${esc(r.vehicle_type||"—")}</td><td>${money(rideFare(r))}</td>
     <td>${esc(r.payment_method||"—")} · ${esc(r.payment_status||"—")}</td>
-    <td>${esc(dateText(r.created_at))}</td><td>${r.status==="requested" ? '<button class="danger" type="button" data-admin-cancel="'+esc(r.id)+'">Cancel request</button>' : "—"}</td></tr>`).join("")}</tbody></table></div>`:
+    <td>${esc(dateText(r.created_at))}</td><td>${r.status==="requested" ? '<button class="danger" type="button" data-admin-cancel="'+esc(r.id)+'">Cancel request</button>' : r.status==="started" ? '<button class="danger" type="button" data-admin-cancel-started="'+esc(r.id)+'">Cancel started ride</button>' : "—"}</td></tr>`).join("")}</tbody></table></div>`:
     `<div class="empty">No rides match these filters.</div>`;
   $("ridesList").querySelectorAll("[data-admin-cancel]").forEach(button=>button.addEventListener("click",()=>cancelPendingRideAdmin(button.dataset.adminCancel,button)));
+  $("ridesList").querySelectorAll("[data-admin-cancel-started]").forEach(button=>button.addEventListener("click",()=>cancelStartedRideAdmin(button.dataset.adminCancelStarted,button)));
 }
+window.cancelStartedRideAdmin=async(id,button)=>{
+  const ride=allRides.find(r=>String(r.id)===String(id));
+  if(!currentUser||currentProfile?.role!=="admin"){
+    showMessage("An authenticated administrator must be signed in to cancel a started ride.","error");
+    return;
+  }
+  if(!ride||ride.status!=="started"){
+    showMessage("This emergency action is only available for rides currently marked started. Refresh the ride list and try again.","error");
+    return;
+  }
+  const reason=window.prompt("Enter the reason for this emergency cancellation (8–500 characters):","");
+  if(reason===null)return;
+  const cleanReason=reason.trim();
+  if(cleanReason.length<8||cleanReason.length>500){
+    showMessage("The cancellation reason must be between 8 and 500 characters. No change was made.","error");
+    return;
+  }
+  if(!confirm("EMERGENCY CANCELLATION\n\nCancel started ride #"+id+"?\n\nThis will mark the ride cancelled, record your reason in the private audit log, and notify both passenger and driver."))return;
+  setBusy(button,true,"Cancelling…");
+  try{
+    const {data,error}=await supabaseClient.rpc("admin_cancel_started_ride",{
+      p_ride_id:Number(id),
+      p_reason:cleanReason
+    });
+    failIf(error);
+    if(data!==true)throw new Error("Supabase did not confirm the emergency cancellation.");
+    showMessage("Started ride #"+id+" cancelled. The reason was recorded and both participants were notified.","success");
+    await refreshAll();
+  }catch(error){
+    showMessage("Could not cancel started ride: "+rpcErrorHint(error),"error");
+  }finally{
+    setBusy(button,false);
+  }
+};
 window.cancelPendingRideAdmin=async(id,button)=>{
   const ride=allRides.find(r=>String(r.id)===String(id));
   if(!ride||ride.status!=="requested"||ride.driver_id){showMessage("Only an unassigned pending request can be cancelled here.","error");return;}
