@@ -642,18 +642,26 @@ async function refreshPassengerLocation(manual=false){
   window.rrydLastPassengerLocationPoll=Date.now();
 
   const rideId=String(activeRide.id);
+  const pickupLat=Number(activeRide.pickup_latitude);
+  const pickupLon=Number(activeRide.pickup_longitude);
+  if(!validNepalPoint(pickupLat,pickupLon)){
+    textPassengerTracking("The confirmed pickup coordinates are missing or invalid. Ask the passenger to confirm the pickup pin.");
+    clearPassengerMarker();
+    text("passengerRouteStatus","Cannot calculate navigation without the saved pickup pin.");
+    return;
+  }
   if(String(activeRide.status||"").toLowerCase()!=="accepted"){
     textPassengerTracking("Pickup is confirmed. Passenger live GPS sharing has ended. The fixed pickup pin remains available.");
     clearPassengerMarker();
     return;
   }
 
-  textPassengerTracking("Checking the passenger's shared location…");
+  textPassengerTracking("Checking optional passenger GPS. Navigation always targets the confirmed pickup pin.");
   try{
     const {data,error}=await sb.rpc(PASSENGER_LOCATION_RPC,{p_ride_id:Number(rideId)});
     if(error)throw error;
 
-    /* An RPC started before Mark Arrived must not restore a stale live pin. */
+    /* Never let a delayed GPS response change the confirmed pickup destination. */
     if(!activeRide||String(activeRide.id)!==rideId)return;
     if(String(activeRide.status||"").toLowerCase()!=="accepted"){
       textPassengerTracking("Pickup is confirmed. Passenger live GPS sharing has ended. The fixed pickup pin remains available.");
@@ -662,24 +670,34 @@ async function refreshPassengerLocation(manual=false){
     }
 
     const d=Array.isArray(data)?data[0]:data;
-    if(!d)throw Error("The passenger has not enabled live location sharing yet, or their last GPS update is older than 2 minutes.");
+    if(!d)throw Error("Passenger live GPS is unavailable. Navigation will use the confirmed pickup pin.");
     const lat=Number(d.latitude??d.passenger_latitude??d.current_latitude);
     const lon=Number(d.longitude??d.passenger_longitude??d.current_longitude);
-    if(!validNepalPoint(lat,lon))throw Error("Location endpoint returned invalid coordinates.");
+    if(!validNepalPoint(lat,lon))throw Error("Passenger GPS returned invalid coordinates.");
     const raw=d.updated_at??d.location_updated_at??d.created_at;
     const updated=raw?new Date(raw).getTime():0;
     const fresh=updated>0&&Date.now()-updated<120000;
-    if(!fresh)throw Error("Passenger GPS is older than 2 minutes. Waiting for a fresh update.");
+    if(!fresh)throw Error("Passenger GPS is older than 2 minutes.");
 
-    if(!passengerMarker)passengerMarker=L.marker([lat,lon],{icon:L.divIcon({className:"",html:'<div style="font-size:27px">📍</div>',iconSize:[32,32],iconAnchor:[16,28]})}).addTo(passengerMap).bindPopup("Passenger shared location");
-    else passengerMarker.setLatLng([lat,lon]);
-    passengerMarker.bindPopup("Passenger shared location · updated recently");
-    passengerMap.setView([lat,lon],Math.max(passengerMap.getZoom(),15));
-    textPassengerTracking("Passenger location updated "+new Date(updated).toLocaleTimeString()+". Shared only for this assigned ride.");
-    $("passengerTrackingStatus").className="passenger-location-line track-fresh";
+    const rad=x=>x*Math.PI/180;
+    const dLat=rad(lat-pickupLat),dLon=rad(lon-pickupLon);
+    const h=Math.sin(dLat/2)**2+Math.cos(rad(pickupLat))*Math.cos(rad(lat))*Math.sin(dLon/2)**2;
+    const gpsPickupGapKm=6371*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));
+
+    if(gpsPickupGapKm>1){
+      /* e.g. passenger GPS in Palpa while the selected booking pickup is Kathmandu. */
+      clearPassengerMarker();
+      textPassengerTracking("Passenger's current GPS is "+gpsPickupGapKm.toFixed(1)+" km from the booked pickup. It will not replace the pickup pin or driver route.");
+    }else{
+      if(!passengerMarker)passengerMarker=L.marker([lat,lon],{icon:L.divIcon({className:"",html:'<div style="font-size:27px">📍</div>',iconSize:[32,32],iconAnchor:[16,28]})}).addTo(passengerMap).bindPopup("Passenger shared location");
+      else passengerMarker.setLatLng([lat,lon]);
+      passengerMarker.bindPopup("Passenger shared location · near confirmed pickup");
+      textPassengerTracking("Passenger GPS is near the confirmed pickup. Driver navigation still targets the saved pickup pin.");
+      $("passengerTrackingStatus").className="passenger-location-line track-fresh";
+    }
 
     if(Number.isFinite(driverLat)&&Number.isFinite(driverLon)){
-      await routeToPassenger(lat,lon,rideId);
+      await routeToPassenger(pickupLat,pickupLon,rideId);
       if(!activeRide||String(activeRide.id)!==rideId)return;
       if(String(activeRide.status||"").toLowerCase()!=="accepted"){
         textPassengerTracking("Pickup is confirmed. Passenger live GPS sharing has ended. The fixed pickup pin remains available.");
@@ -687,7 +705,7 @@ async function refreshPassengerLocation(manual=false){
         return;
       }
     }else{
-      text("passengerRouteStatus","Road route to passenger appears when both GPS positions are fresh.");
+      text("passengerRouteStatus","Enable driver GPS to calculate the route to the confirmed pickup pin.");
       if(passengerRouteLayer){passengerMap.removeLayer(passengerRouteLayer);passengerRouteLayer=null;}
     }
   }catch(error){
@@ -697,22 +715,17 @@ async function refreshPassengerLocation(manual=false){
       clearPassengerMarker();
       return;
     }
-
-    textPassengerTracking("Passenger live GPS is unavailable: "+errorText(error)+". Using the confirmed pickup pin for navigation.");
-    $("passengerTrackingStatus").className="passenger-location-line track-stale";
-    const pickupLat=Number(activeRide.pickup_latitude);
-    const pickupLon=Number(activeRide.pickup_longitude);
-    if(validNepalPoint(pickupLat,pickupLon)&&Number.isFinite(driverLat)&&Number.isFinite(driverLon)){
+    clearPassengerMarker();
+    textPassengerTracking("Passenger live GPS is unavailable or differs from the booking. Use the confirmed pickup pin; live GPS will not change the route.");
+    if(Number.isFinite(driverLat)&&Number.isFinite(driverLon)){
       await routeToPassenger(pickupLat,pickupLon,rideId);
       if(!activeRide||String(activeRide.id)!==rideId)return;
       if(String(activeRide.status||"").toLowerCase()!=="accepted"){
-        textPassengerTracking("Pickup is confirmed. Passenger live GPS sharing has ended. The fixed pickup pin remains available.");
         clearPassengerMarker();
         return;
       }
-      text("passengerRouteStatus","Route to the confirmed pickup pin is shown. Use Navigate to pickup for turn-by-turn directions.");
     }else{
-      text("passengerRouteStatus","Enable driver GPS to draw a route to the confirmed pickup pin.");
+      text("passengerRouteStatus","Enable driver GPS to calculate the route to the confirmed pickup pin.");
     }
     if(manual)console.warn("Passenger location RPC",error);
   }
