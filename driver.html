@@ -465,7 +465,7 @@ async function loadRequests(initial){
   if(!initial&&profile?.is_online&&newItems.length){newItems.forEach(r=>{pendingSoundIds.add(String(r.id));browserNotify("New Rryd ride request",`${r.pickup_location||"Pickup"} to ${r.destination||"Destination"}`)});if(audioEnabled)startRequestAlarm();else text("soundStatus","New request detected. Press Enable Sound to hear the alert.")}
   knownRequestIds=currentIds;requests=found;renderRequests();
 }
-function requestCard(r){const rid=String(r.id),busy=acceptingRideIds.has(rid);return `<div class="request" data-ride-id="${esc(rid)}"><div><div class="route">📍 ${esc(r.pickup_location||"Pickup unavailable")}<br>↓<br>🏁 ${esc(r.destination||"Destination unavailable")}</div><p class="muted small">${esc(typeName(r.vehicle_type))} · ${esc(r.created_at||"")}</p><b class="green">${money(r.estimated_fare??r.fare)}</b> <span class="muted small">passenger estimate</span></div><div class="request-actions"><button class="primary" ${busy?"disabled":""} onclick="acceptRide('${esc(rid)}',this)">${busy?"Accepting…":"Accept"}</button><button onclick="declineRequest('${esc(rid)}')">Hide</button></div></div>`}
+function requestCard(r){const rid=String(r.id),busy=acceptingRideIds.has(rid);return `<div class="request" data-ride-id="${esc(rid)}"><div><div class="route">📍 ${esc(r.pickup_location||"Pickup unavailable")}<br>↓<br>🏁 ${esc(r.destination||"Destination unavailable")}</div><p class="muted small">${esc(typeName(r.vehicle_type))} · ${esc(r.created_at||"")}</p><b class="green">${money(r.estimated_fare??r.fare)}</b> <span class="muted small">passenger estimate</span></div><div class="request-actions"><button class="primary" ${busy?"disabled":""} onclick="acceptRide('${esc(rid)}',this)">${busy?"Accepting…":"Accept"}</button><button onclick="declineRequest('${esc(rid)}')">Hide for me</button></div></div>`}
 function renderRequests(){const html=requestQueryError?`<div class="notice">${esc(requestQueryError)}</div>`:(requests.map(requestCard).join("")||'<div class="notice">No unassigned ride requests are currently visible.</div>');$("allRequests").innerHTML=html;$("dashboardRequests").innerHTML=html;text("requestCount",requests.length);text("bellCount",notifications.filter(n=>!n.is_read).length+requests.length)}
 function renderDashboardRequests(){renderRequests()}
 async function acceptRide(id,button){
@@ -501,7 +501,7 @@ async function acceptRide(id,button){
   }
 }
 window.acceptRide=acceptRide;
-function declineRequest(id){acknowledgeRequest(id);requests=requests.filter(r=>String(r.id)!==String(id));renderRequests();notify("Hidden locally only; no database decline function is configured.")}
+function declineRequest(id){acknowledgeRequest(id);requests=requests.filter(r=>String(r.id)!==String(id));renderRequests();notify("Hidden only from your driver list. The passenger request is still pending; the passenger or an admin must cancel it.")}
 window.declineRequest=declineRequest;
 
 async function loadRides(){
@@ -519,7 +519,7 @@ function renderCurrentRide(){
   if(status==="started")actions+='<button class="primary" onclick="navigateRideTarget(\'destination\')">🧭 Navigate to destination</button>';
   if(status==="arriving")actions+='<button class="primary" onclick="rideAction(\'start_ride\')">Start Ride</button>';
   if(status==="started")actions+='<button class="success" onclick="rideAction(\'complete_ride\')">Complete Ride</button>';
-  if(["accepted","arriving"].includes(status))actions+='<button class="danger" onclick="cancelCurrentRide()">Cancel Ride</button>';
+  if(["accepted","arriving"].includes(status))actions+='<button class="danger" onclick="cancelCurrentRide()">Cancel assigned ride</button>';
   $("currentRide").innerHTML=`<span class="pill">${esc(status)}</span><h2 style="margin-top:14px">${esc(r.pickup_location||"Pickup")} → ${esc(r.destination||"Destination")}</h2><p class="muted">${esc(typeName(r.vehicle_type))} · Ride #${esc(r.id)}</p><div class="stats"><div class="stat">Passenger fare<div class="number">${money(r.final_fare??r.fare??r.estimated_fare)}</div></div><div class="stat">Status<div class="number">${esc(status)}</div></div><div class="stat">Requested<div class="small">${esc(r.created_at||"—")}</div></div></div><div class="notice">Pickup: ${esc(r.pickup_latitude??"Unavailable")}, ${esc(r.pickup_longitude??"Unavailable")}<br>Destination: ${esc(r.destination_latitude??"Unavailable")}, ${esc(r.destination_longitude??"Unavailable")}</div><div class="row" style="margin-top:14px">${actions}</div>`;
   if(map&&r.pickup_latitude!=null&&r.pickup_longitude!=null){const lat=Number(r.pickup_latitude),lon=Number(r.pickup_longitude);if(Number.isFinite(lat)&&Number.isFinite(lon))map.setView([lat,lon],14)}
   if(status!=="accepted"){textPassengerTracking("Passenger live location sharing is not active during this ride status. The confirmed pickup pin remains available.");clearPassengerMarker()}
