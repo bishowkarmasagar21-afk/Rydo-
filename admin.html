@@ -915,15 +915,29 @@ function renderRides(){
       .some(v=>String(v??"").toLowerCase().includes(q))))
     .sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
   $("ridesList").innerHTML=list.length?`<div class="table-wrap"><table>
-    <thead><tr><th>Ride ID</th><th>Status</th><th>Passenger</th><th>Driver</th><th>Route</th><th>Vehicle</th><th>Fare</th><th>Payment</th><th>Created</th></tr></thead>
+    <thead><tr><th>Ride ID</th><th>Status</th><th>Passenger</th><th>Driver</th><th>Route</th><th>Vehicle</th><th>Fare</th><th>Payment</th><th>Created</th><th>Action</th></tr></thead>
     <tbody>${list.map(r=>`<tr><td>${esc(r.id)}</td><td>${statusPill(r.status)}</td>
     <td>${esc(r.passenger_id||"—")}</td><td>${esc(driverName(r.driver_id))}</td>
     <td>${esc(r.pickup_location||"—")} → ${esc(r.destination||"—")}</td>
     <td>${esc(r.vehicle_type||"—")}</td><td>${money(rideFare(r))}</td>
     <td>${esc(r.payment_method||"—")} · ${esc(r.payment_status||"—")}</td>
-    <td>${esc(dateText(r.created_at))}</td></tr>`).join("")}</tbody></table></div>`:
+    <td>${esc(dateText(r.created_at))}</td><td>${r.status==="requested" ? '<button class="danger" type="button" onclick="cancelPendingRideAdmin(\\\''+esc(r.id)+'\\\',this)">Cancel request</button>' : "—"}</td></tr>`).join("")}</tbody></table></div>`:
     `<div class="empty">No rides match these filters.</div>`;
 }
+window.cancelPendingRideAdmin=async(id,button)=>{
+  const ride=allRides.find(r=>String(r.id)===String(id));
+  if(!ride||ride.status!=="requested"||ride.driver_id){showMessage("Only an unassigned pending request can be cancelled here.","error");return;}
+  if(!confirm("Cancel pending Rryd request #"+id+"? This changes its status to cancelled and keeps it in ride history."))return;
+  setBusy(button,true,"Cancelling…");
+  try{
+    const {data,error}=await supabaseClient.rpc("admin_cancel_ride",{p_ride_id:Number(id)});
+    failIf(error);
+    if(data===false)throw new Error("Supabase did not confirm cancellation.");
+    showMessage("Pending ride #"+id+" cancelled. Ride history has been retained.","success");
+    await refreshAll();
+  }catch(error){showMessage("Could not cancel ride: "+rpcErrorHint(error),"error");}
+  finally{setBusy(button,false);}
+};
 $("filterRidesBtn").onclick=renderRides;
 $("rideStatusFilter").onchange=renderRides;
 $("rideSearch").oninput=renderRides;
