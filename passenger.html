@@ -561,9 +561,15 @@ function renderCurrentRide(){
   if(lastKnownRideId===String(r.id)&&lastKnownStatus&&lastKnownStatus!==s)notifyUser("Rryd ride update","Ride status changed to "+statusName(s)+".",true);
   lastKnownRideId=String(r.id);lastKnownStatus=s;
   updatePassengerLocationSharingUI();
-  const isFinal=s==="completed";const showFare=isFinal?(r.final_fare??r.actual_fare??r.fare):(r.estimated_fare??r.fare);
+  const isFinal=s==="completed";const isMeterStopped=r.meter_tracking_status==="stopped";
+  const showFare=isFinal?(r.final_fare??r.actual_fare??r.fare):(r.estimated_fare??r.fare);
   const date=r.created_at?new Date(r.created_at).toLocaleString():"—";
-  box.innerHTML=`<div class="ride"><div class="ride-head"><strong>Ride #${esc(r.id)}</strong><span class="status ${s==="completed"?"completed":s==="cancelled"?"cancelled":""}">${esc(statusName(s))}</span></div><p><b>Pickup:</b> ${esc(r.pickup_location??r.pickup??"—")}</p><p><b>Destination:</b> ${esc(r.destination??"—")}</p><p><b>Vehicle:</b> ${esc(r.vehicle_type??"—")}</p><p><b>Distance:</b> ${Number(r.distance_km||routeDistanceKm||0).toFixed(2)} km</p><p><b>${isFinal?"Final fare":"Estimated/current fare"}:</b> ${money(showFare)}</p><p><b>Payment:</b> ${esc(r.payment_method||"cash")} · ${esc(r.payment_status||"status not recorded")}</p><p class="muted small">Requested: ${esc(date)}</p><div class="row" id="rideActionButtons"></div></div>`;
+  const meterNotice=isMeterStopped&&!isFinal
+    ?'<div class="notice"><b>Meter stopped — fare verification pending.</b><p>Rryd is checking the recorded journey against real roads. The amount shown is only an estimate. No final fare or driver earnings have been posted yet.</p></div>'
+    :r.meter_tracking_status==="recording"&&!isFinal
+      ?'<div class="notice">Ride GPS meter is recording. The displayed amount is an estimate, not a final charge.</div>'
+      :"";
+  box.innerHTML=`<div class="ride"><div class="ride-head"><strong>Ride #${esc(r.id)}</strong><span class="status ${s==="completed"?"completed":s==="cancelled"?"cancelled":""}">${esc(statusName(s))}</span></div><p><b>Pickup:</b> ${esc(r.pickup_location??r.pickup??"—")}</p><p><b>Destination:</b> ${esc(r.destination??"—")}</p><p><b>Vehicle:</b> ${esc(r.vehicle_type??"—")}</p><p><b>Distance:</b> ${Number(r.distance_km||routeDistanceKm||0).toFixed(2)} km</p><p><b>${isFinal?"Final fare":"Estimated fare (not final)"}:</b> ${money(showFare)}</p>${meterNotice}<p><b>Payment:</b> ${esc(r.payment_method||"cash")} · ${esc(r.payment_status||"status not recorded")}</p><p class="muted small">Requested: ${esc(date)}</p><div class="row" id="rideActionButtons"></div></div>`;
   const actions=$("rideActionButtons");
   if(["requested","accepted","arriving"].includes(s)){const b=document.createElement("button");b.type="button";b.className="danger";b.textContent="Cancel ride";b.addEventListener("click",cancelRide);actions.appendChild(b);}
   const share=document.createElement("button");share.type="button";share.className="ghost";share.textContent="Share trip details";share.addEventListener("click",()=>shareTrip(r));actions.appendChild(share);
