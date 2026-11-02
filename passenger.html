@@ -310,7 +310,7 @@ function resetLoggedOut(){
 $("accountBtn").addEventListener("click",()=>{if(!session?.user)show("authOverlay",true);else activeViewSettings();});
 $("settingsBtn").addEventListener("click",activeViewSettings);
 $("closeSettingsBtn").addEventListener("click",showBookingView);
-$("logoutBtn").addEventListener("click",async()=>{try{const {error}=await db.auth.signOut();if(error)throw error;}catch(error){setMessage("appMessage",friendlyError(error),"error");}});
+$("logoutBtn").addEventListener("click",async()=>{try{await stopPassengerLocationWatch(true);const {error}=await db.auth.signOut();if(error)throw error;}catch(error){setMessage("appMessage",friendlyError(error),"error");}});
 
 /* Fare rules. Never hardcode fallback pricing if Supabase cannot be read. */
 async function loadFareRules(){
@@ -591,13 +591,14 @@ async function startPassengerLocationWatch(){
   if(!window.isSecureContext){setMessage("appMessage","Live GPS requires a secure HTTPS connection. Open Rryd over HTTPS and try again.","error");return;}
   passengerLocationStartPending=true;
   passengerLocationConsent=true;updatePassengerLocationSharingUI();
+  const watchRideId=String(currentRide.id);
   try{
   passengerGpsWatch=navigator.geolocation.watchPosition(async pos=>{
-    if(!passengerLocationConsent||!currentRide||String(currentRide.status||"").toLowerCase()!=="accepted")return;
+    if(!passengerLocationConsent||!currentRide||String(currentRide.id)!==watchRideId||String(currentRide.status||"").toLowerCase()!=="accepted")return;
     const lat=Number(pos.coords.latitude),lon=Number(pos.coords.longitude),accuracy=Number(pos.coords.accuracy);
     if(!isNepalBounds(lat,lon)){setMessage("appMessage","Your GPS point could not be verified inside Nepal. Location was not shared.","error");return;}
     if(Date.now()-lastPassengerLocationSentAt<7000||passengerLocationSendBusy)return;
-    passengerLocationSendBusy=true;lastPassengerLocationSentAt=Date.now();const rideId=Number(currentRide.id);
+    passengerLocationSendBusy=true;lastPassengerLocationSentAt=Date.now();const rideId=Number(watchRideId);
     try{
       const {data,error}=await db.rpc("update_my_passenger_ride_location",{p_ride_id:rideId,p_latitude:lat,p_longitude:lon,p_accuracy_m:Number.isFinite(accuracy)?accuracy:null});
       if(error)throw error;if(data===false)throw Error("Supabase did not confirm the location update.");
