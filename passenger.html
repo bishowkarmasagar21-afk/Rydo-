@@ -495,7 +495,7 @@ async function refreshCurrentRide(){
   try{
     const {data,error}=await db.from("rides").select("*").eq("passenger_id",session.user.id).order("created_at",{ascending:false}).limit(50);if(error)throw error;
     rideRows=data||[];const prev=currentRide;currentRide=rideRows.find(r=>isActive(r.status))||null;
-    syncPassengerLocationSharing(currentRide);
+    syncPassengerLocationSharing(currentRide,prev);
     if(currentRide)await restoreMapFromRide(currentRide);
     renderCurrentRide();renderHistory();
     if(currentRide){await loadAssignedDriver(currentRide);show("rideSafetyPanel",true);show("messagePanel",true);show("ratingPanel",false);}
@@ -538,10 +538,10 @@ async function updateDriverApproachRoute(ride,lat,lon){
     text("driverApproachEta",`Approx. driver-to-pickup route: ${(r.distance/1000).toFixed(2)} km · ${Math.max(1,Math.ceil(r.duration/60))} min (no live-traffic guarantee).`);
   }catch(error){if(seq===driverRouteSeq){lastDriverRouteKey="";text("driverApproachEta","Driver-to-pickup road route is temporarily unavailable. The marker may still be shown if its location is fresh.");}}
 }
-function syncPassengerLocationSharing(ride){
+function syncPassengerLocationSharing(ride,previousRide=null){
   const eligible=!!(ride&&String(ride.status||"").toLowerCase()==="accepted"&&ride.driver_id);
   if(!eligible){
-    stopPassengerLocationWatch(true);
+    stopPassengerLocationWatch(true,previousRide?.id??ride?.id??null);
     passengerLocationConsent=false;
     passengerLocationAutoCheckRideId=null;
     updatePassengerLocationSharingUI();
@@ -554,15 +554,20 @@ async function maybeAutoStartPassengerLocationWatch(ride){
   const rideId=String(ride?.id??"");
   if(!rideId||passengerGpsWatch!==null||passengerLocationStartPending||passengerLocationAutoCheckRideId===rideId)return;
   passengerLocationAutoCheckRideId=rideId;
-  /* Auto-share only when browser GPS permission was already granted.
-     Otherwise the passenger must press Enable and approve the browser prompt. */
-  if(!navigator.permissions?.query||!navigator.geolocation)return;
+  /* Start automatically after assignment. The browser still asks the passenger
+     to grant location permission when permission is in the prompt state. */
+  if(!navigator.geolocation)return;
   try{
-    const permission=await navigator.permissions.query({name:"geolocation"});
-    if(permission.state!=="granted")return;
+    if(navigator.permissions?.query){
+      const permission=await navigator.permissions.query({name:"geolocation"});
+      if(permission.state==="denied")return;
+    }
     if(!currentRide||String(currentRide.id)!==rideId||String(currentRide.status||"").toLowerCase()!=="accepted")return;
     await startPassengerLocationWatch();
-  }catch(error){console.warn("Automatic passenger GPS permission check unavailable",error);}
+  }catch(error){
+    console.warn("Automatic passenger GPS start unavailable",error);
+    if(currentRide&&String(currentRide.id)===rideId&&String(currentRide.status||"").toLowerCase()==="accepted")await startPassengerLocationWatch();
+  }
 }
 function updatePassengerLocationSharingUI(){
   const el=$("passengerLocationSharingStatus");if(!el)return;
@@ -576,7 +581,7 @@ function updatePassengerLocationSharingUI(){
     el.className="message ok";el.textContent="GPS sharing is active for the driver assigned to ride #"+currentRide.id+". You can stop sharing at any time.";
     const stop=document.createElement("button");stop.type="button";stop.className="ghost";stop.textContent="Stop sharing";stop.style.marginTop="8px";stop.addEventListener("click",()=>stopPassengerLocationWatch(true));el.appendChild(stop);return;
   }
-  el.className="message info";el.textContent="If you have already allowed GPS in your browser, Rryd will share your live location automatically with the driver assigned to this ride. Otherwise, tap Enable and approve the browser permission.";
+  el.className="message info";el.textContent="Rryd will request browser GPS permission and share your live location with the driver assigned to this ride. If permission is denied, enable it in browser settings and tap Enable. You can stop sharing at any time.";
   const enable=document.createElement("button");enable.type="button";enable.className="primary";enable.textContent="Enable live location sharing";enable.style.marginTop="8px";enable.addEventListener("click",()=>startPassengerLocationWatch(false));el.appendChild(enable);
 }
 async function startPassengerLocationWatch(){
@@ -612,12 +617,12 @@ async function startPassengerLocationWatch(){
     updatePassengerLocationSharingUI();
   }
 }
-async function stopPassengerLocationWatch(clearServer=true){
+async function stopPassengerLocationWatch(clearServer=true,rideIdOverride=null){
   passengerLocationConsent=false;
   if(currentRide?.id)passengerLocationAutoCheckRideId=String(currentRide.id);
   if(passengerGpsWatch!==null&&navigator.geolocation)navigator.geolocation.clearWatch(passengerGpsWatch);
   passengerGpsWatch=null;lastPassengerLocationSentAt=0;
-  const rideId=currentRide?.id;
+  const rideId=rideIdOverride??currentRide?.id;
   if(clearServer&&rideId&&session?.user&&db){
     try{const {error}=await db.rpc("clear_my_passenger_ride_location",{p_ride_id:Number(rideId)});if(error)console.warn("Could not clear passenger GPS immediately",error);}
     catch(error){console.warn("Could not clear passenger GPS immediately",error);}
