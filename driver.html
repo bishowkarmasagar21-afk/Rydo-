@@ -245,6 +245,7 @@ let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
 let meterQueue=[],meterFlushTimer=null,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={};
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
+let activeNavigationWindow=null;
 let authView="login",portalStarting=false,audioContext=null,audioEnabled=false,soundTimer=null,pendingSoundIds=new Set(),knownRequestIds=new Set(),notificationView="new",resumeRefreshBusy=false,pollBusy=false,lastHeartbeatAt=0;
 
 function loadMeterQueue(){
@@ -624,39 +625,61 @@ function renderCurrentRide(){
   if(!activeRide){$("currentRide").innerHTML='<p class="muted">No active ride. Accept a ride request to begin.</p>';$("communicationCard").classList.add("hidden");return}
   $("communicationCard").classList.remove("hidden");
   const r=activeRide,status=String(r.status||"").toLowerCase();let actions="";
-  if(status==="accepted")actions+='<button class="primary" onclick="rideAction(\'driver_arriving\')">Mark Arrived</button>';
+  if(status==="accepted")actions+='<button class="primary" onclick="rideAction(\'driver_arriving\')">I\'ve Arrived</button>';
   if(["accepted","arriving"].includes(status))actions+='<button class="primary" onclick="navigateRideTarget(\'pickup\')">🧭 Navigate to pickup</button>';
-  if(status==="started")actions+='<button class="primary" onclick="navigateRideTarget(\'destination\')">🧭 Navigate to destination</button>';
-  if(status==="arriving")actions+='<button class="primary" onclick="rideAction(\'start_ride\')">Start Ride</button>';
-  if(status==="started"&&r.meter_tracking_status==="recording")actions+='<button class="success" onclick="rideAction(\'complete_ride\')">Stop Meter</button>';
+  if(status==="arriving")actions+='<button class="primary" onclick="rideAction(\'start_ride\')">Start Ride · Start Meter</button>';
+  if(status==="started")actions+='<button class="blue" onclick="navigateRideTarget(\'destination\')">🧭 Reopen destination navigation</button>';
+  if(status==="started"&&r.meter_tracking_status==="recording")actions+='<button class="success" onclick="rideAction(\'complete_ride\')">Complete Ride · Stop Meter</button>';
   if(["accepted","arriving"].includes(status))actions+='<button class="danger" onclick="cancelCurrentRide()">Cancel assigned ride</button>';
-  $("currentRide").innerHTML=`<span class="pill">${esc(status)}</span><h2 style="margin-top:14px">${esc(r.pickup_location||"Pickup")} → ${esc(r.destination||"Destination")}</h2><p class="muted">${esc(typeName(r.vehicle_type))} · Ride #${esc(r.id)}</p><div class="stats"><div class="stat">${r.meter_tracking_status==="finalized"&&r.final_fare!=null?"Final fare":"Booking estimate (not final)"}<div class="number">${money(r.meter_tracking_status==="finalized"&&r.final_fare!=null?r.final_fare:(r.estimated_fare??r.fare))}</div></div><div class="stat">Status<div class="number">${esc(status)}</div></div><div class="stat">Requested<div class="small">${esc(r.created_at||"—")}</div></div></div>${r.meter_tracking_status==="stopped"?'<div class="notice">GPS meter stopped. Queued readings may upload for up to 30 minutes. Final fare and driver earnings are pending verified road-distance review; the displayed amount is not a final charge.</div>':r.meter_tracking_status==="recording"?'<div class="notice">GPS meter is recording from driver acceptance. Keep location permission enabled. The displayed amount is a booking estimate only.</div>':'<div class="notice">Meter status: '+esc(r.meter_tracking_status||"not available")+'. Do not treat the booking amount as final.</div>'}<div class="notice">Pickup: ${esc(r.pickup_latitude??"Unavailable")}, ${esc(r.pickup_longitude??"Unavailable")}<br>Destination: ${esc(r.destination_latitude??"Unavailable")}, ${esc(r.destination_longitude??"Unavailable")}</div><div class="row" style="margin-top:14px">${actions}</div>`;
+  $("currentRide").innerHTML=`<span class="pill">${esc(status)}</span><h2 style="margin-top:14px">${esc(r.pickup_location||"Pickup")} → ${esc(r.destination||"Destination")}</h2><p class="muted">${esc(typeName(r.vehicle_type))} · Ride #${esc(r.id)}</p><div class="stats"><div class="stat">${r.meter_tracking_status==="finalized"&&r.final_fare!=null?"Final fare":"Booking estimate (not final)"}<div class="number">${money(r.meter_tracking_status==="finalized"&&r.final_fare!=null?r.final_fare:(r.estimated_fare??r.fare))}</div></div><div class="stat">Status<div class="number">${esc(status)}</div></div><div class="stat">Requested<div class="small">${esc(r.created_at||"—")}</div></div></div>${r.meter_tracking_status==="stopped"?'<div class="notice">Ride stopped. Queued GPS readings are uploading for verification. The fare is still an estimate until road-distance review succeeds; no final charge or driver earnings have been posted.</div>':r.meter_tracking_status==="recording"?'<div class="notice">GPS meter started when you tapped Start Ride. Keep location permission enabled. The displayed amount is a booking estimate only.</div>':r.meter_tracking_status==="not_started"?'<div class="notice">Meter has not started. Go to the confirmed pickup, tap I\'ve Arrived, then tap Start Ride. The meter starts only after Start Ride.</div>':'<div class="notice">Meter status: '+esc(r.meter_tracking_status||"not available")+'. Do not treat the booking amount as final.</div>'}<div class="notice">Pickup: ${esc(r.pickup_latitude??"Unavailable")}, ${esc(r.pickup_longitude??"Unavailable")}<br>Destination: ${esc(r.destination_latitude??"Unavailable")}, ${esc(r.destination_longitude??"Unavailable")}</div><div class="row" style="margin-top:14px">${actions}</div>`;
   if(map&&r.pickup_latitude!=null&&r.pickup_longitude!=null){const lat=Number(r.pickup_latitude),lon=Number(r.pickup_longitude);if(Number.isFinite(lat)&&Number.isFinite(lon))map.setView([lat,lon],14)}
   if(status!=="accepted"){textPassengerTracking("Passenger live location sharing is not active during this ride status. The confirmed pickup pin remains available.");clearPassengerMarker()}
 }
 async function rideAction(rpc){
   if(!activeRide)return;
-  const prompt=rpc==="complete_ride"?"Stop the GPS meter now? The ride will remain pending verified road-distance and final-fare review; no final fare or earnings will be posted yet.":"Confirm "+rpc.replace(/_/g," ")+"?";
+  const prompt=rpc==="complete_ride"?"Complete this journey and stop GPS collection? The fare will remain pending road-distance verification; no final charge or earnings will be posted yet.":rpc==="start_ride"?"Start the passenger journey now? This starts the GPS meter and opens destination navigation.":"Confirm "+rpc.replace(/_/g," ")+"?";
   if(!confirm(prompt))return;
   const rideId=String(activeRide.id);
+  /* Open a blank tab during the click gesture so browser popup protection does not block auto-navigation. */
+  let pendingNavigationWindow=null;
+  if(rpc==="start_ride"){
+    try{pendingNavigationWindow=window.open("about:blank","rrydDriverNavigation");}catch{}
+  }
   try{
     const {data,error}=await sb.rpc(rpc,{p_ride_id:Number(activeRide.id)});
     if(error)throw error;
     if(data===false)throw Error("Database did not confirm this ride action.");
+    if(rpc==="start_ride"){
+      const lat=Number(activeRide.destination_latitude),lon=Number(activeRide.destination_longitude);
+      if(validNepalPoint(lat,lon)){
+        const url="https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(lat+","+lon)+"&travelmode=driving";
+        if(pendingNavigationWindow&&!pendingNavigationWindow.closed){pendingNavigationWindow.location.href=url;activeNavigationWindow=pendingNavigationWindow;}
+        else notify("Ride started and GPS meter is recording. Your browser blocked automatic navigation; tap Reopen destination navigation.");
+      }else{
+        try{pendingNavigationWindow?.close()}catch{}
+        notify("Ride started and GPS meter is recording, but destination coordinates are missing. Confirm the destination before navigating.");
+      }
+    }
     if(rpc==="driver_arriving"&&activeRide&&String(activeRide.id)===rideId){
-      /* Close the live-tracking window immediately; keep fixedPickupMarker intact. */
       activeRide={...activeRide,status:"arriving"};
+      try{if(activeNavigationWindow&&!activeNavigationWindow.closed)activeNavigationWindow.close()}catch{}
+      activeNavigationWindow=null;
       clearPassengerMarker();
       textPassengerTracking("Pickup confirmed. Passenger live GPS sharing has ended. The fixed pickup pin remains available.");
-      text("passengerRouteStatus","Live passenger route removed. The confirmed pickup pin remains available.");
+      text("passengerRouteStatus","Pickup navigation stopped. The confirmed pickup pin remains available.");
     }
-    if(rpc==="complete_ride")notify("GPS meter stopped. Uploading queued GPS samples; final fare and earnings are not yet finalized.");else notify("Ride action submitted.");
+    if(rpc==="complete_ride"){
+      try{if(activeNavigationWindow&&!activeNavigationWindow.closed)activeNavigationWindow.close()}catch{}
+      activeNavigationWindow=null;
+      notify("Journey stopped and GPS meter stopped. Queued samples are uploading for verification. Final fare is not yet confirmed.");
+    }else if(rpc!=="driver_arriving"&&rpc!=="start_ride")notify("Ride action submitted.");
     await loadRides();
     if(rpc==="complete_ride")await flushMeterQueue();
     await loadRequests(false);
     renderEverything();
     await refreshCommunication();
   }catch(e){
+    try{pendingNavigationWindow?.close()}catch{}
     notify("Ride action failed: "+errorText(e));
   }
 }
@@ -670,7 +693,9 @@ function navigateRideTarget(target){
   const lon=Number(isPickup?activeRide.pickup_longitude:activeRide.destination_longitude);
   if(!validNepalPoint(lat,lon))return notify("The saved "+(isPickup?"pickup":"destination")+" coordinates are unavailable. Ask the passenger to confirm the location.");
   const url="https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(lat+","+lon)+"&travelmode=driving";
-  window.open(url,"_blank","noopener,noreferrer");
+  const nav=window.open(url,"rrydDriverNavigation");
+  if(nav)activeNavigationWindow=nav;
+  else notify("Your browser blocked the navigation tab. Allow pop-ups for Rryd and try again.");
 }
 window.navigateRideTarget=navigateRideTarget;
 
