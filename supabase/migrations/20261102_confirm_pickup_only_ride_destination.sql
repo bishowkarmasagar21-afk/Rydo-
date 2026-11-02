@@ -18,6 +18,16 @@ BEGIN
     RAISE EXCEPTION 'Please sign in first';
   END IF;
 
+  IF NOT EXISTS (
+    SELECT 1 FROM public.profiles AS p
+    WHERE p.id = v_uid
+      AND p.role = 'driver'
+      AND p.is_verified IS TRUE
+      AND COALESCE(p.is_suspended, false) = false
+  ) THEN
+    RAISE EXCEPTION 'An active, verified driver account is required';
+  END IF;
+
   IF nullif(trim(p_destination), '') IS NULL THEN
     RAISE EXCEPTION 'Destination name or address is required';
   END IF;
