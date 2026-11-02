@@ -221,7 +221,7 @@ const errorText = error => String(error?.message||error||"Unknown error");
 const setMessage = (id,value,type="info") => { const e=$(id); if(e){e.textContent=value||"";e.className="message"+(type?" "+type:"");} };
 
 let db=null,session=null,profile=null,authMode="login",selectedVehicle="bike",paymentMethod="cash",loadedProfileUserId=null,loadingProfile=false;
-let map=null,pickupMarker=null,destinationMarker=null,routeLayer=null,driverMarker=null,driverRouteLayer=null;
+let map=null,pickupMarker=null,destinationMarker=null,routeLayer=null,driverMarker=null,driverRouteLayer=null,nearbyDriverMarkers=[],nearbySearchCircle=null,nearbyRequestSeq=0;
 let pickupPoint=null,destinationPoint=null,routeDistanceKm=0,routeDurationMinutes=0,routeGeometry=null;
 let fareRules={},fareRulesLoaded=false,fareRulesError="",mapPickTarget="",routeRequestSeq=0,driverRouteSeq=0,lastDriverRouteKey="",lastReceiptPopupId=null;
 let currentRide=null,rideRows=[],ridePollTimer=null,availabilityTimer=null,isLoading=false;
@@ -361,7 +361,7 @@ async function setPoint(which,lat,lon,label,validated=false){
   if(!validated){const place=await reverseGeocode(lat,lon);if(place.countryCode!=="np")throw Error("Selected coordinates could not be verified as a location in Nepal.");label=place.label;}
   const p={lat,lon,label:label||`${lat.toFixed(5)}, ${lon.toFixed(5)}`};
   if(which==="pickup"){pickupPoint=p;$("pickup").value=p.label;updatePinMarker("pickup",lat,lon,p.label);}else{destinationPoint=p;$("destination").value=p.label;updatePinMarker("destination",lat,lon,p.label);}
-  map?.setView([lat,lon],Math.max(map.getZoom(),14));invalidateRoute(which);if(pickupPoint&&destinationPoint)await calculateRoute();else{text("routeInfo","Select the other location to calculate a road route.");text("distanceDisplay","— km");text("etaDisplay","— min");updateFareDisplay();}
+  map?.setView([lat,lon],Math.max(map.getZoom(),14));invalidateRoute(which);if(pickupPoint&&destinationPoint)await calculateRoute();else{text("routeInfo","Select the other location to calculate a road route.");text("distanceDisplay","— km");text("etaDisplay","— min");updateFareDisplay();if(which==="pickup")await refreshAvailability();}
 }
 function invalidateRoute(){routeRequestSeq++;routeDistanceKm=0;routeDurationMinutes=0;routeGeometry=null;if(routeLayer&&map){map.removeLayer(routeLayer);routeLayer=null;}text("distanceDisplay","— km");text("etaDisplay","— min");updateFareDisplay();}
 async function nominatimFetch(url){
@@ -387,7 +387,7 @@ $("gpsBtn").addEventListener("click",()=>{
   const b=$("gpsBtn");b.disabled=true;text("mapMessage","Requesting your device location… Allow location access if prompted.");
   navigator.geolocation.getCurrentPosition(async pos=>{try{const place=await reverseGeocode(pos.coords.latitude,pos.coords.longitude);if(place.countryCode!=="np")throw Error("Your current location could not be verified as inside Nepal.");await setPoint("pickup",pos.coords.latitude,pos.coords.longitude,place.label,true);text("mapMessage","Pickup set using device GPS. You can still move the pickup pin manually.");}catch(error){setMessage("appMessage",errorText(error),"error");}finally{b.disabled=false;}},error=>{b.disabled=false;setMessage("appMessage","GPS could not get your location: "+error.message+". Allow location permission and use HTTPS, or search manually.","error");},{enableHighAccuracy:true,timeout:18000,maximumAge:10000});
 });
-$("clearRouteBtn").addEventListener("click",()=>{pickupPoint=null;destinationPoint=null;$("pickup").value="";$("destination").value="";show("pickupResults",false);show("destinationResults",false);if(pickupMarker)map.removeLayer(pickupMarker);if(destinationMarker)map.removeLayer(destinationMarker);if(routeLayer)map.removeLayer(routeLayer);if(driverRouteLayer)map.removeLayer(driverRouteLayer);driverRouteLayer=null;lastDriverRouteKey="";pickupMarker=destinationMarker=routeLayer=null;invalidateRoute();text("routeInfo","Route cleared. Select pickup and destination to recalculate.");text("mapMessage","Search a place or choose a pin mode, then tap the map.");setMessage("appMessage","");});
+$("clearRouteBtn").addEventListener("click",()=>{pickupPoint=null;destinationPoint=null;clearNearbyDriverMarkers();$("pickup").value="";$("destination").value="";show("pickupResults",false);show("destinationResults",false);if(pickupMarker)map.removeLayer(pickupMarker);if(destinationMarker)map.removeLayer(destinationMarker);if(routeLayer)map.removeLayer(routeLayer);if(driverRouteLayer)map.removeLayer(driverRouteLayer);driverRouteLayer=null;lastDriverRouteKey="";pickupMarker=destinationMarker=routeLayer=null;invalidateRoute();text("routeInfo","Route cleared. Select pickup and destination to recalculate.");text("mapMessage","Search a place or choose a pin mode, then tap the map.");setMessage("appMessage","");});
 
 /* Route estimate. Do not substitute straight-line distance if routing fails. */
 async function calculateRoute(){
@@ -401,7 +401,40 @@ async function calculateRoute(){
 
 /* Driver availability is informational; ride RPC remains the authority at booking time. */
 async function availabilityFor(type){const {data,error}=await db.rpc(AVAILABILITY_RPC,{p_vehicle_type:type});if(error)throw error;let value=typeof data==="number"?data:typeof data==="string"?Number(data):NaN;if(Array.isArray(data)&&data.length)value=Number(Object.values(data[0]||{})[0]);if(data&&typeof data==="object"&&!Array.isArray(data))value=Number(data.available_count??data.count??data.total??data[AVAILABILITY_RPC]);if(!Number.isFinite(value)||value<0)throw Error("Availability function returned an unexpected value.");return value;}
-async function refreshAvailability(){if(!db||!session?.user){setMessage("availabilityText","Sign in to check approved online vehicle availability.","info");return;}try{const n=await availabilityFor(selectedVehicle);setMessage("availabilityText",n?`${n} eligible ${selectedVehicle.replace("_"," ")} vehicle(s) currently reported available. This may change before the server processes a booking.`:`No eligible ${selectedVehicle.replace("_"," ")} vehicles are currently reported available. You may retry later.`,n?"ok":"info");}catch(error){setMessage("availabilityText","Availability could not be verified: "+errorText(error)+". The booking function will still perform its own authoritative checks.","info");}}
+function clearNearbyDriverMarkers(){
+  nearbyDriverMarkers.forEach(marker=>{if(map)map.removeLayer(marker);});
+  nearbyDriverMarkers=[];
+  if(nearbySearchCircle&&map){map.removeLayer(nearbySearchCircle);nearbySearchCircle=null;}
+}
+async function refreshAvailability(){
+  const seq=++nearbyRequestSeq;
+  clearNearbyDriverMarkers();
+  if(!db||!session?.user){setMessage('availabilityText','Sign in to check nearby approved online vehicles.','info');return;}
+  if(!pickupPoint||!isNepalBounds(Number(pickupPoint.lat),Number(pickupPoint.lon))){setMessage('availabilityText','Choose a pickup in Nepal to find nearby eligible drivers.','info');return;}
+  try{
+    const {data,error}=await db.rpc('get_nearby_eligible_drivers',{p_vehicle_type:selectedVehicle,p_pickup_latitude:Number(pickupPoint.lat),p_pickup_longitude:Number(pickupPoint.lon),p_radius_km:5});
+    if(error)throw error;
+    if(seq!==nearbyRequestSeq)return;
+    const drivers=Array.isArray(data)?data:[];
+    if(map){
+      nearbySearchCircle=L.circle([pickupPoint.lat,pickupPoint.lon],{radius:5000,color:'#1687ff',weight:1,opacity:.45,fillOpacity:.035,interactive:false}).addTo(map);
+      drivers.forEach(driver=>{
+        const lat=Number(driver.latitude),lon=Number(driver.longitude),distance=Number(driver.distance_km);
+        if(!isNepalBounds(lat,lon)||!Number.isFinite(distance)||distance<0||distance>5)return;
+        const marker=L.circleMarker([lat,lon],{radius:7,color:'#ffffff',weight:2,fillColor:'#1687ff',fillOpacity:.95});
+        marker.bindPopup('Eligible '+String(driver.vehicle_type||selectedVehicle).replace('_',' ')+' · approximately '+distance.toFixed(1)+' km from pickup');
+        marker.addTo(map);nearbyDriverMarkers.push(marker);
+      });
+    }
+    setMessage('availabilityText',drivers.length
+      ?drivers.length+' eligible '+selectedVehicle.replace('_',' ')+' driver(s) reported within 5 km of this pickup. Locations must be refreshed and may change before booking.'
+      :'No eligible online drivers with a fresh GPS location were found within 5 km of this pickup. You can check again later.',
+      drivers.length?'ok':'info');
+  }catch(error){
+    if(seq!==nearbyRequestSeq)return;
+    setMessage('availabilityText','Nearby driver search is temporarily unavailable: '+errorText(error)+'. Booking checks remain controlled by Supabase.','info');
+  }
+}
 $("refreshAvailabilityBtn").addEventListener("click",refreshAvailability);
 
 /* Booking: use the existing exact RPC contract. Do not update `fare` from browser JavaScript. */
