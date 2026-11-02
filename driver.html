@@ -244,6 +244,7 @@ const hiddenRequestIds=new Set();
 let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
 let meterQueue=[],meterFlushTimer=null,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={};
+let rideWakeLock=null,wakeLockRequestPending=false;
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
 let activeNavigationWindow=null;
 let authView="login",portalStarting=false,audioContext=null,audioEnabled=false,soundTimer=null,pendingSoundIds=new Set(),knownRequestIds=new Set(),notificationView="new",resumeRefreshBusy=false,pollBusy=false,lastHeartbeatAt=0;
@@ -257,6 +258,22 @@ function saveMeterQueue(){
   catch(error){console.warn("Offline GPS queue could not be saved; unsent samples may be lost",error);text("gpsStatus","GPS queue storage is unavailable. Keep this page open while tracking uploads.")}
 }
 function meterIsRecording(){return !!activeRide&&ACTIVE_STATUSES.includes(String(activeRide.status||"").toLowerCase())&&activeRide.meter_tracking_status==="recording"&&!!activeRide.meter_started_at}
+async function syncRideWakeLock(){
+  if(!user||!meterIsRecording()||document.hidden){releaseRideWakeLock();return}
+  if(!navigator.wakeLock||typeof navigator.wakeLock.request!=="function"||(rideWakeLock&&!rideWakeLock.released)||wakeLockRequestPending)return;
+  wakeLockRequestPending=true;
+  try{
+    const lock=await navigator.wakeLock.request("screen");
+    if(!user||!meterIsRecording()||document.hidden){await lock.release();return}
+    rideWakeLock=lock;
+    lock.addEventListener("release",()=>{if(rideWakeLock===lock)rideWakeLock=null},{once:true});
+  }catch(error){text("gpsStatus","GPS meter is active. Keep this page visible and screen awake; the browser could not prevent screen sleep: "+errorText(error))}
+  finally{wakeLockRequestPending=false}
+}
+function releaseRideWakeLock(){
+  const lock=rideWakeLock;rideWakeLock=null;
+  if(lock){try{const released=lock.release();if(released&&typeof released.catch==="function")released.catch(()=>{})}catch{}}
+}
 function queueMeterSample(position){
   if(!meterIsRecording()||!position?.coords)return;
   const now=Date.now(),recordedMs=Number(position.timestamp)||now;
@@ -465,7 +482,7 @@ async function enterPortal(){
   if(!user||!sb||portalStarting)return;portalStarting=true;showApp();text("driverEmailLabel",user.email||"");
   try{
     await ensureFreshDriverSession();await loadProfile();await Promise.all([loadVehicles(),loadRides(),loadNotifications(),loadDriverRatingSummary()]);
-    initMap();renderEverything();await loadRequests(true);await refreshGpsWatch();await flushMeterQueue();await refreshCommunication();stopPollingOnly();
+    initMap();renderEverything();await syncRideWakeLock();await loadRequests(true);await refreshGpsWatch();await flushMeterQueue();await refreshCommunication();stopPollingOnly();
     pollTimer=setInterval(async()=>{
       if(!user||document.hidden||pollBusy)return;
       pollBusy=true;
@@ -486,7 +503,7 @@ async function enterPortal(){
   finally{portalStarting=false}
 }
 function stopPollingOnly(){if(pollTimer)clearInterval(pollTimer);pollTimer=null;if(locationTimer)clearInterval(locationTimer);locationTimer=null;if(meterFlushTimer)clearInterval(meterFlushTimer);meterFlushTimer=null}
-function stopBackground(){stopPollingOnly();if(gpsWatch!==null&&navigator.geolocation)navigator.geolocation.clearWatch(gpsWatch);gpsWatch=null;stopRequestAlarm();clearCommunicationState()}
+function stopBackground(){stopPollingOnly();if(gpsWatch!==null&&navigator.geolocation)navigator.geolocation.clearWatch(gpsWatch);gpsWatch=null;releaseRideWakeLock();stopRequestAlarm();clearCommunicationState()}
 let driverRatingLastLoadedAt=0;
 async function loadDriverRatingSummary(force=false){
   if(!sb||!user?.id)return;
@@ -633,7 +650,7 @@ function renderCurrentRide(){
   if(status==="started"&&r.destination_latitude!=null&&r.destination_longitude!=null)actions+='<button class="blue" onclick="navigateRideTarget(\'destination\')">🧭 Reopen destination navigation</button>';
   if(status==="started"&&r.meter_tracking_status==="recording")actions+='<button class="success" onclick="rideAction(\'complete_ride\')">Complete Ride · Stop Meter</button>';
   if(["accepted","arriving"].includes(status))actions+='<button class="danger" onclick="cancelCurrentRide()">Cancel assigned ride</button>';
-  $("currentRide").innerHTML=`<span class="pill">${esc(status)}</span><h2 style="margin-top:14px">${esc(r.pickup_location||"Pickup")} → ${esc(r.destination||"Destination not set — confirm with passenger")}</h2><p class="muted">${esc(typeName(r.vehicle_type))} · Ride #${esc(r.id)}</p><div class="stats"><div class="stat">${r.meter_tracking_status==="finalized"&&r.final_fare!=null?"Final fare":"Booking estimate (not final)"}<div class="number">${money(r.meter_tracking_status==="finalized"&&r.final_fare!=null?r.final_fare:(r.estimated_fare??r.fare))}</div></div><div class="stat">Status<div class="number">${esc(status)}</div></div><div class="stat">Requested<div class="small">${esc(r.created_at||"—")}</div></div></div>${r.meter_tracking_status==="stopped"?'<div class="notice">Ride stopped. Queued GPS readings are uploading for verification. The fare is still an estimate until road-distance review succeeds; no final charge or driver earnings have been posted.</div>':r.meter_tracking_status==="recording"?'<div class="notice">GPS meter started when you tapped Start Ride. Keep location permission enabled. ${r.destination?"The displayed amount is a booking estimate only.":"This is a pickup-only metered booking: confirm the destination with the passenger. No upfront fare was set; the final fare remains pending verified trip distance."}</div>':r.meter_tracking_status==="not_started"?'<div class="notice">Meter has not started. Go to the confirmed pickup, tap I\'ve Arrived, then tap Start Ride. The meter starts only after Start Ride.</div>':'<div class="notice">Meter status: '+esc(r.meter_tracking_status||"not available")+'. Do not treat the booking amount as final.</div>'}<div class="notice">Pickup: ${esc(r.pickup_latitude??"Unavailable")}, ${esc(r.pickup_longitude??"Unavailable")}<br>Destination: ${r.destination_latitude==null||r.destination_longitude==null?"Not set — confirm with passenger":esc(r.destination_latitude)+", "+esc(r.destination_longitude)}</div><div class="row" style="margin-top:14px">${actions}</div>`;
+  $("currentRide").innerHTML=`<span class="pill">${esc(status)}</span><h2 style="margin-top:14px">${esc(r.pickup_location||"Pickup")} → ${esc(r.destination||"Destination not set — confirm with passenger")}</h2><p class="muted">${esc(typeName(r.vehicle_type))} · Ride #${esc(r.id)}</p><div class="stats"><div class="stat">${r.meter_tracking_status==="finalized"&&r.final_fare!=null?"Final fare":"Booking estimate (not final)"}<div class="number">${money(r.meter_tracking_status==="finalized"&&r.final_fare!=null?r.final_fare:(r.estimated_fare??r.fare))}</div></div><div class="stat">Status<div class="number">${esc(status)}</div></div><div class="stat">Requested<div class="small">${esc(r.created_at||"—")}</div></div></div>${r.meter_tracking_status==="stopped"?'<div class="notice">Ride stopped. Queued GPS readings are uploading for verification. The fare is still an estimate until road-distance review succeeds; no final charge or driver earnings have been posted.</div>':r.meter_tracking_status==="recording"?'<div class="notice">GPS meter started when you tapped Start Ride. Keep location permission enabled and this page open with the screen awake. Some mobile browsers pause GPS when the page is backgrounded or closed. ${r.destination?"The displayed amount is a booking estimate only.":"This is a pickup-only metered booking: confirm the destination with the passenger. No upfront fare was set; the final fare remains pending verified trip distance."}</div>':r.meter_tracking_status==="not_started"?'<div class="notice">Meter has not started. Go to the confirmed pickup, tap I\'ve Arrived, then tap Start Ride. The meter starts only after Start Ride.</div>':'<div class="notice">Meter status: '+esc(r.meter_tracking_status||"not available")+'. Do not treat the booking amount as final.</div>'}<div class="notice">Pickup: ${esc(r.pickup_latitude??"Unavailable")}, ${esc(r.pickup_longitude??"Unavailable")}<br>Destination: ${r.destination_latitude==null||r.destination_longitude==null?"Not set — confirm with passenger":esc(r.destination_latitude)+", "+esc(r.destination_longitude)}</div><div class="row" style="margin-top:14px">${actions}</div>`;
   if(map&&r.pickup_latitude!=null&&r.pickup_longitude!=null){const lat=Number(r.pickup_latitude),lon=Number(r.pickup_longitude);if(Number.isFinite(lat)&&Number.isFinite(lon))map.setView([lat,lon],14)}
   if(status!=="accepted"){textPassengerTracking("Passenger live location sharing is not active during this ride status. The confirmed pickup pin remains available.");clearPassengerMarker()}
 }
@@ -676,6 +693,7 @@ async function rideAction(rpc){
       notify("Journey stopped and GPS meter stopped. Queued samples are uploading for verification. Final fare is not yet confirmed.");
     }else if(rpc!=="driver_arriving"&&rpc!=="start_ride")notify("Ride action submitted.");
     await loadRides();
+    await syncRideWakeLock();
     if(rpc==="complete_ride")await flushMeterQueue();
     await loadRequests(false);
     renderEverything();
@@ -1008,8 +1026,8 @@ async function refreshDriverPortalOnReturn(){
     notify("Driver refresh failed: "+errorText(error));
   }finally{resumeRefreshBusy=false}
 }
-document.addEventListener("visibilitychange",()=>{if(!document.hidden){refreshDriverPortalOnReturn();if(user)flushMeterQueue()}});
-window.addEventListener("pageshow",()=>{if(user){refreshDriverPortalOnReturn();flushMeterQueue()}});
+document.addEventListener("visibilitychange",()=>{if(document.hidden){releaseRideWakeLock();return}syncRideWakeLock();if(user){refreshDriverPortalOnReturn();flushMeterQueue()}});
+window.addEventListener("pageshow",()=>{if(user){syncRideWakeLock();refreshDriverPortalOnReturn();flushMeterQueue()}});
 window.addEventListener("online",()=>{if(user)flushMeterQueue()});
 window.addEventListener("beforeunload",stopBackground);
 init();
