@@ -129,7 +129,7 @@ body.light{color-scheme:light;--bg:#edf4f9;--panel:#fff;--panel2:#f5f9fc;--text:
           <div class="support-grid"><button class="ghost" id="shareTripBtn" type="button">Share trip details</button><button class="ghost" id="reportTripBtn" type="button">Report an issue</button></div>
           <p class="muted small">An SOS button is intentionally not shown as active until Rryd has a monitored emergency response channel. For immediate danger, use local emergency services.</p>
         </div>
-        <div id="ratingPanel" class="disabled-note hidden">Driver ratings will appear here when a verified rating endpoint is configured. No rating is stored by this page without that backend.</div>
+        <div id="ratingPanel" class="disabled-note hidden"><b>Driver ratings</b><p class="muted small">After a ride is fully completed, rate your driver from that ride in Ride history. One rating is allowed per completed ride.</p></div>
         <div id="messagePanel" class="disabled-note hidden">In-app messaging requires a secure ride-message endpoint and database policies. This page will not pretend a message was sent when that endpoint is unavailable. Use the driver's call option when available.</div>
       </div>
 
@@ -588,7 +588,48 @@ async function cancelRide(){
   if(!currentRide||!["requested","accepted","arriving"].includes(String(currentRide.status).toLowerCase()))return setMessage("appMessage","This ride cannot be cancelled from its current status.","error");if(!confirm("Cancel this ride request? Cancellation fees only apply if Rryd has a separate disclosed policy and the database confirms the conditions."))return;
   try{const {data,error}=await db.rpc("cancel_ride",{p_ride_id:currentRide.id});if(error)throw error;if(data===false)throw Error("Supabase did not confirm cancellation.");setMessage("appMessage","Cancellation request processed by Supabase. Refreshing ride status…","ok");await refreshCurrentRide();}catch(error){setMessage("appMessage","Cancellation failed: "+friendlyError(error),"error");}
 }
-function renderHistory(){const box=$("rideHistory");if(!rideRows.length){box.innerHTML='<p class="muted">No rides yet.</p>';return;}box.innerHTML=rideRows.slice(0,40).map(r=>{const s=String(r.status||"unknown").toLowerCase(),complete=s==="completed",cancelled=["cancelled","canceled"].includes(s),date=r.created_at?new Date(r.created_at).toLocaleString():"—",fare=complete?(r.final_fare??r.actual_fare??r.fare):(r.estimated_fare??r.fare);return `<div class="ride"><div class="ride-head"><b>Ride #${esc(r.id)}</b><span class="status ${complete?"completed":cancelled?"cancelled":""}">${esc(statusName(s))}</span></div><p>${esc(r.pickup_location??r.pickup??"—")} → ${esc(r.destination??"—")}</p><p>${esc(r.vehicle_type??"—")} · ${money(fare)}</p><p class="muted small">${esc(date)}</p>${s==="requested"?`<button class="danger" type="button" data-cancel-ride="${esc(r.id)}">Cancel pending request</button>`:""}${complete?`<button class="secondary" type="button" data-receipt="${esc(r.id)}">Receipt</button>`:""}</div>`;}).join("");box.querySelectorAll("[data-receipt]").forEach(btn=>btn.addEventListener("click",()=>{const r=rideRows.find(x=>String(x.id)===btn.dataset.receipt);if(r)showReceipt(r);}));box.querySelectorAll("[data-cancel-ride]").forEach(btn=>btn.addEventListener("click",async()=>{const r=rideRows.find(x=>String(x.id)===btn.dataset.cancelRide);if(!r||String(r.status).toLowerCase()!=="requested")return setMessage("appMessage","Only your unassigned pending request can be cancelled here.","error");if(!confirm("Cancel pending ride #"+r.id+"?"))return;btn.disabled=true;try{const {data,error}=await db.rpc("cancel_ride",{p_ride_id:r.id});if(error)throw error;if(data===false)throw Error("Supabase did not confirm cancellation.");setMessage("appMessage","Pending ride cancelled.","ok");await refreshCurrentRide();}catch(error){setMessage("appMessage","Cancellation failed: "+friendlyError(error),"error");btn.disabled=false;}}));}
+async function loadRideRatingCards(){
+  if(!db||!session?.user)return;
+  const completed=rideRows.slice(0,40).filter(r=>String(r.status||"").toLowerCase()==="completed"&&r.completed_at&&r.driver_id);
+  await Promise.all(completed.map(async ride=>{
+    const slot=document.querySelector('[data-rating-slot="'+String(ride.id).replace(/"/g,"")+'"]');
+    if(!slot)return;
+    try{
+      const {data,error}=await db.rpc("get_my_driver_rating_for_ride",{p_ride_id:Number(ride.id)});
+      if(error)throw error;
+      const saved=Array.isArray(data)?data[0]:data;
+      const {data:summaryData,error:summaryError}=await db.rpc("get_driver_rating_summary",{p_driver_id:ride.driver_id});
+      if(summaryError)console.warn("Driver rating summary unavailable",summaryError);
+      const summary=Array.isArray(summaryData)?summaryData[0]:summaryData;
+      const average=summary&&Number(summary.rating_count)>0?Number(summary.average_rating).toFixed(2)+" / 5 · "+Number(summary.rating_count)+" rating(s)":"No ratings yet";
+      if(saved){
+        const stars="★".repeat(Number(saved.rating))+"☆".repeat(5-Number(saved.rating));
+        slot.innerHTML='<div class="subtle"></div><b>Your driver rating</b><p style="color:var(--orange);font-size:20px;margin:5px 0">'+stars+'</p><p class="muted small">Driver average: '+esc(average)+'</p>'+(saved.comment?'<p>'+esc(saved.comment)+'</p>':'<p class="muted small">No comment added.</p>')+'<p class="muted small">Submitted '+esc(new Date(saved.created_at).toLocaleString())+'</p>';
+      }else{
+        slot.innerHTML='<div class="subtle"></div><b>Rate your driver</b><p class="muted small">Driver average: '+esc(average)+'</p><form data-rating-form="'+esc(ride.id)+'"><label>Stars</label><select data-rating-value required><option value="">Choose 1–5 stars</option><option value="5">★★★★★ — Excellent</option><option value="4">★★★★☆ — Good</option><option value="3">★★★☆☆ — Okay</option><option value="2">★★☆☆☆ — Poor</option><option value="1">★☆☆☆☆ — Very poor</option></select><label>Comment (optional)</label><textarea data-rating-comment maxlength="1000" rows="2" placeholder="Share feedback about your driver"></textarea><button class="primary" type="submit">Submit rating</button><p class="muted small" data-rating-message></p></form>';
+        const form=slot.querySelector("[data-rating-form]");
+        form.addEventListener("submit",async event=>{
+          event.preventDefault();
+          const button=form.querySelector("button[type=submit]"),rating=Number(form.querySelector("[data-rating-value]").value),comment=form.querySelector("[data-rating-comment]").value.trim();
+          if(!Number.isInteger(rating)||rating<1||rating>5){form.querySelector("[data-rating-message]").textContent="Choose a rating from 1 to 5 stars.";return;}
+          button.disabled=true;button.textContent="Submitting…";
+          try{
+            const {error:submitError}=await db.rpc("submit_driver_rating",{p_ride_id:Number(ride.id),p_rating:rating,p_comment:comment||null});
+            if(submitError)throw submitError;
+            await loadRideRatingCards();
+            setMessage("appMessage","Thank you. Your driver rating was saved.","ok");
+          }catch(submitError){
+            form.querySelector("[data-rating-message]").textContent=friendlyError(submitError);
+            button.disabled=false;button.textContent="Submit rating";
+          }
+        });
+      }
+    }catch(error){
+      slot.innerHTML='<p class="muted small">Rating service unavailable: '+esc(friendlyError(error))+'</p>';
+    }
+  }));
+}
+function renderHistory(){const box=$("rideHistory");if(!rideRows.length){box.innerHTML='<p class="muted">No rides yet.</p>';return;}box.innerHTML=rideRows.slice(0,40).map(r=>{const s=String(r.status||"unknown").toLowerCase(),complete=s==="completed",cancelled=["cancelled","canceled"].includes(s),date=r.created_at?new Date(r.created_at).toLocaleString():"—",fare=complete?(r.final_fare??r.actual_fare??r.fare):(r.estimated_fare??r.fare);return `<div class="ride"><div class="ride-head"><b>Ride #${esc(r.id)}</b><span class="status ${complete?"completed":cancelled?"cancelled":""}">${esc(statusName(s))}</span></div><p>${esc(r.pickup_location??r.pickup??"—")} → ${esc(r.destination??"—")}</p><p>${esc(r.vehicle_type??"—")} · ${money(fare)}</p><p class="muted small">${esc(date)}</p>${s==="requested"?`<button class="danger" type="button" data-cancel-ride="${esc(r.id)}">Cancel pending request</button>`:""}${complete?`<button class="secondary" type="button" data-receipt="${esc(r.id)}">Receipt</button><div class="rating-slot" data-rating-slot="${esc(r.id)}"><p class="muted small">Loading driver rating…</p></div>`:""}</div>`;}).join("");box.querySelectorAll("[data-receipt]").forEach(btn=>btn.addEventListener("click",()=>{const r=rideRows.find(x=>String(x.id)===btn.dataset.receipt);if(r)showReceipt(r);}));box.querySelectorAll("[data-cancel-ride]").forEach(btn=>btn.addEventListener("click",async()=>{const r=rideRows.find(x=>String(x.id)===btn.dataset.cancelRide);if(!r||String(r.status).toLowerCase()!=="requested")return setMessage("appMessage","Only your unassigned pending request can be cancelled here.","error");if(!confirm("Cancel pending ride #"+r.id+"?"))return;btn.disabled=true;try{const {data,error}=await db.rpc("cancel_ride",{p_ride_id:r.id});if(error)throw error;if(data===false)throw Error("Supabase did not confirm cancellation.");setMessage("appMessage","Pending ride cancelled.","ok");await refreshCurrentRide();}catch(error){setMessage("appMessage","Cancellation failed: "+friendlyError(error),"error");btn.disabled=false;}}));loadRideRatingCards();}
 $("refreshRideBtn").addEventListener("click",refreshCurrentRide);$("refreshHistoryBtn").addEventListener("click",refreshCurrentRide);
 
 /* Receipt: only issue it for a completed ride. Automatically appears briefly after completion. */
