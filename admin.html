@@ -541,14 +541,29 @@ $("loginForm").addEventListener("submit", async e=>{
     showMessage(rpcErrorHint(error),"error","loginMessage");
   }finally{setBusy(btn,false);}
 });
-$("logoutBtn").addEventListener("click", async()=>{
-  if(!confirm("Log out of Rryd admin?")) return;
-  if(refreshTimer) clearInterval(refreshTimer);
-  await supabaseClient.auth.signOut();
-  currentUser = null;
-  currentProfile = null;
-  showLogin();
-});
+$("logoutBtn").onclick = async(event)=>{
+  event?.preventDefault?.();
+  const button=$("logoutBtn");
+  if(!button||button.disabled)return;
+  if(!currentUser){
+    showLogin("You are already signed out.");
+    return;
+  }
+  if(!confirm("Log out of Rryd admin?"))return;
+  setBusy(button,true,"Logging out…");
+  try{
+    const {error}=await supabaseClient.auth.signOut({scope:"local"});
+    if(error)throw error;
+    if(refreshTimer)clearInterval(refreshTimer);
+    refreshTimer=null;
+    currentUser=null;
+    currentProfile=null;
+    showLogin("You have been logged out.");
+  }catch(error){
+    showMessage("Could not log out: "+rpcErrorHint(error),"error");
+    setBusy(button,false);
+  }
+};
 $("refreshBtn").addEventListener("click",()=>refreshAll().catch(e=>showMessage(rpcErrorHint(e),"error")));
 
 function switchSection(id){
