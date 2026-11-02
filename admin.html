@@ -958,8 +958,10 @@ function renderRideActions(r){
     const stop=Date.parse(r.meter_stopped_at||"");
     const canVerify=r.meter_tracking_status==="stopped"&&Number.isFinite(stop)&&Date.now()>=stop+30*60*1000&&
       (r.meter_route_distance_km==null||r.meter_tracking_issue===true);
+    const hasPreview=r.meter_tracking_status==="stopped"&&r.meter_route_distance_km!=null&&!r.meter_tracking_issue;
     return '<div class="actions">'+
       (canVerify?'<button class="primary" type="button" data-verify-meter="'+esc(r.id)+'">Verify road & preview fare</button>':'')+
+      (hasPreview?'<button class="secondary" type="button" data-view-meter-preview="'+esc(r.id)+'">View saved test preview</button>':'')+
       '<button class="danger" type="button" data-admin-cancel-started="'+esc(r.id)+'">Cancel started ride</button></div>';
   }
   return "—";
@@ -984,6 +986,32 @@ function renderRides(){
   $("ridesList").querySelectorAll("[data-admin-cancel]").forEach(button=>button.addEventListener("click",()=>cancelPendingRideAdmin(button.dataset.adminCancel,button)));
   $("ridesList").querySelectorAll("[data-admin-cancel-started]").forEach(button=>button.addEventListener("click",()=>cancelStartedRideAdmin(button.dataset.adminCancelStarted,button)));
   $("ridesList").querySelectorAll("[data-verify-meter]").forEach(button=>button.addEventListener("click",()=>verifyRideMeter(button.dataset.verifyMeter,button)));
+  $("ridesList").querySelectorAll("[data-view-meter-preview]").forEach(button=>button.addEventListener("click",()=>viewSavedMeterPreview(button.dataset.viewMeterPreview,button)));
+}
+async function viewSavedMeterPreview(id,button){
+  if(!currentUser||currentProfile?.role!=="admin")return showMessage("Administrator sign-in required.","error");
+  setBusy(button,true,"Loading saved preview…");
+  try{
+    const {data,error}=await supabaseClient.rpc("admin_get_latest_ride_meter_verification",{p_ride_id:Number(id)});
+    failIf(error);
+    if(!data)throw new Error("No saved verification attempt exists for this ride.");
+    const result=typeof data==="string"?JSON.parse(data):data;
+    const details=[
+      "TEST-ONLY ROAD VERIFICATION · Ride #"+id,
+      "Status: "+(result.verification_status||"unknown"),
+      "Road distance: "+(result.route_distance_km==null?"Not available":rawMoney(result.route_distance_km)+" km"),
+      "Indicative fare: "+(result.estimated_fare_preview==null?"Not available":money(result.estimated_fare_preview)),
+      "Driver share preview: "+(result.driver_earnings_preview==null?"Not available":money(result.driver_earnings_preview)),
+      "Rryd commission preview: "+(result.admin_commission_preview==null?"Not available":money(result.admin_commission_preview)),
+      "GPS points: "+Number(result.sample_count||0)+" · matched "+Number(result.matched_point_count||0)+" · unmatched "+Number(result.unmatched_point_count||0),
+      "Confidence: "+(result.minimum_confidence==null?"Not available":result.minimum_confidence),
+      "Review: "+(result.review_reason||"No review issue recorded"),
+      "Recorded: "+(result.created_at||"unknown"),
+      "No fare finalized. No payment collected. No earnings posted."
+    ];
+    showMessage(details.join("\n"),"success");
+  }catch(error){showMessage("Could not load saved verification preview: "+rpcErrorHint(error),"error");}
+  finally{setBusy(button,false);}
 }
 async function verifyRideMeter(id,button){
   const ride=allRides.find(r=>String(r.id)===String(id));
