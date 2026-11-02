@@ -484,8 +484,11 @@ async function enterPortal(){
 }
 function stopPollingOnly(){if(pollTimer)clearInterval(pollTimer);pollTimer=null;if(locationTimer)clearInterval(locationTimer);locationTimer=null;if(meterFlushTimer)clearInterval(meterFlushTimer);meterFlushTimer=null}
 function stopBackground(){stopPollingOnly();if(gpsWatch!==null&&navigator.geolocation)navigator.geolocation.clearWatch(gpsWatch);gpsWatch=null;stopRequestAlarm();clearCommunicationState()}
-async function loadDriverRatingSummary(){
+let driverRatingLastLoadedAt=0;
+async function loadDriverRatingSummary(force=false){
   if(!sb||!user?.id)return;
+  if(!force&&Date.now()-driverRatingLastLoadedAt<60000)return;
+  driverRatingLastLoadedAt=Date.now();
   try{
     const {data,error}=await sb.rpc("get_driver_rating_summary",{p_driver_id:user.id});
     if(error)throw error;
@@ -886,7 +889,7 @@ function renderEarnings(){
   const total=done.reduce((s,r)=>s+Number(r.final_fare??r.fare??0),0),net=done.reduce((s,r)=>s+Number(r.driver_earnings??0),0),commission=done.reduce((s,r)=>s+Number(r.admin_earnings??0),0),todayNet=todayRides.reduce((s,r)=>s+Number(r.driver_earnings??0),0);
   text("todayTotal",money(todayNet));text("earningTotal",money(total));text("driverNet",money(net));text("adminCommission",money(commission));text("completedCount",done.length);text("earnToday",money(todayNet));text("earnNet",money(net));text("earnCommission",money(commission))
 }
-function renderEverything(){updateEligibility();renderVehicles();renderRequests();renderCurrentRide();renderHistory();renderRecent();renderEarnings()}
+function renderEverything(){updateEligibility();renderVehicles();renderRequests();renderCurrentRide();renderHistory();renderRecent();renderEarnings();loadDriverRatingSummary()}
 async function loadNotifications(){if(!user)return;const {data,error}=await sb.from("notifications").select("*").eq("user_id",user.id).order("created_at",{ascending:false}).limit(200);if(error){console.warn("Notifications query failed; check recipient column and RLS",error);return}notifications=data||[];text("bellCount",notifications.filter(n=>!n.is_read).length+requests.length)}
 
 function initMap(){
