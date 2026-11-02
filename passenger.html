@@ -225,7 +225,7 @@ let map=null,pickupMarker=null,destinationMarker=null,routeLayer=null,driverMark
 let pickupPoint=null,destinationPoint=null,routeDistanceKm=0,routeDurationMinutes=0,routeGeometry=null;
 let fareRules={},fareRulesLoaded=false,fareRulesError="",mapPickTarget="",routeRequestSeq=0,driverRouteSeq=0,lastDriverRouteKey="",lastReceiptPopupId=null;
 let currentRide=null,rideRows=[],ridePollTimer=null,availabilityTimer=null,isLoading=false;
-let passengerGpsWatch=null,passengerLocationConsent=false,lastPassengerLocationSentAt=0,passengerLocationSendBusy=false;
+let passengerGpsWatch=null,passengerLocationConsent=false,lastPassengerLocationSentAt=0,passengerLocationSendBusy=false,passengerLocationAutoCheckRideId=null,passengerLocationStartPending=false;
 let lastKnownStatus="",lastKnownRideId=null,receiptTimer=null,notificationAllowed=false,soundEnabled=false,audioContext=null;
 let lastNominatimAt=0,nominatimQueue=Promise.resolve(),lastRequestAt=0;
 
@@ -505,8 +505,29 @@ async function updateDriverApproachRoute(ride,lat,lon){
 }
 function syncPassengerLocationSharing(ride){
   const eligible=!!(ride&&String(ride.status||"").toLowerCase()==="accepted"&&ride.driver_id);
-  if(!eligible){stopPassengerLocationWatch(true);passengerLocationConsent=false;updatePassengerLocationSharingUI();return;}
+  if(!eligible){
+    stopPassengerLocationWatch(true);
+    passengerLocationConsent=false;
+    passengerLocationAutoCheckRideId=null;
+    updatePassengerLocationSharingUI();
+    return;
+  }
   updatePassengerLocationSharingUI();
+  maybeAutoStartPassengerLocationWatch(ride);
+}
+async function maybeAutoStartPassengerLocationWatch(ride){
+  const rideId=String(ride?.id??"");
+  if(!rideId||passengerGpsWatch!==null||passengerLocationStartPending||passengerLocationAutoCheckRideId===rideId)return;
+  passengerLocationAutoCheckRideId=rideId;
+  /* Auto-share only when browser GPS permission was already granted.
+     Otherwise the passenger must press Enable and approve the browser prompt. */
+  if(!navigator.permissions?.query||!navigator.geolocation)return;
+  try{
+    const permission=await navigator.permissions.query({name:"geolocation"});
+    if(permission.state!=="granted")return;
+    if(!currentRide||String(currentRide.id)!==rideId||String(currentRide.status||"").toLowerCase()!=="accepted")return;
+    await startPassengerLocationWatch(true);
+  }catch(error){console.warn("Automatic passenger GPS permission check unavailable",error);}
 }
 function updatePassengerLocationSharingUI(){
   const el=$("passengerLocationSharingStatus");if(!el)return;
@@ -517,14 +538,17 @@ function updatePassengerLocationSharingUI(){
     el.className="message ok";el.textContent="Your live location is being shared with the driver assigned to ride #"+currentRide.id+". You can stop sharing at any time."; 
     const stop=document.createElement("button");stop.type="button";stop.className="ghost";stop.textContent="Stop sharing";stop.style.marginTop="8px";stop.addEventListener("click",()=>stopPassengerLocationWatch(true));el.appendChild(stop);return;
   }
-  el.className="message info";el.textContent="The driver needs your pickup location to find you. Your GPS is not shared until you choose to enable it.";
+  el.className="message info";el.textContent="If you have already allowed GPS in your browser, Rryd will share your live location automatically with the driver assigned to this ride. Otherwise, tap Enable and approve the browser permission.";
   const enable=document.createElement("button");enable.type="button";enable.className="primary";enable.textContent="Enable live location sharing";enable.style.marginTop="8px";enable.addEventListener("click",startPassengerLocationWatch);el.appendChild(enable);
 }
-async function startPassengerLocationWatch(){
+async function startPassengerLocationWatch(autoGrantedPermission=false){
   if(!currentRide||String(currentRide.status||"").toLowerCase()!=="accepted"||!currentRide.driver_id)return;
+  if(passengerGpsWatch!==null||passengerLocationStartPending)return;
   if(!navigator.geolocation){setMessage("appMessage","This browser does not support GPS. Share your pickup pin with the driver instead.","error");return;}
   if(!window.isSecureContext){setMessage("appMessage","Live GPS requires a secure HTTPS connection. Open Rryd over HTTPS and try again.","error");return;}
+  passengerLocationStartPending=true;
   passengerLocationConsent=true;updatePassengerLocationSharingUI();
+  try{
   passengerGpsWatch=navigator.geolocation.watchPosition(async pos=>{
     if(!passengerLocationConsent||!currentRide||String(currentRide.status||"").toLowerCase()!=="accepted")return;
     const lat=Number(pos.coords.latitude),lon=Number(pos.coords.longitude),accuracy=Number(pos.coords.accuracy);
@@ -542,10 +566,17 @@ async function startPassengerLocationWatch(){
     passengerGpsWatch=null;passengerLocationConsent=false;updatePassengerLocationSharingUI();
     setMessage("appMessage","GPS permission or location failed: "+error.message+". Allow location access in your browser, then enable sharing again.","error");
   },{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
-  updatePassengerLocationSharingUI();
+  }catch(error){
+    passengerGpsWatch=null;passengerLocationConsent=false;
+    setMessage("appMessage","Could not start GPS sharing: "+errorText(error),"error");
+  }finally{
+    passengerLocationStartPending=false;
+    updatePassengerLocationSharingUI();
+  }
 }
 async function stopPassengerLocationWatch(clearServer=true){
   passengerLocationConsent=false;
+  if(currentRide?.id)passengerLocationAutoCheckRideId=String(currentRide.id);
   if(passengerGpsWatch!==null&&navigator.geolocation)navigator.geolocation.clearWatch(passengerGpsWatch);
   passengerGpsWatch=null;lastPassengerLocationSentAt=0;
   const rideId=currentRide?.id;
