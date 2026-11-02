@@ -113,7 +113,7 @@ body.light{color-scheme:light;--bg:#edf4f9;--panel:#fff;--panel2:#f5f9fc;--text:
         <div id="bookingMessage" class="message hidden" role="status" aria-live="polite"></div>
         <div class="subtle"></div>
         <h3>Driver availability</h3>
-        <p class="muted small">Rryd checks the current vehicle-availability function before showing its count. A count can change before a booking is processed, so the server remains authoritative.</p>
+        <p class="muted small">Rryd checks fresh GPS locations for approved online drivers within 5 km of your selected pickup. Nearby locations can change before booking, so Supabase remains authoritative.</p>
         <div id="availabilityText" class="message info">Sign in to check availability.</div>
         <button class="ghost" id="refreshAvailabilityBtn" type="button">Refresh availability</button>
         <div id="nearbyMessage" class="muted small" style="margin-top:8px">Before assignment, this page does not expose every driver's precise GPS coordinates. A secure nearby-driver feed can be added if one exists in Supabase.</div>
