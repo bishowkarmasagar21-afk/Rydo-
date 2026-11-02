@@ -940,6 +940,30 @@ window.saveFareRule=async(index,button)=>{
 };
 
 /* Ride list */
+function rideMeterSummary(r){
+  const state=String(r.meter_tracking_status||"not_started");
+  if(state==="recording")return '<span class="pill warn">Recording</span><small>'+Number(r.meter_point_count||0)+' GPS points</small>';
+  if(state==="stopped"){
+    if(r.meter_tracking_issue)return '<span class="pill bad">Review required</span><small>'+esc(r.meter_review_reason||"Check GPS trace")+'</small>';
+    if(r.meter_route_distance_km!=null)return '<span class="pill good">Road matched</span><small>'+rawMoney(r.meter_route_distance_km)+' km · test preview only</small>';
+    const stop=Date.parse(r.meter_stopped_at||"");
+    const remaining=Number.isFinite(stop)?Math.max(0,Math.ceil((stop+30*60*1000-Date.now())/60000)):30;
+    return '<span class="pill warn">Meter stopped</span><small>'+Number(r.meter_point_count||0)+' GPS points · '+(remaining>0?remaining+' min upload wait':'ready for verification')+'</small>';
+  }
+  return '<span class="pill">Not started</span>';
+}
+function renderRideActions(r){
+  if(r.status==="requested")return '<button class="danger" type="button" data-admin-cancel="'+esc(r.id)+'">Cancel request</button>';
+  if(r.status==="started"){
+    const stop=Date.parse(r.meter_stopped_at||"");
+    const canVerify=r.meter_tracking_status==="stopped"&&Number.isFinite(stop)&&Date.now()>=stop+30*60*1000&&
+      (r.meter_route_distance_km==null||r.meter_tracking_issue===true);
+    return '<div class="actions">'+
+      (canVerify?'<button class="primary" type="button" data-verify-meter="'+esc(r.id)+'">Verify road & preview fare</button>':'')+
+      '<button class="danger" type="button" data-admin-cancel-started="'+esc(r.id)+'">Cancel started ride</button></div>';
+  }
+  return "—";
+}
 function renderRides(){
   const status=$("rideStatusFilter").value;
   const q=$("rideSearch").value.trim().toLowerCase();
@@ -947,17 +971,44 @@ function renderRides(){
     (!q||[r.id,r.pickup_location,r.destination,r.vehicle_type,r.status,r.payment_method,r.driver_id,r.passenger_id]
       .some(v=>String(v??"").toLowerCase().includes(q))))
     .sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
-  $("ridesList").innerHTML=list.length?`<div class="table-wrap"><table>
-    <thead><tr><th>Ride ID</th><th>Status</th><th>Passenger</th><th>Driver</th><th>Route</th><th>Vehicle</th><th>Fare</th><th>Payment</th><th>Created</th><th>Action</th></tr></thead>
-    <tbody>${list.map(r=>`<tr><td>${esc(r.id)}</td><td>${statusPill(r.status)}</td>
-    <td>${esc(r.passenger_id||"—")}</td><td>${esc(driverName(r.driver_id))}</td>
-    <td>${esc(r.pickup_location||"—")} → ${esc(r.destination||"—")}</td>
-    <td>${esc(r.vehicle_type||"—")}</td><td>${money(rideFare(r))}</td>
-    <td>${esc(r.payment_method||"—")} · ${esc(r.payment_status||"—")}</td>
-    <td>${esc(dateText(r.created_at))}</td><td>${r.status==="requested" ? '<button class="danger" type="button" data-admin-cancel="'+esc(r.id)+'">Cancel request</button>' : r.status==="started" ? '<button class="danger" type="button" data-admin-cancel-started="'+esc(r.id)+'">Cancel started ride</button>' : "—"}</td></tr>`).join("")}</tbody></table></div>`:
-    `<div class="empty">No rides match these filters.</div>`;
+  $("ridesList").innerHTML=list.length?'<div class="table-wrap"><table>'+
+    '<thead><tr><th>Ride ID</th><th>Status</th><th>Passenger</th><th>Driver</th><th>Route</th><th>Vehicle</th><th>Fare</th><th>Meter / road check</th><th>Payment</th><th>Created</th><th>Action</th></tr></thead>'+
+    '<tbody>'+list.map(r=>'<tr><td>'+esc(r.id)+'</td><td>'+statusPill(r.status)+'</td>'+
+    '<td>'+esc(r.passenger_id||"—")+'</td><td>'+esc(driverName(r.driver_id))+'</td>'+
+    '<td>'+esc(r.pickup_location||"—")+' → '+esc(r.destination||"—")+'</td>'+
+    '<td>'+esc(r.vehicle_type||"—")+'</td><td>'+money(rideFare(r))+'</td>'+
+    '<td>'+rideMeterSummary(r)+'</td>'+
+    '<td>'+esc(r.payment_method||"—")+' · '+esc(r.payment_status||"—")+'</td>'+
+    '<td>'+esc(dateText(r.created_at))+'</td><td>'+renderRideActions(r)+'</td></tr>').join("")+
+    '</tbody></table></div>':'<div class="empty">No rides match these filters.</div>';
   $("ridesList").querySelectorAll("[data-admin-cancel]").forEach(button=>button.addEventListener("click",()=>cancelPendingRideAdmin(button.dataset.adminCancel,button)));
   $("ridesList").querySelectorAll("[data-admin-cancel-started]").forEach(button=>button.addEventListener("click",()=>cancelStartedRideAdmin(button.dataset.adminCancelStarted,button)));
+  $("ridesList").querySelectorAll("[data-verify-meter]").forEach(button=>button.addEventListener("click",()=>verifyRideMeter(button.dataset.verifyMeter,button)));
+}
+async function verifyRideMeter(id,button){
+  const ride=allRides.find(r=>String(r.id)===String(id));
+  if(!currentUser||currentProfile?.role!=="admin"||!ride||ride.status!=="started"||
+     ride.meter_tracking_status!=="stopped"||!ride.meter_stopped_at){
+    showMessage("Only an authorized admin can verify a stopped ride meter.","error");return;
+  }
+  if(Date.now()<Date.parse(ride.meter_stopped_at)+30*60*1000){
+    showMessage("The 30-minute GPS upload window has not closed yet. Wait before verification.","error");return;
+  }
+  if(!confirm("Run TEST-ONLY road matching for ride #"+id+"? This will create a route-distance and fare preview only. It will NOT complete the ride, charge the passenger, or post earnings."))return;
+  setBusy(button,true,"Checking road trace…");
+  try{
+    const {data,error}=await supabaseClient.functions.invoke("verify-ride-meter",{body:{ride_id:Number(id)}});
+    failIf(error);
+    if(!data||data.success!==true)throw new Error(data?.error||"Road-distance verification did not complete.");
+    if(data.status==="matched"){
+      showMessage("TEST MATCH PASSED · Road distance: "+rawMoney(data.route_distance_km)+" km · Indicative fare: "+money(data.estimated_fare_preview)+" · Driver share preview: "+money(data.driver_earnings_preview)+" · Rryd commission preview: "+money(data.admin_commission_preview)+". No live fare, payment, completion or earnings were changed.","success");
+    }else{
+      showMessage("GPS TRACE NEEDS REVIEW · "+(data.review_reason||"The road route could not be verified reliably.")+" No fare was finalized and no earnings were posted.","error");
+    }
+    await refreshAll();
+  }catch(error){
+    showMessage("Road-distance verification failed: "+rpcErrorHint(error),"error");
+  }finally{setBusy(button,false);}
 }
 window.cancelStartedRideAdmin=async(id,button)=>{
   const ride=allRides.find(r=>String(r.id)===String(id));
