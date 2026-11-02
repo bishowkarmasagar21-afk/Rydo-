@@ -164,7 +164,7 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
         <div class="stats">
           <div class="stat"><div class="muted">Today's Driver Earnings</div><div id="todayTotal" class="number green">NPR 0</div></div>
           <div class="stat"><div class="muted">Completed Rides</div><div id="completedCount" class="number">0</div></div>
-          <div class="stat"><div class="muted">Driver Rating</div><div class="number">—</div><div class="small muted">Rating service not connected</div></div>
+          <div class="stat"><div class="muted">Driver Rating</div><div id="driverRatingAverage" class="number">—</div><div id="driverRatingCount" class="small muted">Loading rating…</div></div>
         </div>
 
         <div class="grid">
@@ -461,7 +461,7 @@ async function ensureFreshDriverSession(){
 async function enterPortal(){
   if(!user||!sb||portalStarting)return;portalStarting=true;showApp();text("driverEmailLabel",user.email||"");
   try{
-    await ensureFreshDriverSession();await loadProfile();await Promise.all([loadVehicles(),loadRides(),loadNotifications()]);
+    await ensureFreshDriverSession();await loadProfile();await Promise.all([loadVehicles(),loadRides(),loadNotifications(),loadDriverRatingSummary()]);
     initMap();renderEverything();await loadRequests(true);await refreshGpsWatch();await flushMeterQueue();await refreshCommunication();stopPollingOnly();
     pollTimer=setInterval(async()=>{
       if(!user||document.hidden||pollBusy)return;
@@ -484,6 +484,21 @@ async function enterPortal(){
 }
 function stopPollingOnly(){if(pollTimer)clearInterval(pollTimer);pollTimer=null;if(locationTimer)clearInterval(locationTimer);locationTimer=null;if(meterFlushTimer)clearInterval(meterFlushTimer);meterFlushTimer=null}
 function stopBackground(){stopPollingOnly();if(gpsWatch!==null&&navigator.geolocation)navigator.geolocation.clearWatch(gpsWatch);gpsWatch=null;stopRequestAlarm();clearCommunicationState()}
+async function loadDriverRatingSummary(){
+  if(!sb||!user?.id)return;
+  try{
+    const {data,error}=await sb.rpc("get_driver_rating_summary",{p_driver_id:user.id});
+    if(error)throw error;
+    const summary=Array.isArray(data)?data[0]:data;
+    const count=Number(summary?.rating_count||0),average=Number(summary?.average_rating||0);
+    text("driverRatingAverage",count?average.toFixed(2)+" / 5":"—");
+    text("driverRatingCount",count?count+" passenger rating(s)":"No passenger ratings yet");
+  }catch(error){
+    console.warn("Driver rating summary unavailable",error);
+    text("driverRatingAverage","—");
+    text("driverRatingCount","Rating summary temporarily unavailable");
+  }
+}
 async function loadProfile(){
   const {data,error}=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();if(error)throw error;if(!data)throw Error("No profile row found. Check the existing profile trigger and RLS policies.");
   profile=data;text("welcomeTitle","Welcome, "+(profile.full_name||user.email||"Driver")+"!");$("profileName").value=profile.full_name||"";$("profilePhone").value=profile.phone||"";$("profileEmail").value=user.email||"";updateEligibility();
