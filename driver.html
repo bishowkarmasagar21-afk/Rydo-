@@ -262,7 +262,9 @@ function queueMeterSample(position){
   const now=Date.now(),recordedMs=Number(position.timestamp)||now;
   if(now-lastMeterSampleAt<METER_SAMPLE_INTERVAL_MS||!Number.isFinite(recordedMs)||recordedMs>now+120000||now-recordedMs>1800000)return;
   const latitude=Number(position.coords.latitude),longitude=Number(position.coords.longitude),accuracy=Number(position.coords.accuracy);
-  if(!Number.isFinite(latitude)||latitude < -90||latitude > 90||!Number.isFinite(longitude)||longitude < -180||longitude > 180)return;
+  if(!validNepalPoint(latitude,longitude))return;
+  const rideStartedAt=Date.parse(activeRide.meter_started_at);
+  if(!Number.isFinite(rideStartedAt)||recordedMs<rideStartedAt)return;
   const rideId=Number(activeRide.id);if(!Number.isSafeInteger(rideId)||rideId<=0)return;
   const key=String(rideId);let previous=Number(meterSampleSequence[key]||0);
   try{previous=Math.max(previous,Number(localStorage.getItem("rryd_meter_seq_"+key)||0))}catch{}
@@ -270,7 +272,7 @@ function queueMeterSample(position){
   if(recordedMs<lastForRide)return;
   const sampleNumber=previous+1;meterSampleSequence[key]=sampleNumber;try{localStorage.setItem("rryd_meter_seq_"+key,String(sampleNumber))}catch{}
   meterQueue.push({ride_id:rideId,sample_number:sampleNumber,latitude,longitude,accuracy_m:Number.isFinite(accuracy)&&accuracy>=0?accuracy:null,recorded_at:new Date(recordedMs).toISOString()});
-  if(meterQueue.length>500)meterQueue=meterQueue.slice(-500);
+  // Keep every captured point; silently trimming the oldest samples would corrupt trip-distance review.
   lastMeterSampleAt=now;saveMeterQueue();
   text("gpsStatus","Ride GPS captured · "+meterQueue.filter(x=>Number(x.ride_id)===rideId).length+" sample(s) waiting or uploading.");
 }
@@ -990,6 +992,7 @@ async function refreshDriverPortalOnReturn(){
   resumeRefreshBusy=true;
   try{
     await ensureFreshDriverSession();
+    await flushMeterQueue();
     await loadProfile();
     await Promise.all([loadVehicles(),loadRides(),loadNotifications()]);
     if(profile?.is_online){
@@ -1005,8 +1008,9 @@ async function refreshDriverPortalOnReturn(){
     notify("Driver refresh failed: "+errorText(error));
   }finally{resumeRefreshBusy=false}
 }
-document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshDriverPortalOnReturn()});
-window.addEventListener("pageshow",()=>{if(user)refreshDriverPortalOnReturn()});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden){refreshDriverPortalOnReturn();if(user)flushMeterQueue()}});
+window.addEventListener("pageshow",()=>{if(user){refreshDriverPortalOnReturn();flushMeterQueue()}});
+window.addEventListener("online",()=>{if(user)flushMeterQueue()});
 window.addEventListener("beforeunload",stopBackground);
 init();
 </script>
