@@ -341,6 +341,13 @@ summary{cursor:pointer;font-weight:700}
     </div>
   </section>
 
+  <section id="ratingsSection" class="hidden">
+    <div class="card">
+      <div class="row"><div><h2>Passenger driver ratings</h2><p class="muted">Ratings submitted only by passengers after rides are fully completed. Viewing this list requires the existing verified admin authenticator session.</p></div><button class="secondary" id="reloadRatingsBtn" type="button">Refresh ratings</button></div>
+      <div id="ratingsList"><div class="empty">Loading ratings…</div></div>
+    </div>
+  </section>
+
   <section id="auditSection" class="hidden">
     <div class="card">
       <h2>Data status & audit information</h2>
@@ -547,6 +554,7 @@ function switchSection(id){
   $(id)?.classList.remove("hidden");
   document.querySelectorAll("#mainTabs button").forEach(b=>b.classList.toggle("active",b.dataset.section===id));
   if(id==="reportsSection") generateReport().catch(e=>showMessage(rpcErrorHint(e),"error"));
+  if(id==="ratingsSection") loadAdminDriverRatings();
 }
 document.querySelectorAll("#mainTabs button").forEach(b=>b.addEventListener("click",()=>switchSection(b.dataset.section)));
 document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>switchSection(b.dataset.go)));
@@ -1099,6 +1107,23 @@ function renderPassengers(){
     <td>${p.is_suspended?"Yes":"No"}</td><td>${esc(dateText(p.created_at))}</td><td>${esc(p.id)}</td></tr>`).join("")}</tbody></table></div>`:
     `<div class="empty">No passenger profiles were returned by Supabase.</div>`;
 }
+async function loadAdminDriverRatings(){
+  const box=$("ratingsList");
+  if(!currentUser||currentProfile?.role!=="admin"){box.innerHTML='<div class="empty">Verified administrator sign-in required.</div>';return;}
+  box.innerHTML='<div class="empty">Loading ratings…</div>';
+  try{
+    const {data,error}=await supabaseClient.rpc("admin_list_driver_ratings");
+    failIf(error);
+    const rows=Array.isArray(data)?data:[];
+    if(!rows.length){box.innerHTML='<div class="empty">No passenger ratings have been submitted yet.</div>';return;}
+    box.innerHTML='<div class="table-wrap"><table><thead><tr><th>Date</th><th>Driver</th><th>Average</th><th>Passenger</th><th>Ride</th><th>Rating</th><th>Comment</th></tr></thead><tbody>'+
+      rows.map(r=>'<tr><td>'+esc(dateText(r.created_at))+'</td><td>'+esc(r.driver_name||"—")+'</td><td>'+esc(number(r.driver_average_rating).toFixed(2))+' / 5 ('+esc(r.driver_rating_count)+')</td><td>'+esc(r.passenger_name||"—")+'</td><td>#'+esc(r.ride_id)+'</td><td><span style="color:#ff7417">'+('★'.repeat(Number(r.rating)||0))+('☆'.repeat(5-(Number(r.rating)||0)))+'</span> '+esc(r.rating)+'/5</td><td style="white-space:pre-wrap;max-width:320px">'+esc(r.comment||"—")+'</td></tr>').join('')+
+      '</tbody></table></div>';
+  }catch(error){
+    box.innerHTML='<div class="notice error">'+esc(rpcErrorHint(error))+'</div>';
+  }
+}
+$("reloadRatingsBtn").addEventListener("click",loadAdminDriverRatings);
 function renderDataStatus(errors){
   const checks=[
     ["Authenticated admin",currentProfile?.role==="admin"?"Confirmed":"Not confirmed"],
