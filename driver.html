@@ -642,6 +642,28 @@ async function loadRides(){
   if(error){console.error("Ride history query failed",error);return}
   rides=data||[];activeRide=rides.find(r=>ACTIVE_STATUSES.includes(String(r.status||"").toLowerCase()))||null;
 }
+
+function cashPaymentHtml(r,role){
+  if(String(r.payment_method||"").toLowerCase()!=="cash"||String(r.status||"").toLowerCase()!=="completed"||String(r.fare_approval_status||"").toLowerCase()!=="approved"||!(Number(r.final_fare)>0))return "";
+  if(String(r.payment_status||"").toLowerCase()==="paid"||r.cash_payment_confirmed_at)return '<div class="notice">Cash payment confirmed by both passenger and driver.</div>';
+  const own=role==="driver"?!!r.cash_driver_confirmed_at:!!r.cash_passenger_confirmed_at;
+  if(own)return '<div class="notice">Your cash confirmation is recorded. Waiting for the '+(role==="driver"?"passenger":"driver")+' to confirm.</div>';
+  return '<button class="success" type="button" data-cash-confirm="'+esc(r.id)+'">'+(role==="driver"?"Confirm cash received":"Confirm cash paid")+'</button>';
+}
+async function confirmCashPayment(rideId,button){
+  if(button){button.disabled=true;button.textContent="Confirming…";}
+  try{
+    const {data,error}=await sb.rpc("confirm_cash_payment",{p_ride_id:Number(rideId)});
+    if(error)throw error;
+    if(!data||data.success!==true)throw Error(data?.message||"The database did not confirm this payment.");
+    notify(data.payment_status==="paid"?"Cash payment confirmed by both passenger and driver.":"Your confirmation was saved. Waiting for the passenger.");
+    await loadRides();renderEverything();
+  }catch(error){
+    notify("Cash confirmation failed: "+errorText(error));
+    if(button){button.disabled=false;button.textContent="Confirm cash received";}
+  }
+}
+
 function renderCurrentRide(){
   if(!activeRide){$("currentRide").innerHTML='<p class="muted">No active ride. Accept a ride request to begin.</p>';$("communicationCard").classList.add("hidden");return}
   $("communicationCard").classList.remove("hidden");
@@ -949,7 +971,8 @@ async function routeToPassenger(lat,lon,rideId){
 
 function renderHistory(){
   const rows=rides.filter(r=>["completed","cancelled","canceled"].includes(String(r.status).toLowerCase()));
-  $("historyRows").innerHTML=rows.length?rows.map(r=>`<tr><td>${esc(r.created_at||"—")}</td><td>${esc(r.pickup_location||"—")} → ${esc(r.destination||"—")}</td><td>${esc(typeName(r.vehicle_type))}</td><td>${money(r.final_fare??r.fare)}</td><td>${money(r.driver_earnings)}</td><td><span class="pill">${esc(r.status)}</span></td></tr>`).join(""):'<tr><td colspan="6">No completed or cancelled rides found.</td></tr>'
+  $("historyRows").innerHTML=rows.length?rows.map(r=>`<tr><td>${esc(r.created_at||"—")}</td><td>${esc(r.pickup_location||"—")} → ${esc(r.destination||"—")}</td><td>${esc(typeName(r.vehicle_type))}</td><td>${money(r.final_fare??r.fare)}</td><td>${money(r.driver_earnings)}</td><td><span class="pill">${esc(r.status)}</span>${cashPaymentHtml(r,"driver")}</td></tr>`).join(""):'<tr><td colspan="6">No completed or cancelled rides found.</td></tr>';
+  $("historyRows").querySelectorAll("[data-cash-confirm]").forEach(btn=>btn.addEventListener("click",()=>confirmCashPayment(btn.dataset.cashConfirm,btn)));
 }
 function renderRecent(){$("recentRows").innerHTML=rides.slice(0,5).map(r=>`<tr><td>${esc(r.created_at||"—")}</td><td>${esc(r.pickup_location||"—")} → ${esc(r.destination||"—")}</td><td>${esc(typeName(r.vehicle_type))}</td><td>${money(r.final_fare??r.fare)}</td><td>${esc(r.status)}</td></tr>`).join("")||'<tr><td colspan="5">No ride history yet.</td></tr>'}
 function renderEarnings(){
