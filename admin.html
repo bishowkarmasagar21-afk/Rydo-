@@ -1061,8 +1061,8 @@ async function verifyRideMeter(id,button,automatic=false){
     if(!automatic)showMessage("Only an authorized admin can verify a completed ride with a stopped meter.","error");
     return;
   }
-  if(Date.now()<Date.parse(ride.meter_stopped_at)+30*60*1000){
-    if(!automatic)showMessage("The 30-minute GPS upload window has not closed yet. Wait before verification.","error");
+  if(!ride.meter_upload_completed_at||ride.meter_upload_expected_count==null){
+    if(!automatic)showMessage("Driver GPS uploads are not confirmed complete yet. Keep the driver portal open until queued samples finish uploading. No fare has been finalized.","error");
     return;
   }
   if(meterVerifyInFlight.has(String(id)))return;
@@ -1098,9 +1098,9 @@ async function autoVerifyCompletedMeters(){
   const now=Date.now();
   const eligible=allRides.filter(r=>{
     if(r.status!=="completed"||r.meter_tracking_status!=="stopped"||
-       !r.meter_stopped_at||r.meter_route_distance_km!=null||r.meter_tracking_issue===true)return false;
-    const stop=Date.parse(r.meter_stopped_at);
-    if(!Number.isFinite(stop)||now<stop+30*60*1000)return false;
+       !r.meter_stopped_at||!r.meter_upload_completed_at||
+       r.meter_upload_expected_count==null||r.meter_route_distance_km!=null||
+       r.meter_tracking_issue===true)return false;
     const last=meterVerifyLastAttempt.get(String(r.id))||0;
     return now-last>=5*60*1000&&!meterVerifyInFlight.has(String(r.id));
   });
