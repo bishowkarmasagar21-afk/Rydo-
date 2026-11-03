@@ -540,7 +540,8 @@ async function updateDriverApproachRoute(ride,lat,lon){
   }catch(error){if(seq===driverRouteSeq){lastDriverRouteKey="";text("driverApproachEta","Driver-to-pickup road route is temporarily unavailable. The marker may still be shown if its location is fresh.");}}
 }
 function syncPassengerLocationSharing(ride){
-  const eligible=!!(ride&&String(ride.status||"").toLowerCase()==="accepted"&&ride.driver_id);
+  const status=String(ride?.status||"").toLowerCase();
+  const eligible=!!(ride&&(status==="requested"||(status==="accepted"&&ride.driver_id)));
   if(!eligible){
     stopPassengerLocationWatch(true);
     passengerLocationConsent=false;
@@ -555,33 +556,40 @@ async function maybeAutoStartPassengerLocationWatch(ride){
   const rideId=String(ride?.id??"");
   if(!rideId||passengerGpsWatch!==null||passengerLocationStartPending||passengerLocationAutoCheckRideId===rideId)return;
   passengerLocationAutoCheckRideId=rideId;
-  /* Auto-share only when browser GPS permission was already granted.
-     Otherwise the passenger must press Enable and approve the browser prompt. */
+  /* Start automatically only if the passenger previously granted browser GPS permission.
+     Otherwise the passenger must press the visible Enable button after requesting. */
   if(!navigator.permissions?.query||!navigator.geolocation)return;
   try{
     const permission=await navigator.permissions.query({name:"geolocation"});
     if(permission.state!=="granted")return;
-    if(!currentRide||String(currentRide.id)!==rideId||String(currentRide.status||"").toLowerCase()!=="accepted")return;
+    if(!currentRide||String(currentRide.id)!==rideId||!["requested","accepted"].includes(String(currentRide.status||"").toLowerCase()))return;
     await startPassengerLocationWatch();
   }catch(error){console.warn("Automatic passenger GPS permission check unavailable",error);}
 }
 function updatePassengerLocationSharingUI(){
   const el=$("passengerLocationSharingStatus");if(!el)return;
-  if(!currentRide||String(currentRide.status||"").toLowerCase()!=="accepted"||!currentRide.driver_id){
-    el.className="message info";el.textContent="Live passenger location sharing is available only after a driver accepts and ends when pickup is confirmed.";return;
+  const status=String(currentRide?.status||"").toLowerCase();
+  if(!currentRide||!["requested","accepted"].includes(status)){
+    el.className="message info";el.textContent="Passenger GPS sharing is off. It stops when the driver reaches pickup, or when the ride is cancelled or completed.";return;
   }
   if(passengerLocationStartPending){
     el.className="message info";el.textContent="Starting GPS sharing. Waiting for your device location…";return;
   }
   if(passengerGpsWatch!==null){
-    el.className="message ok";el.textContent="GPS sharing is active for the driver assigned to ride #"+currentRide.id+". You can stop sharing at any time.";
+    el.className="message ok";
+    el.textContent=status==="requested"
+      ?"Your GPS is being shared securely with Rryd for ride #"+currentRide.id+". Drivers cannot see it until one accepts your ride."
+      :"Your GPS is being shared with the driver assigned to ride #"+currentRide.id+". You can stop sharing at any time.";
     const stop=document.createElement("button");stop.type="button";stop.className="ghost";stop.textContent="Stop sharing";stop.style.marginTop="8px";stop.addEventListener("click",()=>stopPassengerLocationWatch(true));el.appendChild(stop);return;
   }
-  el.className="message info";el.textContent="If you have already allowed GPS in your browser, Rryd will share your live location automatically with the driver assigned to this ride. Otherwise, tap Enable and approve the browser permission.";
-  const enable=document.createElement("button");enable.type="button";enable.className="primary";enable.textContent="Enable live location sharing";enable.style.marginTop="8px";enable.addEventListener("click",()=>startPassengerLocationWatch(false));el.appendChild(enable);
+  el.className="message info";
+  el.textContent=status==="requested"
+    ?"Enable GPS sharing while you wait. Your precise location is stored for this ride and remains hidden from drivers until one accepts. If you previously allowed GPS, Rryd may start automatically."
+    :"Enable GPS sharing so the assigned driver can find you. Your fixed pickup pin will not be changed by GPS.";
+  const enable=document.createElement("button");enable.type="button";enable.className="primary";enable.textContent="Enable live location sharing";enable.style.marginTop="8px";enable.addEventListener("click",()=>startPassengerLocationWatch());el.appendChild(enable);
 }
 async function startPassengerLocationWatch(){
-  if(!currentRide||String(currentRide.status||"").toLowerCase()!=="accepted"||!currentRide.driver_id)return;
+  if(!currentRide||!["requested","accepted"].includes(String(currentRide.status||"").toLowerCase()))return;
   if(passengerGpsWatch!==null||passengerLocationStartPending)return;
   if(!navigator.geolocation){setMessage("appMessage","This browser does not support GPS. Share your pickup pin with the driver instead.","error");return;}
   if(!window.isSecureContext){setMessage("appMessage","Live GPS requires a secure HTTPS connection. Open Rryd over HTTPS and try again.","error");return;}
@@ -589,7 +597,7 @@ async function startPassengerLocationWatch(){
   passengerLocationConsent=true;updatePassengerLocationSharingUI();
   try{
   passengerGpsWatch=navigator.geolocation.watchPosition(async pos=>{
-    if(!passengerLocationConsent||!currentRide||String(currentRide.status||"").toLowerCase()!=="accepted")return;
+    if(!passengerLocationConsent||!currentRide||!["requested","accepted"].includes(String(currentRide.status||"").toLowerCase()))return;
     const lat=Number(pos.coords.latitude),lon=Number(pos.coords.longitude),accuracy=Number(pos.coords.accuracy);
     if(!isNepalBounds(lat,lon)){setMessage("appMessage","Your GPS point could not be verified inside Nepal. Location was not shared.","error");return;}
     if(Date.now()-lastPassengerLocationSentAt<7000||passengerLocationSendBusy)return;
