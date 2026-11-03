@@ -50,20 +50,20 @@ body.light{color-scheme:light;--bg:#edf4f9;--panel:#fff;--panel2:#f5f9fc;--text:
           <div id="pickupResults" class="results hidden"></div>
         </div>
         <div class="fieldbox">
-          <div class="fieldlabel"><span class="dot dest"></span>Destination <span class="muted small">(optional)</span></div>
-          <div class="fieldrow"><input id="destination" autocomplete="off" placeholder="Add destination now, or leave blank for a metered ride"><button class="secondary" id="searchDestinationBtn" type="button">Search</button></div><p class="muted small">You can request pickup only. The driver starts the GPS meter when the journey begins. The fare stays pending until the recorded road distance is verified.</p>
+          <div class="fieldlabel"><span class="dot dest"></span>Destination</div>
+          <div class="fieldrow"><input id="destination" autocomplete="off" placeholder="Search your destination in Nepal"><button class="secondary" id="searchDestinationBtn" type="button">Search</button></div><p class="muted small">A destination is required before booking. Rryd calculates the estimated fare using the road route between your pickup and destination.</p>
           <div id="destinationResults" class="results hidden"></div>
         </div>
         <div class="map-tools">
           <button class="ghost" id="gpsBtn" type="button">◎ Use my GPS</button>
           <button class="ghost" id="pickPickupBtn" type="button">＋ Pin pickup</button>
-          <button class="ghost" id="pickDestinationBtn" type="button">＋ Pin destination (optional)</button>
+          <button class="ghost" id="pickDestinationBtn" type="button">＋ Pin destination</button>
           <button class="ghost" id="clearRouteBtn" type="button">Clear</button>
         </div>
         <p class="muted small" id="mapMessage">Search a place or choose a pin mode, then tap the map. Both pins can be dragged.</p>
         <div id="map" aria-label="Rryd road map"></div>
         <div class="map-legend"><span><i class="legenddot" style="background:#17c98b"></i>Pickup</span><span><i class="legenddot" style="background:#ff5366"></i>Destination</span><span><i class="legenddot" style="background:#ff7417"></i>Road route</span><span><i class="legenddot" style="background:#1687ff"></i>Assigned driver (when location is available)</span></div>
-        <div id="routeInfo" class="routeinfo muted">Choose a destination for an upfront estimate, or leave it blank to request a pickup-only metered ride.</div>
+        <div id="routeInfo" class="routeinfo muted">Choose both pickup and destination to calculate the road route and estimated fare.</div>
         <div class="stats">
           <div class="stat"><span>Road distance</span><strong id="distanceDisplay">— km</strong></div>
           <div class="stat"><span>Estimated time</span><strong id="etaDisplay">— min</strong></div>
@@ -379,7 +379,7 @@ async function searchPlaces(which){
   }catch(error){box.replaceChildren();const item=document.createElement("div");item.className="result";item.textContent=errorText(error);box.appendChild(item);}
 }
 $("searchPickupBtn").addEventListener("click",()=>searchPlaces("pickup"));$("searchDestinationBtn").addEventListener("click",()=>searchPlaces("destination"));
-$("destination").addEventListener("input",()=>{if(destinationPoint&&$("destination").value.trim()!==destinationPoint.label){destinationPoint=null;if(destinationMarker&&map){map.removeLayer(destinationMarker);destinationMarker=null;}invalidateRoute();text("routeInfo","Destination cleared. You can continue with a pickup-only metered request.");updateFareDisplay();}});
+$("destination").addEventListener("input",()=>{if(destinationPoint&&$("destination").value.trim()!==destinationPoint.label){destinationPoint=null;if(destinationMarker&&map){map.removeLayer(destinationMarker);destinationMarker=null;}invalidateRoute();text("routeInfo","Destination cleared. You can continue with a destination-required metered request.");updateFareDisplay();}});
 for(const id of ["pickup","destination"])$(id).addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();searchPlaces(id);}});
 $("pickPickupBtn").addEventListener("click",()=>{mapPickTarget="pickup";text("mapMessage","Pickup pin mode is active. Tap the map where the passenger should be collected.");map?.invalidateSize();});
 $("pickDestinationBtn").addEventListener("click",()=>{mapPickTarget="destination";text("mapMessage","Destination pin mode is active. Tap the map to choose the destination.");map?.invalidateSize();});
@@ -445,9 +445,10 @@ async function requestRide(){
   if(!session?.user||!profile){show("authOverlay",true);return setMessage("authMessage","Sign in before requesting a ride.","info");}
   if(profile.role!=="passenger"||profile.is_suspended===true)return setMessage("appMessage","Your passenger account is not eligible to book. Check your account status with Rryd support.","error");
   if(!pickupPoint)return setMessage("appMessage","Choose a pickup location in Nepal before requesting a ride.","error");
-  const hasDestination=!!destinationPoint;
-  if(hasDestination&&(!Number.isFinite(routeDistanceKm)||routeDistanceKm<=0))return setMessage("appMessage","Wait for a valid road route before booking, or clear the destination for a pickup-only request.","error");
-  if(hasDestination&&routeDistanceKm>500)return setMessage("appMessage","This route is over the current 500 km safety limit. Choose a nearer destination or contact support.","error");
+  if(!destinationPoint)return setMessage("appMessage","Choose a destination in Nepal before requesting a ride.","error");
+  const hasDestination=true;
+  if(!Number.isFinite(routeDistanceKm)||routeDistanceKm<=0)return setMessage("appMessage","Wait for a valid road route before booking.","error");
+  if(routeDistanceKm>500)return setMessage("appMessage","This route is over the current 500 km safety limit. Choose a nearer destination or contact support.","error");
   if((hasDestination||fareRulesLoaded)&&!fareRules[selectedVehicle])return setMessage("appMessage","There is no active fare rule for this vehicle. Choose another vehicle or retry later.","error");
   if(paymentMethod==="online")return setMessage("appMessage","Online payment is not yet connected to a payment gateway. Choose Cash; no online payment has been taken.","error");
   if(currentRide&&isActive(currentRide.status))return setMessage("appMessage","You already have an active ride. Refresh Current Ride instead of creating another request.","error");
