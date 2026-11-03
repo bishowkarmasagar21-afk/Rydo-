@@ -9,7 +9,7 @@
 <style>
 :root{color-scheme:dark;--bg:#08111b;--panel:#142638;--panel2:#0d1c2a;--text:#f4f7fb;--muted:#aab9c8;--orange:#ff7417;--blue:#58b9ff;--border:#2b4053;--danger:#ff5366;--success:#37d99a;--input:#fff;--inputText:#132536;--shadow:0 12px 32px #0002}
 body.light{color-scheme:light;--bg:#edf4f9;--panel:#fff;--panel2:#f5f9fc;--text:#172a3a;--muted:#627487;--border:#d3e0e9;--input:#fff;--inputText:#132536;--shadow:0 10px 28px #0d233310}
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font:15px Inter,Arial,Helvetica,sans-serif;line-height:1.45}button,input,select,textarea{font:inherit}button{border:0;border-radius:10px;padding:11px 14px;font-weight:700;cursor:pointer;touch-action:manipulation}button:disabled{opacity:.52;cursor:not-allowed}.primary{background:var(--orange);color:#fff}.secondary{background:var(--blue);color:#052137}.ghost{background:transparent;color:var(--text);border:1px solid var(--border)}.danger{background:var(--danger);color:#fff}.good{background:var(--success);color:#052719}input,select,textarea{width:100%;padding:12px;border:1px solid var(--border);border-radius:9px;background:var(--input);color:var(--inputText);outline:none}input:focus,select:focus,textarea:focus{border-color:var(--orange);box-shadow:0 0 0 2px #ff741733}label{display:block;margin:12px 0 5px;font-weight:700;font-size:13px}a{color:var(--blue)}.hidden{display:none!important}.muted{color:var(--muted)}.small{font-size:12px}.tiny{font-size:11px}.center{text-align:center}.wrap{max-width:1320px;margin:auto;padding:16px}.topbar{position:sticky;top:0;z-index:700;display:flex;align-items:center;gap:14px;padding:12px 18px;background:var(--panel);border-bottom:1px solid var(--border)}.brand{font-size:27px;font-weight:950;letter-spacing:-.8px;white-space:nowrap}.brand .rr{color:var(--orange)}.tagline{color:var(--muted);font-size:11px;margin-top:-4px}.topnote{flex:1;color:var(--muted);font-size:12px}.top-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.top-actions button{padding:9px 11px}.card{min-width:0;background:var(--panel);border:1px solid var(--border);border-radius:15px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}h1{font-size:24px;margin:0 0 6px}h2{font-size:19px;margin:0 0 13px}h3{font-size:16px;margin:5px 0 10px}.layout{display:grid;grid-template-columns:minmax(0,1.18fr) minmax(320px,.82fr);gap:14px;align-items:start}.stack{display:grid;gap:14px;min-width:0}.row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.row>*{min-width:0}.grow{flex:1;min-width:0}.fieldrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px}.fieldrow button{white-space:nowrap}.fieldbox{margin-bottom:9px}.fieldlabel{display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px;margin:6px 0}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#19ba80}.dot.dest{background:var(--danger)}.results{margin:4px 0 8px;max-height:180px;overflow:auto}.result{padding:10px;margin-top:5px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;overflow-wrap:anywhere}.result:hover{border-color:var(--orange)}#map{height:440px;width:100%;z-index:1;border-radius:12px;border:1px solid var(--border);overflow:hidden;background:#dce8ee}.map-tools{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.map-tools button{flex:1}.routeinfo{border-radius:9px;background:var(--panel2);padding:10px;margin-top:10px;overflow-wrap:anywhere}.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}.stat{padding:10px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;min-width:0}.stat span{display:block;color:var(--muted);font-size:11px}.stat strong{display:block;font-size:17px;margin-top:4px;overflow-wrap:anywhere}.vehicles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.vehicle{background:var(--panel2);color:var(--text);border:1px solid var(--border);padding:12px 5px;text-align:center}.vehicle.selected{border:2px solid var(--orange);background:#ff741718;padding:11px 4px}.vehicle .emoji{font-size:25px;display:block;margin-bottom:3px}.vehicle small{display:block;font-size:11px;color:var(--muted);font-weight:500}.fare{font-size:30px;font-weight:950;color:var(--orange);line-height:1.25}.message{border-radius:9px;padding:10px 12px;margin:10px 0;overflow-wrap:anywhere;white-space:pre-wrap}.message:empty{display:none}.message.error{background:#ff536620;color:var(--danger)}.message.ok{background:#37d99a20;color:var(--success)}.message.info{background:#58b9ff20;color:var(--blue)}.subtle{border-top:1px solid var(--border);margin:15px 0}.status{display:inline-flex;padding:4px 9px;border-radius:99px;background:#58b9ff22;color:var(--blue);font-size:12px;font-weight:800}.status.completed{background:#37d99a22;color:var(--success)}.status.cancelled{background:#ff536622;color:var(--danger)}.ride{border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:9px;overflow-wrap:anywhere}.ride p{margin:6px 0}.ride-head{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}.history{max-height:540px;overflow:auto}.driver-box{border:1px solid var(--border);background:var(--panel2);border-radius:10px;padding:12px;margin-top:10px}.fare-note{font-size:12px;color:var(--muted);line-height:1.45}.inline-check{display:flex;gap:8px;align-items:flex-start}.inline-check input{width:auto;margin-top:4px}.footer{text-align:center;padding:18px 10px;color:var(--muted);font-size:12px}.modalback{position:fixed;inset:0;background:#000b;z-index:2000;display:grid;place-items:center;padding:14px;overflow:auto}.modal{width:min(500px,100%);max-height:94vh;overflow:auto;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:0 22px 65px #0008}.modal h2{margin-top:0}.modal-actions{display:flex;gap:8px;margin-top:12px}.modal-actions>*{flex:1}.receipt-toast{position:fixed;z-index:2100;left:12px;right:12px;bottom:12px;max-width:680px;margin:0 auto;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:13px;box-shadow:0 12px 40px #0008;padding:14px;max-height:72vh;overflow:auto}.receipt-head{display:flex;align-items:center;gap:8px;justify-content:space-between;position:sticky;top:-14px;background:var(--panel);padding:0 0 8px}.receipt-toast pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}.receipt-close{padding:3px 9px;background:transparent;border:1px solid var(--border);color:var(--text)}.side-actions{display:flex;gap:7px;flex-wrap:wrap}.side-actions button{flex:1}.pill{display:inline-block;border:1px solid var(--border);border-radius:99px;padding:4px 9px;color:var(--muted);font-size:11px}.map-legend{display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin-top:6px}.legenddot{width:9px;height:9px;display:inline-block;border-radius:50%;margin-right:4px}.disabled-note{border:1px dashed var(--border);border-radius:9px;padding:11px;color:var(--muted);font-size:12px}.danger-text{color:var(--danger)}.toast{position:fixed;right:14px;bottom:14px;z-index:1900;width:min(340px,calc(100% - 28px));background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:var(--shadow)}.toast h3{margin:0 0 5px}.support-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.linkbtn{display:inline-block;text-decoration:none;text-align:center;border:1px solid var(--border);border-radius:9px;padding:10px;color:var(--text)}.leaflet-popup-content{color:#142638}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font:15px Inter,Arial,Helvetica,sans-serif;line-height:1.45}button,input,select,textarea{font:inherit}button{border:0;border-radius:10px;padding:11px 14px;font-weight:700;cursor:pointer;touch-action:manipulation}button:disabled{opacity:.52;cursor:not-allowed}.primary{background:var(--orange);color:#fff}.secondary{background:var(--blue);color:#052137}.ghost{background:transparent;color:var(--text);border:1px solid var(--border)}.danger{background:var(--danger);color:#fff}.good{background:var(--success);color:#052719}input,select,textarea{width:100%;padding:12px;border:1px solid var(--border);border-radius:9px;background:var(--input);color:var(--inputText);outline:none}input:focus,select:focus,textarea:focus{border-color:var(--orange);box-shadow:0 0 0 2px #ff741733}label{display:block;margin:12px 0 5px;font-weight:700;font-size:13px}a{color:var(--blue)}.hidden{display:none!important}.muted{color:var(--muted)}.small{font-size:12px}.tiny{font-size:11px}.center{text-align:center}.wrap{max-width:1320px;margin:auto;padding:16px}.topbar{position:sticky;top:0;z-index:700;display:flex;align-items:center;gap:14px;padding:12px 18px;background:var(--panel);border-bottom:1px solid var(--border)}.brand{font-size:27px;font-weight:950;letter-spacing:-.8px;white-space:nowrap}.brand .rr{color:var(--orange)}.tagline{color:var(--muted);font-size:11px;margin-top:-4px}.topnote{flex:1;color:var(--muted);font-size:12px}.top-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.top-actions button{padding:9px 11px}.card{min-width:0;background:var(--panel);border:1px solid var(--border);border-radius:15px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}h1{font-size:24px;margin:0 0 6px}h2{font-size:19px;margin:0 0 13px}h3{font-size:16px;margin:5px 0 10px}.layout{display:grid;grid-template-columns:minmax(0,1.18fr) minmax(320px,.82fr);gap:14px;align-items:start}.stack{display:grid;gap:14px;min-width:0}.row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.row>*{min-width:0}.grow{flex:1;min-width:0}.fieldrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px}.fieldrow button{white-space:nowrap}.fieldbox{margin-bottom:9px}.fieldlabel{display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px;margin:6px 0}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#19ba80}.dot.dest{background:var(--danger)}.results{margin:4px 0 8px;max-height:180px;overflow:auto}.result{padding:10px;margin-top:5px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;overflow-wrap:anywhere}.result:hover{border-color:var(--orange)}#map{height:440px;width:100%;z-index:1;border-radius:12px;border:1px solid var(--border);overflow:hidden;background:#dce8ee}.map-tools{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.map-tools button{flex:1}.routeinfo{border-radius:9px;background:var(--panel2);padding:10px;margin-top:10px;overflow-wrap:anywhere}.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}.stat{padding:10px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;min-width:0}.stat span{display:block;color:var(--muted);font-size:11px}.stat strong{display:block;font-size:17px;margin-top:4px;overflow-wrap:anywhere}.vehicles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.vehicle{background:var(--panel2);color:var(--text);border:1px solid var(--border);padding:12px 5px;text-align:center}.vehicle.selected{border:2px solid var(--orange);background:#ff741718;padding:11px 4px}.vehicle .emoji{font-size:25px;display:block;margin-bottom:3px}.vehicle small{display:block;font-size:11px;color:var(--muted);font-weight:500}.fare{font-size:30px;font-weight:950;color:var(--orange);line-height:1.25}.message{border-radius:9px;padding:10px 12px;margin:10px 0;overflow-wrap:anywhere;white-space:pre-wrap}.message:empty{display:none}.message.error{background:#ff536620;color:var(--danger)}.message.ok{background:#37d99a20;color:var(--success)}.message.info{background:#58b9ff20;color:var(--blue)}.subtle{border-top:1px solid var(--border);margin:15px 0}.status{display:inline-flex;padding:4px 9px;border-radius:99px;background:#58b9ff22;color:var(--blue);font-size:12px;font-weight:800}.status.completed{background:#37d99a22;color:var(--success)}.status.cancelled{background:#ff536622;color:var(--danger)}.ride{border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:9px;overflow-wrap:anywhere}.ride p{margin:6px 0}.ride-head{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}.history{max-height:540px;overflow:auto}.driver-box{border:1px solid var(--border);background:var(--panel2);border-radius:10px;padding:12px;margin-top:10px}.fare-note{font-size:12px;color:var(--muted);line-height:1.45}.inline-check{display:flex;gap:8px;align-items:flex-start}.inline-check input{width:auto;margin-top:4px}.footer{text-align:center;padding:18px 10px;color:var(--muted);font-size:12px}.modalback{position:fixed;inset:0;background:#000b;z-index:2000;display:grid;place-items:center;padding:14px;overflow:auto}.modal{width:min(500px,100%);max-height:94vh;overflow:auto;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:0 22px 65px #0008}.modal h2{margin-top:0}.modal-actions{display:flex;gap:8px;margin-top:12px}.modal-actions>*{flex:1}.receipt-toast{position:fixed;z-index:2100;left:12px;right:12px;bottom:12px;max-width:680px;margin:0 auto;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:13px;box-shadow:0 12px 40px #0008;padding:14px;max-height:72vh;overflow:auto}.receipt-head{display:flex;align-items:center;gap:8px;justify-content:space-between;position:sticky;top:-14px;background:var(--panel);padding:0 0 8px}.receipt-toast pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}.receipt-close{padding:3px 9px;background:transparent;border:1px solid var(--border);color:var(--text)}.side-actions{display:flex;gap:7px;flex-wrap:wrap}.side-actions button{flex:1}.pill{display:inline-block;border:1px solid var(--border);border-radius:99px;padding:4px 9px;color:var(--muted);font-size:11px}.map-legend{display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin-top:6px}.legenddot{width:9px;height:9px;display:inline-block;border-radius:50%;margin-right:4px}.disabled-note{border:1px dashed var(--border);border-radius:9px;padding:11px;color:var(--muted);font-size:12px}.danger-text{color:var(--danger)}.toast{position:fixed;right:14px;bottom:14px;z-index:1900;width:min(340px,calc(100% - 28px));background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:var(--shadow)}.toast h3{margin:0 0 5px}.support-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.linkbtn{display:inline-block;text-decoration:none;text-align:center;border:1px solid var(--border);border-radius:9px;padding:10px;color:var(--text)}.leaflet-popup-content{color:#142638}.rryd-driver-icon-wrap{background:transparent;border:0}.rryd-driver-pin{width:30px;height:30px;display:grid;place-items:center;border:2px solid #fff;border-radius:50%;background:#142638;box-shadow:0 2px 8px #0008;font-size:17px}
 @media(max-width:900px){.layout{grid-template-columns:1fr}#map{height:380px}.topnote{display:none}}
 @media(max-width:560px){.wrap{padding:8px}.topbar{padding:9px 10px;gap:8px}.brand{font-size:22px}.tagline{font-size:10px}.top-actions{gap:4px}.top-actions button{padding:8px;font-size:12px}.card{padding:12px;margin-bottom:10px}.layout{gap:10px}#map{height:310px}.fieldrow{grid-template-columns:minmax(0,1fr) auto}.fieldrow button{padding:10px 9px;font-size:12px}.stats{gap:5px}.stat{padding:8px}.stat strong{font-size:15px}.vehicles{gap:5px}.vehicle{font-size:13px;padding:9px 3px}.vehicle.selected{padding:8px 2px}.vehicle .emoji{font-size:22px}.modal{padding:15px}.support-grid{grid-template-columns:1fr}}
 </style>
@@ -56,13 +56,14 @@ body.light{color-scheme:light;--bg:#edf4f9;--panel:#fff;--panel2:#f5f9fc;--text:
         </div>
         <div class="map-tools">
           <button class="ghost" id="gpsBtn" type="button">◎ Use my GPS</button>
+          <button class="secondary" id="nearbyDriversBtn" type="button">◎ Show nearby drivers</button>
           <button class="ghost" id="pickPickupBtn" type="button">＋ Pin pickup</button>
           <button class="ghost" id="pickDestinationBtn" type="button">＋ Pin destination</button>
           <button class="ghost" id="clearRouteBtn" type="button">Clear</button>
         </div>
         <p class="muted small" id="mapMessage">Search a place or choose a pin mode, then tap the map. Both pins can be dragged.</p>
         <div id="map" aria-label="Rryd road map"></div>
-        <div class="map-legend"><span><i class="legenddot" style="background:#17c98b"></i>Pickup</span><span><i class="legenddot" style="background:#ff5366"></i>Destination</span><span><i class="legenddot" style="background:#ff7417"></i>Road route</span><span><i class="legenddot" style="background:#1687ff"></i>Assigned driver (when location is available)</span></div>
+        <div class="map-legend"><span><i class="legenddot" style="background:#17c98b"></i>Pickup</span><span><i class="legenddot" style="background:#ff5366"></i>Destination</span><span><i class="legenddot" style="background:#ff7417"></i>Road route</span><span><i class="legenddot" style="background:#1687ff"></i>Assigned driver</span><span>🏍️ Bike</span><span>🚗 Car</span><span>🛺 Tuk Tuk</span><span><i class="legenddot" style="background:#37d99a"></i>Your live GPS</span></div>
         <div id="routeInfo" class="routeinfo muted">Choose both pickup and destination to calculate the road route and estimated fare.</div>
         <div class="stats">
           <div class="stat"><span>Road distance</span><strong id="distanceDisplay">— km</strong></div>
@@ -113,10 +114,10 @@ body.light{color-scheme:light;--bg:#edf4f9;--panel:#fff;--panel2:#f5f9fc;--text:
         <div id="bookingMessage" class="message hidden" role="status" aria-live="polite"></div>
         <div class="subtle"></div>
         <h3>Driver availability</h3>
-        <p class="muted small">Rryd checks fresh GPS locations for approved online drivers within 5 km of your selected pickup. Nearby locations can change before booking, so Supabase remains authoritative.</p>
-        <div id="availabilityText" class="message info">Sign in to check availability.</div>
-        <button class="ghost" id="refreshAvailabilityBtn" type="button">Refresh availability</button>
-        <div id="nearbyMessage" class="muted small" style="margin-top:8px">Before assignment, this page does not expose every driver's precise GPS coordinates. A secure nearby-driver feed can be added if one exists in Supabase.</div>
+        <p class="muted small">Show nearby verified, approved and available drivers around your live GPS location. Driver markers use approximate positions and refresh automatically while tracking is on.</p>
+        <div id="availabilityText" class="message info">Enable live GPS to find nearby available drivers.</div>
+        <button class="ghost" id="refreshAvailabilityBtn" type="button">Refresh nearby drivers</button>
+        <div id="nearbyMessage" class="muted small" style="margin-top:8px">Your location is used to centre the search. Driver names, phone numbers and exact GPS coordinates are not shown here.</div>
       </div>
 
       <div class="card" id="currentPanel">
@@ -222,6 +223,7 @@ const setMessage = (id,value,type="info") => { const e=$(id); if(e){e.textConten
 
 let db=null,session=null,profile=null,authMode="login",selectedVehicle="bike",paymentMethod="cash",loadedProfileUserId=null,loadingProfile=false;
 let map=null,pickupMarker=null,destinationMarker=null,routeLayer=null,driverMarker=null,driverRouteLayer=null,nearbyDriverMarkers=[],nearbySearchCircle=null,nearbyRequestSeq=0;
+let passengerLiveGpsWatch=null,passengerLiveGps=null,passengerLiveGpsMarker=null,passengerLiveGpsFirstFix=false;
 let pickupPoint=null,destinationPoint=null,routeDistanceKm=0,routeDurationMinutes=0,routeGeometry=null;
 let fareRules={},fareRulesLoaded=false,fareRulesError="",mapPickTarget="",routeRequestSeq=0,driverRouteSeq=0,lastDriverRouteKey="",lastReceiptPopupId=null;
 let currentRide=null,rideRows=[],ridePollTimer=null,availabilityTimer=null,isLoading=false;
@@ -301,11 +303,12 @@ async function loadPassenger(){
 }
 function resetLoggedOut(){
   stopPassengerLocationWatch(false);
+  stopPassengerLiveGpsWatch();
   session=null;profile=null;loadedProfileUserId=null;loadingProfile=false;currentRide=null;rideRows=[];stopPolling();
   if(map){for(const layer of [pickupMarker,destinationMarker,routeLayer])if(layer)map.removeLayer(layer);}
   pickupMarker=destinationMarker=routeLayer=null;pickupPoint=destinationPoint=null;routeDistanceKm=0;routeDurationMinutes=0;routeGeometry=null;clearDriverTracking();closeReceipt();lastKnownStatus="";lastKnownRideId=null;lastRequestAt=0;
   $("pickup").value="";$("destination").value="";updateFareDisplay();show("authOverlay",true);show("settingsBtn",false);show("notificationsBtn",false);show("logoutBtn",false);show("settingsPanel",false);show("bookingSection",true);show("supportPanel",true);show("rideSafetyPanel",false);show("ratingPanel",false);show("messagePanel",false);
-  text("accountBtn","Sign in");text("welcome","Plan your ride");text("currentRide","Sign in to view a ride.");text("driverDetails","");text("rideHistory","Sign in to load ride history.");text("availabilityText","Sign in to check availability.");text("routeInfo","Sign in to restore an active ride or choose locations to calculate a route.");text("distanceDisplay","— km");text("etaDisplay","— min");
+  text("accountBtn","Sign in");text("welcome","Plan your ride");text("currentRide","Sign in to view a ride.");text("driverDetails","");text("rideHistory","Sign in to load ride history.");text("availabilityText","Sign in to find nearby available drivers.");text("routeInfo","Sign in to restore an active ride or choose locations to calculate a route.");text("distanceDisplay","— km");text("etaDisplay","— min");
 }
 $("accountBtn").addEventListener("click",()=>{if(!session?.user)show("authOverlay",true);else activeViewSettings();});
 $("settingsBtn").addEventListener("click",activeViewSettings);
@@ -410,33 +413,75 @@ function clearNearbyDriverMarkers(){
 async function refreshAvailability(){
   const seq=++nearbyRequestSeq;
   clearNearbyDriverMarkers();
-  if(!db||!session?.user){setMessage('availabilityText','Sign in to check nearby approved online vehicles.','info');return;}
-  if(!pickupPoint||!isNepalBounds(Number(pickupPoint.lat),Number(pickupPoint.lon))){setMessage('availabilityText','Choose a pickup in Nepal to find nearby eligible drivers.','info');return;}
+  if(!db||!session?.user){setMessage('availabilityText','Sign in to find nearby available drivers.','info');return;}
+  if(!passengerLiveGps||!isNepalBounds(Number(passengerLiveGps.lat),Number(passengerLiveGps.lon))){setMessage('availabilityText','Turn on live GPS to show available drivers around you.','info');return;}
   try{
-    const {data,error}=await db.rpc('get_nearby_eligible_drivers',{p_vehicle_type:selectedVehicle,p_pickup_latitude:Number(pickupPoint.lat),p_pickup_longitude:Number(pickupPoint.lon),p_radius_km:5});
+    const {data,error}=await db.rpc('get_nearby_active_drivers',{
+      p_passenger_latitude:Number(passengerLiveGps.lat),
+      p_passenger_longitude:Number(passengerLiveGps.lon),
+      p_radius_km:5
+    });
     if(error)throw error;
     if(seq!==nearbyRequestSeq)return;
     const drivers=Array.isArray(data)?data:[];
     if(map){
-      nearbySearchCircle=L.circle([pickupPoint.lat,pickupPoint.lon],{radius:5000,color:'#1687ff',weight:1,opacity:.45,fillOpacity:.035,interactive:false}).addTo(map);
+      nearbySearchCircle=L.circle([passengerLiveGps.lat,passengerLiveGps.lon],{radius:5000,color:'#1687ff',weight:1,opacity:.5,fillOpacity:.035,interactive:false}).addTo(map);
       drivers.forEach(driver=>{
         const lat=Number(driver.latitude),lon=Number(driver.longitude),distance=Number(driver.distance_km);
-        if(!isNepalBounds(lat,lon)||!Number.isFinite(distance)||distance<0||distance>5)return;
-        const marker=L.circleMarker([lat,lon],{radius:7,color:'#ffffff',weight:2,fillColor:'#1687ff',fillOpacity:.95});
-        marker.bindPopup('Eligible '+String(driver.vehicle_type||selectedVehicle).replace('_',' ')+' · approximately '+distance.toFixed(1)+' km from pickup');
+        const type=String(driver.vehicle_type||'').toLowerCase();
+        if(!isNepalBounds(lat,lon)||!Number.isFinite(distance)||distance<0||distance>5||!['bike','car','tuk_tuk'].includes(type))return;
+        const icon=type==='bike'?'🏍️':type==='car'?'🚗':'🛺';
+        const marker=L.marker([lat,lon],{icon:L.divIcon({className:'rryd-driver-icon-wrap',html:'<div class="rryd-driver-pin">'+icon+'</div>',iconSize:[30,30],iconAnchor:[15,15]})});
+        marker.bindPopup((type==='tuk_tuk'?'Tuk Tuk':type.charAt(0).toUpperCase()+type.slice(1))+' · approximately '+distance.toFixed(1)+' km away · location approximate');
         marker.addTo(map);nearbyDriverMarkers.push(marker);
       });
     }
+    const counts=drivers.reduce((a,d)=>{const t=String(d.vehicle_type||'').toLowerCase();if(['bike','car','tuk_tuk'].includes(t))a[t]=(a[t]||0)+1;return a;},{});
+    const summary=['bike','car','tuk_tuk'].filter(t=>counts[t]).map(t=>counts[t]+' '+(t==='tuk_tuk'?'Tuk Tuk':t.charAt(0).toUpperCase()+t.slice(1))).join(' · ');
     setMessage('availabilityText',drivers.length
-      ?drivers.length+' eligible '+selectedVehicle.replace('_',' ')+' driver(s) reported within 5 km of this pickup. Locations must be refreshed and may change before booking.'
-      :'No eligible online drivers with a fresh GPS location were found within 5 km of this pickup. You can check again later.',
+      ?drivers.length+' available driver(s) within 5 km'+(summary?' — '+summary:'')+'. Approximate locations refresh automatically.'
+      :'No available drivers with fresh GPS were found within 5 km. Keep tracking on and Rryd will check again.',
       drivers.length?'ok':'info');
   }catch(error){
     if(seq!==nearbyRequestSeq)return;
-    setMessage('availabilityText','Nearby driver search is temporarily unavailable: '+errorText(error)+'. Booking checks remain controlled by Supabase.','info');
+    setMessage('availabilityText','Nearby driver search is temporarily unavailable: '+errorText(error)+'. Your pickup and booking remain separate.','info');
   }
 }
-$("refreshAvailabilityBtn").addEventListener("click",refreshAvailability);
+function startPassengerLiveGpsWatch(){
+  if(!session?.user){show('authOverlay',true);setMessage('authMessage','Sign in to find nearby drivers.','info');return;}
+  if(!navigator.geolocation){setMessage('availabilityText','This browser does not support GPS.','error');return;}
+  if(!window.isSecureContext){setMessage('availabilityText','Live GPS requires the secure HTTPS Rryd website.','error');return;}
+  if(passengerLiveGpsWatch!==null)return;
+  passengerLiveGpsFirstFix=false;
+  text('nearbyDriversBtn','Starting live GPS…');
+  setMessage('availabilityText','Waiting for your device GPS. Allow location access if your browser asks.','info');
+  passengerLiveGpsWatch=navigator.geolocation.watchPosition(pos=>{
+    const lat=Number(pos.coords.latitude),lon=Number(pos.coords.longitude);
+    if(!isNepalBounds(lat,lon)){setMessage('availabilityText','Your current GPS point is outside the supported Nepal area. No nearby-driver search was sent.','error');return;}
+    passengerLiveGps={lat,lon,accuracy:Number(pos.coords.accuracy)||null,updatedAt:Date.now()};
+    if(map){
+      if(passengerLiveGpsMarker)passengerLiveGpsMarker.setLatLng([lat,lon]);
+      else passengerLiveGpsMarker=L.circleMarker([lat,lon],{radius:9,color:'#ffffff',weight:3,fillColor:'#37d99a',fillOpacity:1}).addTo(map).bindPopup('Your live GPS location');
+      if(!passengerLiveGpsFirstFix){map.setView([lat,lon],14);passengerLiveGpsFirstFix=true;}
+    }
+    text('nearbyDriversBtn','Stop nearby driver tracking');
+  },err=>{
+    if(passengerLiveGpsWatch!==null)navigator.geolocation.clearWatch(passengerLiveGpsWatch);
+    passengerLiveGpsWatch=null;passengerLiveGps=null;passengerLiveGpsFirstFix=false;
+    if(passengerLiveGpsMarker&&map){map.removeLayer(passengerLiveGpsMarker);passengerLiveGpsMarker=null;}
+    clearNearbyDriverMarkers();text('nearbyDriversBtn','◎ Show nearby drivers');
+    setMessage('availabilityText','GPS could not be read: '+err.message+'. Check browser location permission and try again.','error');
+  },{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
+}
+function stopPassengerLiveGpsWatch(){
+  if(passengerLiveGpsWatch!==null&&navigator.geolocation)navigator.geolocation.clearWatch(passengerLiveGpsWatch);
+  passengerLiveGpsWatch=null;passengerLiveGps=null;passengerLiveGpsFirstFix=false;
+  if(passengerLiveGpsMarker&&map){map.removeLayer(passengerLiveGpsMarker);passengerLiveGpsMarker=null;}
+  clearNearbyDriverMarkers();text('nearbyDriversBtn','◎ Show nearby drivers');
+  setMessage('availabilityText','Nearby driver tracking is off. Your pickup and selected route are unchanged.','info');
+}
+$("nearbyDriversBtn").addEventListener("click",()=>passengerLiveGpsWatch!==null?stopPassengerLiveGpsWatch():startPassengerLiveGpsWatch());
+$("refreshAvailabilityBtn").addEventListener("click",()=>passengerLiveGpsWatch===null?startPassengerLiveGpsWatch():refreshAvailability());
 
 /* Booking: use the existing exact RPC contract. Do not update `fare` from browser JavaScript. */
 $("requestRideBtn").addEventListener("click",requestRide);
@@ -748,7 +793,7 @@ async function usePlace(name){try{const p=JSON.parse(localStorage.getItem("rryd-
 $("saveHomeBtn").addEventListener("click",()=>savePlace("home"));$("useHomeBtn").addEventListener("click",()=>usePlace("home"));$("saveWorkBtn").addEventListener("click",()=>savePlace("work"));$("useWorkBtn").addEventListener("click",()=>usePlace("work"));
 
 /* Poll actual database state. Pauses in hidden tabs to reduce traffic. */
-function startPolling(){stopPolling();ridePollTimer=setInterval(()=>{if(session&&!document.hidden)refreshCurrentRide();},8000);availabilityTimer=setInterval(()=>{if(session&&!document.hidden)refreshAvailability();},30000);}
+function startPolling(){stopPolling();ridePollTimer=setInterval(()=>{if(session&&!document.hidden)refreshCurrentRide();},8000);availabilityTimer=setInterval(()=>{if(session&&!document.hidden&&passengerLiveGpsWatch!==null)refreshAvailability();},15000);}
 function stopPolling(){if(ridePollTimer)clearInterval(ridePollTimer);if(availabilityTimer)clearInterval(availabilityTimer);ridePollTimer=availabilityTimer=null;}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&session){refreshCurrentRide();refreshAvailability();if(map)setTimeout(()=>map.invalidateSize(),100);}});
 
