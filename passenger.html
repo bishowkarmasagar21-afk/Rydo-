@@ -326,11 +326,11 @@ function estimateFare(type=selectedVehicle,distance=routeDistanceKm){const r=far
 function updateFareDisplay(){
   const ids={bike:"bikePrice",car:"carPrice",tuk_tuk:"tuk_tukPrice"};
   for(const [type,id] of Object.entries(ids)){const f=estimateFare(type);text(id,f===null?"NPR —":money(f));}
-  const fare=estimateFare();const pickupOnly=!!pickupPoint&&!destinationPoint;text("fareDisplay",fare===null?(pickupOnly?"Calculated after ride":"Add destination"):money(fare));text("fareMini",fare===null?(pickupOnly?"After ride":"Add destination"):money(fare));
+  const fare=estimateFare();text("fareDisplay",fare===null?"Add destination":money(fare));text("fareMini",fare===null?"Add destination":money(fare));
   const rule=fareRules[selectedVehicle];
   if(!fareRulesLoaded){text("fareBreakdown",fareRulesError?"Fare rules could not be loaded. Refresh and retry; no fallback price is used.":"Loading current active fare rules from Supabase...");return;}
   if(!rule){text("fareBreakdown","There is no active fare rule for this vehicle.");return;}
-  text("fareBreakdown",fare===null?(pickupOnly?"Pickup-only request · Metered fare will be calculated from verified trip data after the ride. No fare is set at request time.":`${money(rule.base)} base + ${money(rule.perKm)}/km · Add a destination for an estimate.`):`${money(rule.base)} base + ${money(rule.perKm)}/km × ${routeDistanceKm.toFixed(2)} km. Rounded to the nearest rupee. This is an estimate.`);
+  text("fareBreakdown",fare===null?`${money(rule.base)} base + ${money(rule.perKm)}/km · Add a destination for an estimate.`:`${money(rule.base)} base + ${money(rule.perKm)}/km × ${routeDistanceKm.toFixed(2)} km. Rounded to the nearest rupee. This is an estimate.`);
 }
 document.querySelectorAll("[data-vehicle]").forEach(btn=>btn.addEventListener("click",()=>{selectedVehicle=btn.dataset.vehicle;document.querySelectorAll("[data-vehicle]").forEach(b=>b.classList.toggle("selected",b===btn));updateFareDisplay();refreshAvailability();}));
 $("paymentMethod").addEventListener("change",()=>{paymentMethod=$("paymentMethod").value;const online=paymentMethod==="online";text("paymentInfo",online?"Online payment is not connected to a real gateway yet. Booking with online payment is blocked so no false payment status is shown.":"Cash is selected. Pay the driver directly; Rryd still records the payment status as the database reports it.");});
@@ -460,7 +460,7 @@ async function requestRide(){
     const {data:auth,error:authErr}=await db.auth.getUser();if(authErr)throw authErr;if(!auth?.user?.id)throw Error("Your session has expired. Sign in again.");
     const {data:sessionData,error:sessionErr}=await db.auth.getSession();if(sessionErr)throw sessionErr;session=sessionData.session;if(!session?.user?.id||session.user.id!==auth.user.id)throw Error("Session mismatch. Reload and sign in again.");
     const {data:p,error:pErr}=await db.from("profiles").select("id,role,is_suspended").eq("id",auth.user.id).maybeSingle();if(pErr)throw pErr;if(!p)throw Error("No profile exists for this signed-in user. Check the profile creation trigger.");if(p.role!=="passenger")throw Error("The signed-in account is not a passenger account.");if(p.is_suspended===true)throw Error("Your passenger account is suspended.");
-    setMessage("appMessage",hasDestination?"Sending your ride request and estimate to Supabase…":"Sending your pickup-only metered ride request. No upfront fare is set; final fare requires verified road distance.","info");
+    setMessage("appMessage","Sending your ride request and estimate to Supabase…","info");
     const args={p_pickup_location:pickupPoint.label,p_destination:hasDestination?destinationPoint.label:null,p_vehicle_type:selectedVehicle,p_distance_km:hasDestination?Number(routeDistanceKm.toFixed(2)):null,p_payment_method:paymentMethod,p_pickup_latitude:pickupPoint.lat,p_pickup_longitude:pickupPoint.lon,p_destination_latitude:hasDestination?destinationPoint.lat:null,p_destination_longitude:hasDestination?destinationPoint.lon:null};
     lastRequestAt=Date.now();
     const {data,error}=await db.rpc("request_ride",args);if(error)throw error;
@@ -483,7 +483,7 @@ async function requestRide(){
         renderHistory();
       }
     }
-    await refreshAvailability();notifyUser("Rryd ride requested",hasDestination?"Your ride request was sent. Waiting for driver assignment.":"Your pickup-only ride request was sent. Fare will be determined after verified trip recording.",true);
+    await refreshAvailability();notifyUser("Rryd ride requested","Your ride request was sent. Waiting for driver assignment.",true);
     if(!currentRide&&rideId){showToast("Ride request submitted",`Rryd returned ride ID ${rideId}, but the current-ride read did not return it yet. Use Refresh Current Ride and do not submit a duplicate request.`);}
   }catch(error){setMessage("appMessage","Ride request could not be confirmed: "+friendlyError(error)+". Check Current Ride before trying again to avoid a duplicate.","error");console.error("request_ride error",error);}
   finally{btn.disabled=false;btn.textContent=old;}
