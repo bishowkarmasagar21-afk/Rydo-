@@ -1070,13 +1070,26 @@ async function verifyRideMeter(id,button,automatic=false){
   meterVerifyLastAttempt.set(String(id),Date.now());
   setBusy(button,true,"Checking road trace…");
   try{
-    const {data:sessionData,error:sessionError}=await supabaseClient.auth.getSession();
-    failIf(sessionError);
-    const adminSession=sessionData?.session;
-    if(!adminSession?.access_token)throw new Error("Admin session is unavailable. Sign in again.");
+    // Check the MFA assurance level before obtaining the token used for the Edge Function.
     const {data:aalData,error:aalError}=await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
     failIf(aalError);
-    if(aalData.currentLevel!=="aal2")throw new Error("Admin MFA session is not AAL2. Please log out, sign in and verify your authenticator again.");
+    if(aalData.currentLevel!=="aal2")throw new Error("Admin MFA session is not AAL2. Please verify your authenticator again.");
+    // Refresh after MFA validation so the request uses the latest access token, not a stale AAL1 token.
+    const {data:refreshed,error:refreshError}=await supabaseClient.auth.refreshSession();
+    failIf(refreshError);
+    const adminSession=refreshed?.session;
+    if(!adminSession?.access_token)throw new Error("Could not refresh the verified admin session. Please sign in again.");
+    // Confirm the exact token that will be sent carries aal2 and belongs to this admin.
+    const tokenParts=adminSession.access_token.split(".");
+    if(tokenParts.length!==3)throw new Error("The refreshed admin access token is invalid. Please sign in again.");
+    let tokenClaims;
+    try{
+      const payload=tokenParts[1].replace(/-/g,"+").replace(/_/g,"/");
+      tokenClaims=JSON.parse(atob(payload.padEnd(Math.ceil(payload.length/4)*4,"=")));
+    }catch(_){throw new Error("Could not validate the refreshed admin access token. Please sign in again.");}
+    if(tokenClaims.aal!=="aal2"||tokenClaims.sub!==currentUser.id){
+      throw new Error("The refreshed access token does not contain the required AAL2 admin identity. Please verify MFA again.");
+    }
     const {data,error}=await supabaseClient.functions.invoke("verify-ride-meter",{body:{ride_id:Number(id)},headers:{Authorization:"Bearer "+adminSession.access_token}});
     failIf(error);
     if(!data||data.success!==true)throw new Error(data?.error||"Road-distance verification did not complete.");
