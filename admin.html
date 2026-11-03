@@ -260,6 +260,13 @@ summary{cursor:pointer;font-weight:700}
           <div class="metric"><span>Driver net earnings</span><b id="repDriverNet">—</b><small>Driver share before personal taxes</small></div>
           <div class="metric"><span>Completed rides</span><b id="repRideCount">—</b></div>
           <div class="metric"><span>Average fare</span><b id="repAverage">—</b></div>
+          <div class="metric"><span>Total ride requests</span><b id="repRequests">—</b><small>All statuses in selected period</small></div>
+          <div class="metric"><span>Cancelled rides</span><b id="repCancelled">—</b></div>
+          <div class="metric"><span>Active rides</span><b id="repActive">—</b><small>Requested, accepted, arriving or started</small></div>
+          <div class="metric"><span>Paid completed fares</span><b id="repPaid">—</b></div>
+          <div class="metric"><span>Pending completed fares</span><b id="repUnpaid">—</b></div>
+          <div class="metric"><span>Cash-method completed fares</span><b id="repCash">—</b></div>
+          <div class="metric"><span>Online-method completed fares</span><b id="repOnline">—</b></div>
           <div class="metric"><span>Gross growth</span><b id="growthGross">—</b><small id="growthGrossDetail"></small></div>
           <div class="metric"><span>Company earnings growth</span><b id="growthCompany">—</b><small id="growthCompanyDetail"></small></div>
           <div class="metric"><span>Driver earnings growth</span><b id="growthDriver">—</b><small id="growthDriverDetail"></small></div>
@@ -729,6 +736,20 @@ async function generateReport(){
   const scopedRows=selectedDriver==="all" ? periodRows :
     periodRows.filter(r=>String(r.driver_id||"")===String(selectedDriver));
   const totals=calculateTotals(scopedRows);
+  const completedRows=scopedRows.filter(isCompleted);
+  const paidRows=completedRows.filter(r=>String(r.payment_status||"").toLowerCase()==="paid");
+  const unpaidRows=completedRows.filter(r=>String(r.payment_status||"").toLowerCase()!=="paid");
+  const statusCount=status=>scopedRows.filter(r=>String(r.status||"").toLowerCase()===status).length;
+  const activeCount=scopedRows.filter(r=>["requested","accepted","arriving","started"].includes(String(r.status||"").toLowerCase())).length;
+  const paymentStats={
+    requests:scopedRows.length,
+    cancelled:statusCount("cancelled"),
+    active:activeCount,
+    paid:paidRows.reduce((sum,r)=>sum+rideFare(r),0),
+    unpaid:unpaidRows.reduce((sum,r)=>sum+rideFare(r),0),
+    cash:completedRows.filter(r=>String(r.payment_method||"").toLowerCase()==="cash").reduce((sum,r)=>sum+rideFare(r),0),
+    online:completedRows.filter(r=>String(r.payment_method||"").toLowerCase()==="online").reduce((sum,r)=>sum+rideFare(r),0)
+  };
 
   const startDate=dateKeyToLocalStart(start);
   const endDate=dateKeyToLocalEnd(end);
@@ -740,13 +761,20 @@ async function generateReport(){
     prevRows.filter(r=>String(r.driver_id||"")===String(selectedDriver));
   const previous=calculateTotals(prevScoped);
 
-  currentReport={start,end,prevStart,prevEnd,selectedDriver,rows:scopedRows,totals,previous};
+  currentReport={start,end,prevStart,prevEnd,selectedDriver,rows:scopedRows,totals,previous,paymentStats};
   $("reportRange").textContent=`Reporting period: ${start} through ${end} · Comparison: ${prevStart} through ${prevEnd} · ${selectedDriver==="all"?"All drivers":driverName(selectedDriver)}`;
   $("repGross").textContent=money(totals.gross);
   $("repCommission").textContent=money(totals.company);
   $("repDriverNet").textContent=money(totals.driver);
   $("repRideCount").textContent=totals.rides.toLocaleString("en-NP");
   $("repAverage").textContent=money(totals.average);
+  $("repRequests").textContent=paymentStats.requests.toLocaleString("en-NP");
+  $("repCancelled").textContent=paymentStats.cancelled.toLocaleString("en-NP");
+  $("repActive").textContent=paymentStats.active.toLocaleString("en-NP");
+  $("repPaid").textContent=money(paymentStats.paid);
+  $("repUnpaid").textContent=money(paymentStats.unpaid);
+  $("repCash").textContent=money(paymentStats.cash);
+  $("repOnline").textContent=money(paymentStats.online);
   renderGrowth("growthGross","growthGrossDetail",totals.gross,previous.gross);
   renderGrowth("growthCompany","growthCompanyDetail",totals.company,previous.company);
   renderGrowth("growthDriver","growthDriverDetail",totals.driver,previous.driver);
@@ -831,7 +859,7 @@ function downloadBlob(filename,content,type){
 }
 function downloadReportCSV(){
   if(!currentReport){showMessage("Generate a report before downloading.","error");return;}
-  const {start,end,prevStart,prevEnd,selectedDriver,rows,totals,previous}=currentReport;
+  const {start,end,prevStart,prevEnd,selectedDriver,rows,totals,previous,paymentStats}=currentReport;
   const lines=[
     ["Rryd Business Earnings Report"],
     ["Period",start+" to "+end],
@@ -845,6 +873,15 @@ function downloadReportCSV(){
     ["Driver earnings",totals.driver,previous.driver],
     ["Completed rides",totals.rides,previous.rides],
     ["Average fare",totals.average,previous.average],
+    [],
+    ["Selected-period statistics","Value"],
+    ["Total ride requests",paymentStats.requests],
+    ["Cancelled rides",paymentStats.cancelled],
+    ["Active rides",paymentStats.active],
+    ["Paid completed fares",paymentStats.paid],
+    ["Pending completed fares",paymentStats.unpaid],
+    ["Cash-method completed fares",paymentStats.cash],
+    ["Online-method completed fares",paymentStats.online],
     [],
     ["Driver","Completed rides","Gross fares","Platform commission","Driver earnings"]
   ];
