@@ -459,7 +459,7 @@ async function requireAdminMfa(){
  if(!factorId){title.textContent="Set up admin authenticator";help.textContent="Scan the QR code with an authenticator app, then enter its current 6-digit code.";const {data,error}=await supabaseClient.auth.mfa.enroll({factorType:"totp",friendlyName:"Rryd Admin Authenticator"});failIf(error);factorId=data.id;qr.src=data.totp.qr_code;qr.classList.remove("hidden");secret.textContent="Manual setup key: "+data.totp.secret;}
  else{title.textContent="Verify admin identity";help.textContent="Enter the current 6-digit code from your authenticator app.";qr.classList.add("hidden");secret.textContent="";const {data,error}=await supabaseClient.auth.mfa.challenge({factorId});failIf(error);challengeId=data.id;}
  panel.classList.remove("hidden");$("loginCard").classList.add("hidden");$("app").classList.add("hidden");
- btn.onclick=async()=>{const value=input.value.trim();if(!/^\d{6}$/.test(value)){msg.textContent="Enter a valid 6-digit code.";msg.className="notice error";return;}btn.disabled=true;btn.textContent="Verifying…";msg.className="notice hidden";try{if(!challengeId){const {data,error}=await supabaseClient.auth.mfa.challenge({factorId});failIf(error);challengeId=data.id;}const {error}=await supabaseClient.auth.mfa.verify({factorId,challengeId,code:value});failIf(error);panel.classList.add("hidden");input.value="";await boot();}catch(e){msg.textContent=e.message||String(e);msg.className="notice error";challengeId=null;}finally{btn.disabled=false;btn.textContent="Verify and continue";}};
+ btn.onclick=async()=>{const value=input.value.trim();if(!/^\d{6}$/.test(value)){msg.textContent="Enter a valid 6-digit code.";msg.className="notice error";return;}btn.disabled=true;btn.textContent="Verifying…";msg.className="notice hidden";try{if(!challengeId){const {data,error}=await supabaseClient.auth.mfa.challenge({factorId});failIf(error);challengeId=data.id;}const {error}=await supabaseClient.auth.mfa.verify({factorId,challengeId,code:value});failIf(error);const {data:refreshed,error:refreshError}=await supabaseClient.auth.refreshSession();failIf(refreshError);if(!refreshed?.session?.access_token)throw new Error("MFA was verified, but the refreshed admin session is unavailable. Please sign in again.");const {data:verifiedLevel,error:levelError}=await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();failIf(levelError);if(verifiedLevel.currentLevel!=="aal2")throw new Error("Authenticator verification did not produce an AAL2 session. Please verify again.");panel.classList.add("hidden");input.value="";await boot();}catch(e){msg.textContent=e.message||String(e);msg.className="notice error";challengeId=null;}finally{btn.disabled=false;btn.textContent="Verify and continue";}};
  return false;
 }
 
@@ -1070,7 +1070,14 @@ async function verifyRideMeter(id,button,automatic=false){
   meterVerifyLastAttempt.set(String(id),Date.now());
   setBusy(button,true,"Checking road trace…");
   try{
-    const {data,error}=await supabaseClient.functions.invoke("verify-ride-meter",{body:{ride_id:Number(id)}});
+    const {data:sessionData,error:sessionError}=await supabaseClient.auth.getSession();
+    failIf(sessionError);
+    const adminSession=sessionData?.session;
+    if(!adminSession?.access_token)throw new Error("Admin session is unavailable. Sign in again.");
+    const {data:aalData,error:aalError}=await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
+    failIf(aalError);
+    if(aalData.currentLevel!=="aal2")throw new Error("Admin MFA session is not AAL2. Please log out, sign in and verify your authenticator again.");
+    const {data,error}=await supabaseClient.functions.invoke("verify-ride-meter",{body:{ride_id:Number(id)},headers:{Authorization:"Bearer "+adminSession.access_token}});
     failIf(error);
     if(!data||data.success!==true)throw new Error(data?.error||"Road-distance verification did not complete.");
     if(data.status==="matched"){
