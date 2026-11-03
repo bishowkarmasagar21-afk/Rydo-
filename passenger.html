@@ -655,16 +655,13 @@ function syncPassengerLocationSharing(ride){
 async function maybeAutoStartPassengerLocationWatch(ride){
   const rideId=String(ride?.id??"");
   if(!rideId||passengerGpsWatch!==null||passengerLocationStartPending||passengerLocationAutoCheckRideId===rideId)return;
+  if(!navigator.geolocation)return;
   passengerLocationAutoCheckRideId=rideId;
-  /* Start automatically only if the passenger previously granted browser GPS permission.
-     Otherwise the passenger must press the visible Enable button after requesting. */
-  if(!navigator.permissions?.query||!navigator.geolocation)return;
-  try{
-    const permission=await navigator.permissions.query({name:"geolocation"});
-    if(permission.state!=="granted")return;
-    if(!currentRide||String(currentRide.id)!==rideId||!["requested","accepted"].includes(String(currentRide.status||"").toLowerCase()))return;
-    await startPassengerLocationWatch();
-  }catch(error){console.warn("Automatic passenger GPS permission check unavailable",error);}
+  /* A ride request is the point at which live pickup sharing becomes relevant.
+     Start the browser GPS flow now: the browser will ask for permission if needed.
+     The passenger must grant permission; Rryd never bypasses the browser prompt. */
+  if(!currentRide||String(currentRide.id)!==rideId||!["requested","accepted"].includes(String(currentRide.status||"").toLowerCase()))return;
+  await startPassengerLocationWatch();
 }
 function updatePassengerLocationSharingUI(){
   const el=$("passengerLocationSharingStatus");if(!el)return;
