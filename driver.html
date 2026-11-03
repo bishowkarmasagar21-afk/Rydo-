@@ -302,7 +302,20 @@ async function flushMeterQueue(){
     if(!response.ok||result.success!==true)throw Error(result.error||("GPS upload failed (HTTP "+response.status+")."));
     const sent=new Set(batch.map(x=>String(x.sample_number)));
     meterQueue=meterQueue.filter(x=>Number(x.ride_id)!==rideId||!sent.has(String(x.sample_number)));saveMeterQueue();
-    text("gpsStatus","Ride GPS upload confirmed · "+Number(result.saved||0)+" saved, "+Number(result.duplicates||0)+" duplicate(s), "+meterQueue.filter(x=>Number(x.ride_id)===rideId).length+" waiting.");
+    const remainingForRide=meterQueue.filter(x=>Number(x.ride_id)===rideId).length;
+    if(remainingForRide===0){
+      let expected=Number(meterSampleSequence[String(rideId)]||0);
+      try{expected=Math.max(expected,Number(localStorage.getItem("rryd_meter_seq_"+rideId)||0))}catch{}
+      const {data:completionData,error:completionError}=await sb.rpc("confirm_ride_meter_upload_complete",{p_ride_id:rideId,p_expected_sample_count:expected});
+      if(completionError)throw completionError;
+      if(completionData===true){
+        text("gpsStatus","All GPS samples uploaded and count-confirmed for ride #"+rideId+". Road verification can begin now.");
+      }else{
+        text("gpsStatus","GPS upload batches finished, but the server sample count does not match the driver's queue for ride #"+rideId+". This ride needs GPS review; no final fare will be issued.");
+      }
+    }else{
+      text("gpsStatus","Ride GPS upload confirmed · "+Number(result.saved||0)+" saved, "+Number(result.duplicates||0)+" duplicate(s), "+remainingForRide+" waiting.");
+    }
   }catch(error){console.warn("Ride GPS upload pending",error);text("gpsStatus","Ride GPS is safely queued; upload will retry: "+errorText(error))}
   finally{meterFlushBusy=false}
 }
