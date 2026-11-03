@@ -705,7 +705,18 @@ async function rideAction(rpc){
       notify("Journey stopped and GPS meter stopped. Queued samples are uploading for verification. Final fare is not yet confirmed.");
     }else if(rpc!=="driver_arriving"&&rpc!=="start_ride")notify("Ride action submitted.");
     await loadRides();
-    if(rpc==="complete_ride")await flushMeterQueue();
+    if(rpc==="complete_ride"){
+      await flushMeterQueue();
+      const pendingForRide=meterQueue.filter(x=>Number(x.ride_id)===Number(rideId)).length;
+      if(pendingForRide===0){
+        const {data:uploadConfirmed,error:uploadConfirmError}=await sb.rpc("confirm_ride_meter_upload_complete",{
+          p_ride_id:Number(rideId),
+          p_expected_sample_count:Number(meterSampleSequence[String(rideId)]||localStorage.getItem("rryd_meter_seq_"+rideId)||0)
+        });
+        if(uploadConfirmError)console.warn("GPS upload completion not confirmed",uploadConfirmError);
+        else if(uploadConfirmed!==true)notify("GPS upload count does not match the server record. This ride will need GPS review; no final fare will be issued.");
+      }
+    }
     await loadRequests(false);
     if(rpc==="complete_ride"){const completed=rides.find(x=>String(x.id)===rideId)||activeRide||{id:rideId,status:"completed"};showDriverCompletionPopup({...completed,status:"completed"});}
     renderEverything();
