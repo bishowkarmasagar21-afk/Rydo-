@@ -193,8 +193,21 @@ summary{cursor:pointer;font-weight:700}
         <div><h2>Business overview</h2><p class="muted">Figures from records currently visible to this admin account.</p></div>
         <span class="pill" id="lastUpdated">Not loaded</span>
       </div>
+      <div class="filters no-print" style="margin:14px 0">
+        <div>
+          <label for="dashboardPeriod">Statistics period</label>
+          <select id="dashboardPeriod">
+            <option value="today">Today (1 day)</option>
+            <option value="7d" selected>Last 7 days</option>
+            <option value="15d">Last 15 days</option>
+            <option value="month">Last 1 month</option>
+            <option value="year">Last 1 year</option>
+          </select>
+        </div>
+        <span class="pill" id="dashboardRange">Last 7 days</span>
+      </div>
       <div class="grid">
-        <div class="metric"><span>All rides</span><b id="dashRides">—</b></div>
+        <div class="metric"><span>Total ride requests</span><b id="dashRides">—</b></div>
         <div class="metric"><span>Completed rides</span><b id="dashCompleted">—</b></div>
         <div class="metric"><span>Registered drivers</span><b id="dashDrivers">—</b></div>
         <div class="metric"><span>Registered passengers</span><b id="dashPassengers">—</b></div>
@@ -652,15 +665,19 @@ function rideDriverEarnings(r){
 function isCompleted(r){return String(r.status||"").toLowerCase()==="completed";}
 function rideTimestamp(r){return r.completed_at || r.updated_at || r.created_at;}
 function renderDashboard(){
-  const completed=allRides.filter(isCompleted);
+  const period=$("dashboardPeriod")?.value||"7d";
+  const dates=defaultPeriodDates(period);
+  const periodRides=allRides.filter(r=>inDateRange(r,dates.start,dates.end));
+  const completed=periodRides.filter(isCompleted);
   const sumFare=rows=>rows.reduce((sum,r)=>sum+rideFare(r),0);
   const paid=completed.filter(r=>String(r.payment_status||"").toLowerCase()==="paid");
   const unpaid=completed.filter(r=>String(r.payment_status||"").toLowerCase()!=="paid");
-  const active=allRides.filter(r=>["requested","accepted","arriving","started"].includes(String(r.status||"").toLowerCase()));
-  const cancelled=allRides.filter(r=>String(r.status||"").toLowerCase()==="cancelled");
+  const active=periodRides.filter(r=>["requested","accepted","arriving","started"].includes(String(r.status||"").toLowerCase()));
+  const cancelled=periodRides.filter(r=>String(r.status||"").toLowerCase()==="cancelled");
   const cash=completed.filter(r=>String(r.payment_method||"").toLowerCase()==="cash");
   const online=completed.filter(r=>String(r.payment_method||"").toLowerCase()==="online");
-  $("dashRides").textContent=allRides.length.toLocaleString("en-NP");
+  $("dashboardRange").textContent=dates.start+" to "+dates.end+" (Nepal time)";
+  $("dashRides").textContent=periodRides.length.toLocaleString("en-NP");
   $("dashCompleted").textContent=completed.length.toLocaleString("en-NP");
   $("dashDrivers").textContent=allDrivers.length.toLocaleString("en-NP");
   $("dashPassengers").textContent=allPassengers.length.toLocaleString("en-NP");
@@ -675,6 +692,7 @@ function renderDashboard(){
   $("dashCash").textContent=money(sumFare(cash));
   $("dashOnline").textContent=money(sumFare(online));
 }
+$("dashboardPeriod").addEventListener("change",renderDashboard);
 
 /* Reporting */
 function defaultPeriodDates(period){
