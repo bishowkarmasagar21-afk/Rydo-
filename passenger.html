@@ -837,7 +837,7 @@ function openRideFeedback(ride){
   loadSavedFeedbackForModal(ride).catch(e=>console.warn("Could not check existing feedback",e));
 }
 async function loadSavedFeedbackForModal(ride){
-  const {data,error}=await db.rpc("get_my_driver_rating_for_ride",{p_ride_id:Number(ride.id)});
+  const {data,error}=await db.rpc("get_my_ride_feedback",{p_ride_id:Number(ride.id)});
   if(error)throw error;
   const saved=Array.isArray(data)?data[0]:data;
   if(!saved||activeFeedbackRide?.id!==ride.id)return;
@@ -887,7 +887,7 @@ async function loadRideRatingCards(){
     const slot=document.querySelector('[data-rating-slot="'+String(ride.id).replace(/"/g,"")+'"]');
     if(!slot)return;
     try{
-      const {data,error}=await db.rpc("get_my_driver_rating_for_ride",{p_ride_id:Number(ride.id)});
+      const {data,error}=await db.rpc("get_my_ride_feedback",{p_ride_id:Number(ride.id)});
       if(error)throw error;
       const saved=Array.isArray(data)?data[0]:data;
       if(saved){
