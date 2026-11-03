@@ -1167,12 +1167,12 @@ async function loadAdminDriverRatings(){
   if(!currentUser||currentProfile?.role!=="admin"){box.innerHTML='<div class="empty">Verified administrator sign-in required.</div>';return;}
   box.innerHTML='<div class="empty">Loading ratings…</div>';
   try{
-    const {data,error}=await supabaseClient.rpc("admin_list_driver_ratings");
+    const {data,error}=await supabaseClient.rpc("admin_list_ride_feedback");
     failIf(error);
     const rows=Array.isArray(data)?data:[];
     if(!rows.length){box.innerHTML='<div class="empty">No passenger ratings have been submitted yet.</div>';return;}
-    box.innerHTML='<div class="table-wrap"><table><thead><tr><th>Date</th><th>Driver</th><th>Average</th><th>Passenger</th><th>Ride</th><th>Rating</th><th>Comment</th></tr></thead><tbody>'+
-      rows.map(r=>'<tr><td>'+esc(dateText(r.created_at))+'</td><td>'+esc(r.driver_name||"—")+'</td><td>'+esc(number(r.driver_average_rating).toFixed(2))+' / 5 ('+esc(r.driver_rating_count)+')</td><td>'+esc(r.passenger_name||"—")+'</td><td>#'+esc(r.ride_id)+'</td><td><span style="color:#ff7417">'+('★'.repeat(Number(r.rating)||0))+('☆'.repeat(5-(Number(r.rating)||0)))+'</span> '+esc(r.rating)+'/5</td><td style="white-space:pre-wrap;max-width:320px">'+esc(r.comment||"—")+'</td></tr>').join('')+
+    box.innerHTML='<div class="table-wrap"><table><thead><tr><th>Date</th><th>Driver</th><th>Average</th><th>Passenger</th><th>Ride</th><th>Rating</th><th>Comment</th><th>Safety / service feedback</th><th>Problems</th></tr></thead><tbody>'+
+      rows.map(r=>{const f=r.feedback_details||{};const labels={helmet_provided:"Helmet provided",driver_wore_helmet:"Driver wore helmet",seatbelt_available:"Seatbelt available",seatbelt_used:"Seatbelt used",felt_safe:"Felt safe",followed_traffic_rules:"Followed traffic rules",drove_carefully:"Drove carefully",polite_respectful:"Polite and respectful",helpful:"Helpful",professional:"Professional",vehicle_clean:"Vehicle clean",vehicle_good_condition:"Vehicle in good condition",correct_route:"Correct route",pickup_dropoff_good:"Pickup/drop-off"};const answers=Object.keys(labels).filter(k=>f[k]).map(k=>labels[k]+": "+String(f[k]).toUpperCase()).join("<br>")||"No question answers";const issues=Array.isArray(f.issues)?f.issues.map(x=>String(x).replace(/_/g," ")).join(", "):"—";return '<tr><td>'+esc(dateText(r.created_at))+'</td><td>'+esc(r.driver_name||"—")+'</td><td>'+esc(number(r.driver_average_rating).toFixed(2))+' / 5 ('+esc(r.driver_rating_count)+')</td><td>'+esc(r.passenger_name||"—")+'</td><td>#'+esc(r.ride_id)+'</td><td><span style="color:#ff7417">'+('★'.repeat(Number(r.rating)||0))+('☆'.repeat(5-(Number(r.rating)||0)))+'</span> '+esc(r.rating)+'/5</td><td style="white-space:pre-wrap;max-width:240px">'+esc(r.comment||"—")+'</td><td style="white-space:pre-wrap;min-width:220px">'+answers+'</td><td>'+esc(issues)+'</td></tr>';}).join('')+
       '</tbody></table></div>';
   }catch(error){
     box.innerHTML='<div class="notice error">'+esc(rpcErrorHint(error))+'</div>';
