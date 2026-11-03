@@ -283,15 +283,16 @@ async function quarantineExpiredMeterSamples(){
   }
   for(const [rideId,samples] of expiredByRide){
     if(!Number.isSafeInteger(rideId)||rideId<=0)continue;
-    const archive=[...meterReviewQueue,...samples.map(x=>({...x,review_reason:"GPS sample is outside the 30-minute upload window",reviewed_at:new Date().toISOString()}))];
-    meterReviewQueue=archive;
+    const previousArchive=meterReviewQueue;
+    const sampleKeys=new Set(samples.map(x=>String(x.ride_id)+":"+String(x.sample_number)));
+    meterReviewQueue=[...previousArchive,...samples.map(x=>({...x,review_reason:"GPS sample is outside the 30-minute upload window",reviewed_at:new Date().toISOString()}))];
     if(!saveMeterReviewQueue()){
-      meterReviewQueue=meterReviewQueue.filter(x=>!samples.includes(x));
+      meterReviewQueue=previousArchive;
       throw Error("Expired GPS samples could not be safely archived. Upload queue was not changed.");
     }
     const {data,error}=await sb.rpc("flag_ride_meter_upload_issue",{p_ride_id:rideId,p_reason:"expired_samples"});
     if(error||data!==true){
-      meterReviewQueue=meterReviewQueue.filter(x=>!samples.includes(x));
+      meterReviewQueue=previousArchive;
       saveMeterReviewQueue();
       throw error||Error("The server did not confirm the GPS review flag for ride #"+rideId+".");
     }
