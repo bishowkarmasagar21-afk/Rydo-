@@ -709,7 +709,7 @@ async function loadAssignedDriver(ride){
 }
 async function cancelRide(){
   if(!currentRide||!["requested","accepted","arriving"].includes(String(currentRide.status).toLowerCase()))return setMessage("appMessage","This ride cannot be cancelled from its current status.","error");if(!confirm("Cancel this ride request? Cancellation fees only apply if Rryd has a separate disclosed policy and the database confirms the conditions."))return;
-  try{const {data,error}=await db.rpc("cancel_ride",{p_ride_id:currentRide.id});if(error)throw error;if(data===false)throw Error("Supabase did not confirm cancellation.");setMessage("appMessage","Cancellation request processed by Supabase. Refreshing ride status…","ok");await refreshCurrentRide();}catch(error){setMessage("appMessage","Cancellation failed: "+friendlyError(error),"error");}
+  try{const {data,error}=await db.rpc("cancel_ride",{p_ride_id:currentRide.id});if(error)throw error;if(data===false)throw Error("The cancellation could not be confirmed.");setMessage("appMessage","Cancellation request received. Updating your ride status…","ok");await refreshCurrentRide();}catch(error){setMessage("appMessage","Cancellation failed: "+friendlyError(error),"error");}
 }
 async function loadRideRatingCards(){
   if(!db||!session?.user)return;
