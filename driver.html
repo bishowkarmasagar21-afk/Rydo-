@@ -85,9 +85,15 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
  .request{grid-template-columns:1fr}.request-actions{flex-direction:row}
  .card{padding:11px}.authwrap{padding:10px}.passenger-map{height:215px}
 }
+
+.rryd-driver-complete{position:fixed;z-index:3500;inset:0;background:#020914d9;display:flex;align-items:center;justify-content:center;padding:16px}
+.rryd-driver-complete-card{width:min(440px,100%);background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 20px 70px #0009}
+.rryd-driver-complete-card h2{margin:0 0 8px}.rryd-driver-fare{font-size:30px;font-weight:900;color:var(--orange);margin:10px 0}
+
 </style>
 </head>
 <body>
+<div id="driverCompletionPopup" class="rryd-driver-complete hidden" role="dialog" aria-modal="true" aria-labelledby="driverCompletionTitle"><div class="rryd-driver-complete-card"><div class="rryd-logo-word">Rryd</div><h2 id="driverCompletionTitle">Ride Completed!</h2><p>Thank you for completing this Rryd journey.</p><div class="muted small">Fare status</div><div id="driverCompletionFare" class="rryd-driver-fare">Checking…</div><p id="driverCompletionFareNote" class="muted small"></p><button id="driverCompletionClose" class="primary" type="button" style="width:100%">Close</button></div></div>
 
 <section id="authScreen" class="authwrap">
   <div class="card">
@@ -637,6 +643,16 @@ function renderCurrentRide(){
   if(map&&r.pickup_latitude!=null&&r.pickup_longitude!=null){const lat=Number(r.pickup_latitude),lon=Number(r.pickup_longitude);if(Number.isFinite(lat)&&Number.isFinite(lon))map.setView([lat,lon],14)}
   if(status!=="accepted"){textPassengerTracking("Passenger live location sharing is not active during this ride status. The confirmed pickup pin remains available.");clearPassengerMarker()}
 }
+
+function showDriverCompletionPopup(ride){
+  if(!ride||String(ride.status).toLowerCase()!=="completed")return;
+  const fare=ride.final_fare??ride.actual_fare??(ride.meter_tracking_status==="finalized"?ride.fare:null);
+  $("driverCompletionFare").textContent=fare==null?"Pending verification":money(fare);
+  $("driverCompletionFareNote").textContent=fare==null?"The final fare will appear after Rryd verifies the recorded trip distance. Do not collect an unverified amount as the final fare.":"Ride #"+ride.id+" · The same recorded fare is shown to the passenger.";
+  $("driverCompletionPopup").classList.remove("hidden");
+}
+$("driverCompletionClose").addEventListener("click",()=>$("driverCompletionPopup").classList.add("hidden"));
+
 async function rideAction(rpc){
   if(!activeRide)return;
   const prompt=rpc==="complete_ride"?"Complete this journey and stop GPS collection? The fare will remain pending road-distance verification; no final charge or earnings will be posted yet.":rpc==="start_ride"?"Start the passenger journey now? This starts the GPS meter. If no destination is set, confirm it with the passenger; no destination navigation will open.":"Confirm "+rpc.replace(/_/g," ")+"?";
@@ -678,6 +694,7 @@ async function rideAction(rpc){
     await loadRides();
     if(rpc==="complete_ride")await flushMeterQueue();
     await loadRequests(false);
+    if(rpc==="complete_ride"){const completed=rides.find(x=>String(x.id)===rideId)||activeRide||{id:rideId,status:"completed"};showDriverCompletionPopup({...completed,status:"completed"});}
     renderEverything();
     await refreshCommunication();
   }catch(e){
