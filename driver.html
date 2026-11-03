@@ -249,18 +249,61 @@ let sb=null,user=null,profile=null,vehicles=[],requests=[],rides=[],notification
 const hiddenRequestIds=new Set();
 let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
-let meterQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={};
+let meterQueue=[],meterReviewQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={};
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
 let activeNavigationWindow=null;
 let authView="login",portalStarting=false,audioContext=null,audioEnabled=false,soundTimer=null,pendingSoundIds=new Set(),knownRequestIds=new Set(),notificationView="new",resumeRefreshBusy=false,pollBusy=false,lastHeartbeatAt=0;
 
 function loadMeterQueue(){
-  try{const raw=localStorage.getItem(METER_QUEUE_STORAGE_KEY),parsed=raw?JSON.parse(raw):[];meterQueue=Array.isArray(parsed)?parsed.filter(x=>x&&Number.isSafeInteger(Number(x.ride_id))&&Number.isSafeInteger(Number(x.sample_number))&&Number.isFinite(Number(x.latitude))&&Number.isFinite(Number(x.longitude))&&typeof x.recorded_at==="string"):[]}
-  catch(error){meterQueue=[];console.warn("Offline GPS queue could not be restored",error)}
+  try{
+    const raw=localStorage.getItem(METER_QUEUE_STORAGE_KEY),parsed=raw?JSON.parse(raw):[];
+    meterQueue=Array.isArray(parsed)?parsed.filter(x=>x&&Number.isSafeInteger(Number(x.ride_id))&&Number.isSafeInteger(Number(x.sample_number))&&Number.isFinite(Number(x.latitude))&&Number.isFinite(Number(x.longitude))&&typeof x.recorded_at==="string"):[];
+    const reviewRaw=localStorage.getItem("rryd_driver_meter_review_v1"),reviewParsed=reviewRaw?JSON.parse(reviewRaw):[];
+    meterReviewQueue=Array.isArray(reviewParsed)?reviewParsed:[];
+  }catch(error){console.warn("Offline GPS queue could not be fully restored",error);meterQueue=[];meterReviewQueue=[]}
 }
 function saveMeterQueue(){
-  try{localStorage.setItem(METER_QUEUE_STORAGE_KEY,JSON.stringify(meterQueue))}
-  catch(error){console.warn("Offline GPS queue could not be saved; unsent samples may be lost",error);text("gpsStatus","GPS queue storage is unavailable. Keep this page open while tracking uploads.")}
+  try{localStorage.setItem(METER_QUEUE_STORAGE_KEY,JSON.stringify(meterQueue));return true}
+  catch(error){console.warn("Offline GPS queue could not be saved; unsent samples may be lost",error);text("gpsStatus","GPS queue storage is unavailable. Keep this page open while tracking uploads.");return false}
+}
+function saveMeterReviewQueue(){
+  try{localStorage.setItem("rryd_driver_meter_review_v1",JSON.stringify(meterReviewQueue));return true}
+  catch(error){console.error("GPS review archive could not be saved",error);return false}
+}
+async function quarantineExpiredMeterSamples(){
+  if(!meterQueue.length||!user||!sb)return;
+  const now=Date.now(),expiredByRide=new Map();
+  for(const sample of meterQueue){
+    const age=now-Date.parse(sample.recorded_at);
+    if(!Number.isFinite(age)||age>1800000||age< -120000){
+      const id=Number(sample.ride_id);
+      if(!expiredByRide.has(id))expiredByRide.set(id,[]);
+      expiredByRide.get(id).push(sample);
+    }
+  }
+  for(const [rideId,samples] of expiredByRide){
+    if(!Number.isSafeInteger(rideId)||rideId<=0)continue;
+    const archive=[...meterReviewQueue,...samples.map(x=>({...x,review_reason:"GPS sample is outside the 30-minute upload window",reviewed_at:new Date().toISOString()}))];
+    meterReviewQueue=archive;
+    if(!saveMeterReviewQueue()){
+      meterReviewQueue=meterReviewQueue.filter(x=>!samples.includes(x));
+      throw Error("Expired GPS samples could not be safely archived. Upload queue was not changed.");
+    }
+    const {data,error}=await sb.rpc("flag_ride_meter_upload_issue",{p_ride_id:rideId,p_reason:"expired_samples"});
+    if(error||data!==true){
+      meterReviewQueue=meterReviewQueue.filter(x=>!samples.includes(x));
+      saveMeterReviewQueue();
+      throw error||Error("The server did not confirm the GPS review flag for ride #"+rideId+".");
+    }
+    const sampleKeys=new Set(samples.map(x=>String(x.ride_id)+":"+String(x.sample_number)));
+    const previous=meterQueue;
+    meterQueue=meterQueue.filter(x=>!sampleKeys.has(String(x.ride_id)+":"+String(x.sample_number)));
+    if(!saveMeterQueue()){
+      meterQueue=previous;
+      throw Error("GPS review was flagged, but the upload queue could not be updated. Samples remain queued locally.");
+    }
+    text("gpsStatus","Ride #"+rideId+" has expired GPS samples archived for review. The route is flagged; no complete upload or final fare can be approved.");
+  }
 }
 function meterIsRecording(){return !!activeRide&&ACTIVE_STATUSES.includes(String(activeRide.status||"").toLowerCase())&&activeRide.meter_tracking_status==="recording"&&!!activeRide.meter_started_at}
 async function syncMeterSequence(rideId){
@@ -310,9 +353,7 @@ function queueMeterSample(position){
 }
 async function flushMeterQueue(){
   if(meterFlushBusy||!user||!sb||!meterQueue.length)return;
-  const now=Date.now(),before=meterQueue.length;
-  meterQueue=meterQueue.filter(x=>Number.isFinite(now-Date.parse(x.recorded_at))&&now-Date.parse(x.recorded_at)<=1800000&&now-Date.parse(x.recorded_at)>=-120000);
-  if(meterQueue.length!==before)saveMeterQueue();
+  try{await quarantineExpiredMeterSamples()}catch(error){console.warn("Expired GPS sample handling needs attention",error);text("gpsStatus","GPS upload paused: "+errorText(error));return}
   if(!meterQueue.length)return;
   // Flush one ride at a time, including a recently stopped ride after it is no longer active.
   const rideId=Number(meterQueue[0].ride_id);
