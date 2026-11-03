@@ -271,10 +271,17 @@ async function syncMeterSequence(rideId){
   const serverMax=Number(data);
   if(!Number.isSafeInteger(serverMax)||serverMax<0)throw Error("The server returned an invalid GPS sample number.");
   const key=String(id);
-  const queuedMax=meterQueue.filter(x=>Number(x.ride_id)===id).reduce((m,x)=>Math.max(m,Number(x.sample_number)||0),0);
-  let storedMax=0;
-  try{storedMax=Number(localStorage.getItem("rryd_meter_seq_"+key)||0)}catch{}
-  const recovered=Math.max(serverMax,queuedMax,Number.isSafeInteger(storedMax)&&storedMax>0?storedMax:0);
+  const pending=meterQueue.filter(x=>Number(x.ride_id)===id&&Number(x.sample_number)>serverMax).sort((a,b)=>Number(a.sample_number)-Number(b.sample_number));
+  let expectedNext=serverMax+1;
+  for(const sample of pending){
+    const number=Number(sample.sample_number);
+    if(number!==expectedNext){
+      meterSequenceReady[key]=false;
+      throw Error("The saved offline GPS queue has a missing sample number for ride #"+id+". New GPS capture is paused to protect the route record; this ride needs review.");
+    }
+    expectedNext++;
+  }
+  const recovered=expectedNext-1;
   meterSampleSequence[key]=recovered;
   meterSequenceReady[key]=true;
   try{localStorage.setItem("rryd_meter_seq_"+key,String(recovered))}catch{}
