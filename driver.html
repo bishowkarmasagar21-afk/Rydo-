@@ -249,7 +249,7 @@ let sb=null,user=null,profile=null,vehicles=[],requests=[],rides=[],notification
 const hiddenRequestIds=new Set();
 let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
-let meterQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={};
+let meterQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={};
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
 let activeNavigationWindow=null;
 let authView="login",portalStarting=false,audioContext=null,audioEnabled=false,soundTimer=null,pendingSoundIds=new Set(),knownRequestIds=new Set(),notificationView="new",resumeRefreshBusy=false,pollBusy=false,lastHeartbeatAt=0;
@@ -263,6 +263,23 @@ function saveMeterQueue(){
   catch(error){console.warn("Offline GPS queue could not be saved; unsent samples may be lost",error);text("gpsStatus","GPS queue storage is unavailable. Keep this page open while tracking uploads.")}
 }
 function meterIsRecording(){return !!activeRide&&ACTIVE_STATUSES.includes(String(activeRide.status||"").toLowerCase())&&activeRide.meter_tracking_status==="recording"&&!!activeRide.meter_started_at}
+async function syncMeterSequence(rideId){
+  const id=Number(rideId);
+  if(!Number.isSafeInteger(id)||id<=0||!user||!sb)throw Error("Cannot recover GPS sample numbering without a valid ride and driver session.");
+  const {data,error}=await sb.rpc("get_ride_meter_max_sample_number",{p_ride_id:id});
+  if(error)throw error;
+  const serverMax=Number(data);
+  if(!Number.isSafeInteger(serverMax)||serverMax<0)throw Error("The server returned an invalid GPS sample number.");
+  const key=String(id);
+  const queuedMax=meterQueue.filter(x=>Number(x.ride_id)===id).reduce((m,x)=>Math.max(m,Number(x.sample_number)||0),0);
+  let storedMax=0;
+  try{storedMax=Number(localStorage.getItem("rryd_meter_seq_"+key)||0)}catch{}
+  const recovered=Math.max(serverMax,queuedMax,Number.isSafeInteger(storedMax)&&storedMax>0?storedMax:0);
+  meterSampleSequence[key]=recovered;
+  meterSequenceReady[key]=true;
+  try{localStorage.setItem("rryd_meter_seq_"+key,String(recovered))}catch{}
+  return recovered;
+}
 function queueMeterSample(position){
   if(!meterIsRecording()||!position?.coords)return;
   const now=Date.now(),recordedMs=Number(position.timestamp)||now;
@@ -272,7 +289,9 @@ function queueMeterSample(position){
   const rideStartedAt=Date.parse(activeRide.meter_started_at);
   if(!Number.isFinite(rideStartedAt)||recordedMs<rideStartedAt)return;
   const rideId=Number(activeRide.id);if(!Number.isSafeInteger(rideId)||rideId<=0)return;
-  const key=String(rideId);let previous=Number(meterSampleSequence[key]||0);
+  const key=String(rideId);
+  if(meterSequenceReady[key]!==true){text("gpsStatus","Recovering the server GPS sample number. GPS capture will resume after synchronization.");return}
+  let previous=Number(meterSampleSequence[key]||0);
   try{previous=Math.max(previous,Number(localStorage.getItem("rryd_meter_seq_"+key)||0))}catch{}
   const lastForRide=meterQueue.filter(x=>Number(x.ride_id)===rideId).reduce((last,x)=>Math.max(last,Date.parse(x.recorded_at)||0),0);
   if(recordedMs<lastForRide)return;
@@ -484,6 +503,7 @@ async function enterPortal(){
   if(!user||!sb||portalStarting)return;portalStarting=true;showApp();text("driverEmailLabel",user.email||"");
   try{
     await ensureFreshDriverSession();await loadProfile();await Promise.all([loadVehicles(),loadRides(),loadNotifications(),loadDriverRatingSummary()]);
+    if(activeRide&&activeRide.meter_tracking_status==="recording")await syncMeterSequence(activeRide.id);
     initMap();renderEverything();await loadRequests(true);await refreshGpsWatch();await flushMeterQueue();await refreshCommunication();stopPollingOnly();
     pollTimer=setInterval(async()=>{
       if(!user||document.hidden||pollBusy)return;
@@ -738,6 +758,9 @@ async function rideAction(rpc){
         if(uploadConfirmError)console.warn("GPS upload completion not confirmed",uploadConfirmError);
         else if(uploadConfirmed!==true)notify("GPS upload count does not match the server record. This ride will need GPS review; no final fare will be issued.");
       }
+    }
+    if(rpc==="start_ride"&&activeRide&&String(activeRide.id)===rideId){
+      await syncMeterSequence(activeRide.id);
     }
     await loadRequests(false);
     if(rpc==="complete_ride"){const completed=rides.find(x=>String(x.id)===rideId)||activeRide||{id:rideId,status:"completed"};showDriverCompletionPopup({...completed,status:"completed"});}
