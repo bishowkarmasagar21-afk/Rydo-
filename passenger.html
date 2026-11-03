@@ -733,6 +733,32 @@ async function stopPassengerLocationWatch(clearServer=true){
   }
   updatePassengerLocationSharingUI();
 }
+
+function cashPaymentHtml(r,role){
+  const cash=String(r.payment_method||"").toLowerCase()==="cash";
+  const complete=String(r.status||"").toLowerCase()==="completed";
+  const approved=String(r.fare_approval_status||"").toLowerCase()==="approved"&&Number(r.final_fare)>0;
+  if(!cash||!complete||!approved)return "";
+  if(String(r.payment_status||"").toLowerCase()==="paid"||r.cash_payment_confirmed_at)return '<p class="message ok">Cash payment confirmed by both passenger and driver.</p>';
+  const own=role==="passenger"?!!r.cash_passenger_confirmed_at:!!r.cash_driver_confirmed_at;
+  const other=role==="passenger"?!!r.cash_driver_confirmed_at:!!r.cash_passenger_confirmed_at;
+  if(own)return '<p class="message info">Your cash confirmation is recorded. Waiting for the '+(role==="passenger"?"driver":"passenger")+' to confirm.</p>';
+  return '<div class="message info">Cash payment confirmation is available after the final fare is approved. Final fare: '+money(r.final_fare)+'.</div><button class="good" type="button" data-cash-confirm="'+esc(r.id)+'">'+(role==="passenger"?"Confirm cash paid":"Confirm cash received")+'</button>';
+}
+async function confirmCashPayment(rideId,role,button){
+  if(button){button.disabled=true;button.textContent="Confirming…";}
+  try{
+    const {data,error}=await db.rpc("confirm_cash_payment",{p_ride_id:Number(rideId)});
+    if(error)throw error;
+    if(!data||data.success!==true)throw Error(data?.message||"The database did not confirm this payment.");
+    setMessage("appMessage",data.payment_status==="paid"?"Cash payment confirmed by both passenger and driver.":"Your confirmation was saved. Waiting for the other person.", "ok");
+    await refreshCurrentRide();
+  }catch(error){
+    setMessage("appMessage","Cash confirmation failed: "+friendlyError(error),"error");
+    if(button){button.disabled=false;button.textContent=role==="passenger"?"Confirm cash paid":"Confirm cash received";}
+  }
+}
+
 function renderCurrentRide(){
   const box=$("currentRide");if(!currentRide){box.innerHTML='<p class="muted">No active ride. Your next booking will appear here.</p>';return;}
   const r=currentRide,s=String(r.status||"requested").toLowerCase();
@@ -752,6 +778,7 @@ function renderCurrentRide(){
   if(["requested","accepted","arriving"].includes(s)){const b=document.createElement("button");b.type="button";b.className="danger";b.textContent="Cancel ride";b.addEventListener("click",cancelRide);actions.appendChild(b);}
   const share=document.createElement("button");share.type="button";share.className="ghost";share.textContent="Share trip details";share.addEventListener("click",()=>shareTrip(r));actions.appendChild(share);
   if(isFinal){const b=document.createElement("button");b.type="button";b.className="secondary";b.textContent="View receipt";b.addEventListener("click",()=>showReceipt(r));actions.appendChild(b);}
+  if(isFinal){const cash=document.createElement("div");cash.innerHTML=cashPaymentHtml(r,"passenger");actions.appendChild(cash);const confirmBtn=cash.querySelector("[data-cash-confirm]");if(confirmBtn)confirmBtn.addEventListener("click",()=>confirmCashPayment(r.id,"passenger",confirmBtn));}
 }
 async function loadAssignedDriver(ride){
   const box=$("driverDetails");if(!ride.driver_id||!["accepted","arriving","started"].includes(String(ride.status).toLowerCase())){box.innerHTML="";clearDriverTracking();return;}
@@ -901,7 +928,7 @@ async function loadRideRatingCards(){
   }));
 }
 
-function renderHistory(){const box=$("rideHistory");if(!rideRows.length){box.innerHTML='<p class="muted">No rides yet.</p>';return;}box.innerHTML=rideRows.slice(0,40).map(r=>{const s=String(r.status||"unknown").toLowerCase(),complete=s==="completed",cancelled=["cancelled","canceled"].includes(s),date=r.created_at?new Date(r.created_at).toLocaleString():"—",fare=complete?(r.final_fare??r.actual_fare??r.fare):(r.estimated_fare??r.fare);return `<div class="ride"><div class="ride-head"><b>Ride #${esc(r.id)}</b><span class="status ${complete?"completed":cancelled?"cancelled":""}">${esc(statusName(s))}</span></div><p>${esc(r.pickup_location??r.pickup??"—")} → ${esc(r.destination??"—")}</p><p>${esc(r.vehicle_type??"—")} · ${fare==null?"Fare pending verified trip distance":money(fare)}</p><p class="muted small">${esc(date)}</p>${s==="requested"?`<button class="danger" type="button" data-cancel-ride="${esc(r.id)}">Cancel pending request</button>`:""}${complete?`<button class="secondary" type="button" data-receipt="${esc(r.id)}">Receipt</button><div class="rating-slot" data-rating-slot="${esc(r.id)}"><p class="muted small">Loading driver rating…</p></div>`:""}</div>`;}).join("");box.querySelectorAll("[data-receipt]").forEach(btn=>btn.addEventListener("click",()=>{const r=rideRows.find(x=>String(x.id)===btn.dataset.receipt);if(r)showReceipt(r);}));box.querySelectorAll("[data-cancel-ride]").forEach(btn=>btn.addEventListener("click",async()=>{const r=rideRows.find(x=>String(x.id)===btn.dataset.cancelRide);if(!r||String(r.status).toLowerCase()!=="requested")return setMessage("appMessage","Only your unassigned pending request can be cancelled here.","error");if(!confirm("Cancel pending ride #"+r.id+"?"))return;btn.disabled=true;try{const {data,error}=await db.rpc("cancel_ride",{p_ride_id:r.id});if(error)throw error;if(data===false)throw Error("Supabase did not confirm cancellation.");setMessage("appMessage","Pending ride cancelled.","ok");await refreshCurrentRide();}catch(error){setMessage("appMessage","Cancellation failed: "+friendlyError(error),"error");btn.disabled=false;}}));loadRideRatingCards();}
+function renderHistory(){const box=$("rideHistory");if(!rideRows.length){box.innerHTML='<p class="muted">No rides yet.</p>';return;}box.innerHTML=rideRows.slice(0,40).map(r=>{const s=String(r.status||"unknown").toLowerCase(),complete=s==="completed",cancelled=["cancelled","canceled"].includes(s),date=r.created_at?new Date(r.created_at).toLocaleString():"—",fare=complete?(r.final_fare??r.actual_fare??r.fare):(r.estimated_fare??r.fare);return `<div class="ride"><div class="ride-head"><b>Ride #${esc(r.id)}</b><span class="status ${complete?"completed":cancelled?"cancelled":""}">${esc(statusName(s))}</span></div><p>${esc(r.pickup_location??r.pickup??"—")} → ${esc(r.destination??"—")}</p><p>${esc(r.vehicle_type??"—")} · ${fare==null?"Fare pending verified trip distance":money(fare)}</p><p class="muted small">${esc(date)}</p>${s==="requested"?`<button class="danger" type="button" data-cancel-ride="${esc(r.id)}">Cancel pending request</button>`:""}${complete?`${cashPaymentHtml(r,"passenger")}<button class="secondary" type="button" data-receipt="${esc(r.id)}">Receipt</button><div class="rating-slot" data-rating-slot="${esc(r.id)}"><p class="muted small">Loading driver rating…</p></div>`:""}</div>`;}).join("");box.querySelectorAll("[data-cash-confirm]").forEach(btn=>btn.addEventListener("click",()=>{const r=rideRows.find(x=>String(x.id)===btn.dataset.cashConfirm);if(r)confirmCashPayment(r.id,"passenger",btn);}));box.querySelectorAll("[data-receipt]").forEach(btn=>btn.addEventListener("click",()=>{const r=rideRows.find(x=>String(x.id)===btn.dataset.receipt);if(r)showReceipt(r);}));box.querySelectorAll("[data-cancel-ride]").forEach(btn=>btn.addEventListener("click",async()=>{const r=rideRows.find(x=>String(x.id)===btn.dataset.cancelRide);if(!r||String(r.status).toLowerCase()!=="requested")return setMessage("appMessage","Only your unassigned pending request can be cancelled here.","error");if(!confirm("Cancel pending ride #"+r.id+"?"))return;btn.disabled=true;try{const {data,error}=await db.rpc("cancel_ride",{p_ride_id:r.id});if(error)throw error;if(data===false)throw Error("Supabase did not confirm cancellation.");setMessage("appMessage","Pending ride cancelled.","ok");await refreshCurrentRide();}catch(error){setMessage("appMessage","Cancellation failed: "+friendlyError(error),"error");btn.disabled=false;}}));loadRideRatingCards();}
 $("refreshRideBtn").addEventListener("click",refreshCurrentRide);$("refreshHistoryBtn").addEventListener("click",refreshCurrentRide);
 
 /* Receipt: only issue it for a completed ride. Automatically appears briefly after completion. */
