@@ -284,7 +284,6 @@ async function quarantineExpiredMeterSamples(){
   for(const [rideId,samples] of expiredByRide){
     if(!Number.isSafeInteger(rideId)||rideId<=0)continue;
     const previousArchive=meterReviewQueue;
-    const sampleKeys=new Set(samples.map(x=>String(x.ride_id)+":"+String(x.sample_number)));
     meterReviewQueue=[...previousArchive,...samples.map(x=>({...x,review_reason:"GPS sample is outside the 30-minute upload window",reviewed_at:new Date().toISOString()}))];
     if(!saveMeterReviewQueue()){
       meterReviewQueue=previousArchive;
