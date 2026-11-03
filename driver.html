@@ -235,7 +235,7 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
 const SUPABASE_URL="https://kqtvuorasqyzjbnlkkxs.supabase.co";
 const SUPABASE_KEY="sb_publishable_zZFJiy0YWZgOXFesVuAQcA_wd7rleMb";
 const REQUEST_POLL_MS=5000, LOCATION_REFRESH_MS=10000, PASSENGER_LOCATION_POLL_MS=8000;
-const METER_SAMPLE_INTERVAL_MS=10000, METER_UPLOAD_BATCH_SIZE=100;
+const METER_SAMPLE_INTERVAL_MS=5000, METER_UPLOAD_BATCH_SIZE=100;
 const METER_QUEUE_STORAGE_KEY="rryd_driver_meter_queue_v1";
 const PASSENGER_DETAILS_RPC="get_passenger_details_for_my_ride";
 /* Passenger location is available through the ride-scoped, authenticated RPC. */
@@ -249,7 +249,7 @@ let sb=null,user=null,profile=null,vehicles=[],requests=[],rides=[],notification
 const hiddenRequestIds=new Set();
 let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
-let meterQueue=[],meterFlushTimer=null,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={};
+let meterQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={};
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
 let activeNavigationWindow=null;
 let authView="login",portalStarting=false,audioContext=null,audioEnabled=false,soundTimer=null,pendingSoundIds=new Set(),knownRequestIds=new Set(),notificationView="new",resumeRefreshBusy=false,pollBusy=false,lastHeartbeatAt=0;
@@ -486,12 +486,12 @@ async function enterPortal(){
       finally{pollBusy=false}
     },REQUEST_POLL_MS);
     locationTimer=setInterval(()=>{sendCurrentLocation();flushMeterQueue()},LOCATION_REFRESH_MS);
-    if(meterFlushTimer)clearInterval(meterFlushTimer);meterFlushTimer=setInterval(flushMeterQueue,10000);
+    if(meterFlushTimer)clearInterval(meterFlushTimer);meterFlushTimer=setInterval(flushMeterQueue,10000);if(meterCaptureTimer)clearInterval(meterCaptureTimer);meterCaptureTimer=setInterval(()=>{if(!meterIsRecording()||!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(pos=>queueMeterSample(pos),err=>{console.warn("Fresh ride GPS sample unavailable",err);}, {enableHighAccuracy:true,maximumAge:0,timeout:12000});},5000);
     text("connectionStatus","Signed in to Rryd. Ride GPS meter queue is ready.");
   }catch(e){console.error(e);notify("Driver portal could not load: "+errorText(e));text("connectionStatus","Could not load all driver data: "+errorText(e))}
   finally{portalStarting=false}
 }
-function stopPollingOnly(){if(pollTimer)clearInterval(pollTimer);pollTimer=null;if(locationTimer)clearInterval(locationTimer);locationTimer=null;if(meterFlushTimer)clearInterval(meterFlushTimer);meterFlushTimer=null}
+function stopPollingOnly(){if(pollTimer)clearInterval(pollTimer);pollTimer=null;if(locationTimer)clearInterval(locationTimer);locationTimer=null;if(meterFlushTimer)clearInterval(meterFlushTimer);meterFlushTimer=null;if(meterCaptureTimer)clearInterval(meterCaptureTimer);meterCaptureTimer=null}
 function stopBackground(){stopPollingOnly();if(gpsWatch!==null&&navigator.geolocation)navigator.geolocation.clearWatch(gpsWatch);gpsWatch=null;stopRequestAlarm();clearCommunicationState()}
 let driverRatingLastLoadedAt=0;
 async function loadDriverRatingSummary(force=false){
