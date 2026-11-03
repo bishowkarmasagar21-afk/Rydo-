@@ -179,7 +179,6 @@ summary{cursor:pointer;font-weight:700}
   <div class="tabs no-print" id="mainTabs">
     <button class="active" data-section="dashboardSection">Dashboard</button>
     <button data-section="reportsSection">Earnings & Reports</button>
-    <button type="button" id="deepReportsBtn" onclick="location.href=this.dataset.href" data-href="deep-reports.html">Deep Analysis</button>
     <button data-section="driversSection">Drivers</button>
     <button data-section="vehiclesSection">Vehicles</button>
     <button data-section="faresSection">Fare Rules</button>
@@ -203,6 +202,12 @@ summary{cursor:pointer;font-weight:700}
         <div class="metric"><span>Platform commission</span><b id="dashCommission">—</b><small>Before tax</small></div>
         <div class="metric"><span>Driver earnings</span><b id="dashDriverEarnings">—</b><small>Based on stored earnings or fare split</small></div>
         <div class="metric"><span>Pending driver approvals</span><b id="dashPending">—</b></div>
+        <div class="metric"><span>Cancelled rides</span><b id="dashCancelled">—</b></div>
+        <div class="metric"><span>Active rides</span><b id="dashActive">—</b><small>Requested, accepted, arriving or started</small></div>
+        <div class="metric"><span>Paid completed fares</span><b id="dashPaid">—</b></div>
+        <div class="metric"><span>Pending completed fares</span><b id="dashUnpaid">—</b></div>
+        <div class="metric"><span>Cash-method completed fares</span><b id="dashCash">—</b></div>
+        <div class="metric"><span>Online-method completed fares</span><b id="dashOnline">—</b></div>
       </div>
     </div>
     <div class="card">
@@ -648,14 +653,27 @@ function isCompleted(r){return String(r.status||"").toLowerCase()==="completed";
 function rideTimestamp(r){return r.completed_at || r.updated_at || r.created_at;}
 function renderDashboard(){
   const completed=allRides.filter(isCompleted);
+  const sumFare=rows=>rows.reduce((sum,r)=>sum+rideFare(r),0);
+  const paid=completed.filter(r=>String(r.payment_status||"").toLowerCase()==="paid");
+  const unpaid=completed.filter(r=>String(r.payment_status||"").toLowerCase()!=="paid");
+  const active=allRides.filter(r=>["requested","accepted","arriving","started"].includes(String(r.status||"").toLowerCase()));
+  const cancelled=allRides.filter(r=>String(r.status||"").toLowerCase()==="cancelled");
+  const cash=completed.filter(r=>String(r.payment_method||"").toLowerCase()==="cash");
+  const online=completed.filter(r=>String(r.payment_method||"").toLowerCase()==="online");
   $("dashRides").textContent=allRides.length.toLocaleString("en-NP");
   $("dashCompleted").textContent=completed.length.toLocaleString("en-NP");
   $("dashDrivers").textContent=allDrivers.length.toLocaleString("en-NP");
   $("dashPassengers").textContent=allPassengers.length.toLocaleString("en-NP");
-  $("dashGross").textContent=money(completed.reduce((s,r)=>s+rideFare(r),0));
+  $("dashGross").textContent=money(sumFare(completed));
   $("dashCommission").textContent=money(completed.reduce((s,r)=>s+rideCommission(r),0));
   $("dashDriverEarnings").textContent=money(completed.reduce((s,r)=>s+rideDriverEarnings(r),0));
   $("dashPending").textContent=allDrivers.filter(d=>!d.is_verified&&!d.is_suspended).length.toLocaleString("en-NP");
+  $("dashCancelled").textContent=cancelled.length.toLocaleString("en-NP");
+  $("dashActive").textContent=active.length.toLocaleString("en-NP");
+  $("dashPaid").textContent=money(sumFare(paid));
+  $("dashUnpaid").textContent=money(sumFare(unpaid));
+  $("dashCash").textContent=money(sumFare(cash));
+  $("dashOnline").textContent=money(sumFare(online));
 }
 
 /* Reporting */
