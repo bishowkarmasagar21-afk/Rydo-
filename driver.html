@@ -257,7 +257,7 @@ let sb=null,user=null,profile=null,vehicles=[],requests=[],rides=[],notification
 const hiddenRequestIds=new Set();
 let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
-let meterQueue=[],meterReviewQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterPositionWatch=null,meterCaptureGeneration=0,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={};
+let meterQueue=[],meterReviewQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterPositionWatch=null,meterCaptureGeneration=0,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={},meterCompletingRideIds=new Set();
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
 let activeNavigationWindow=null;
 let authView="login",portalStarting=false,audioContext=null,audioEnabled=false,soundTimer=null,pendingSoundIds=new Set(),knownRequestIds=new Set(),notificationView="new",resumeRefreshBusy=false,pollBusy=false,lastHeartbeatAt=0;
@@ -346,7 +346,7 @@ function queueMeterSample(position){
   if(!validNepalPoint(latitude,longitude))return;
   const rideStartedAt=Date.parse(activeRide.meter_started_at);
   if(!Number.isFinite(rideStartedAt)||recordedMs<rideStartedAt)return;
-  const rideId=Number(activeRide.id);if(!Number.isSafeInteger(rideId)||rideId<=0)return;
+  const rideId=Number(activeRide.id);if(!Number.isSafeInteger(rideId)||rideId<=0||meterCompletingRideIds.has(rideId))return;
   const key=String(rideId);
   if(meterSequenceReady[key]!==true){text("gpsStatus","Recovering the server GPS sample number. GPS capture will resume after synchronization.");return}
   let previous=Number(meterSampleSequence[key]||0);
@@ -831,7 +831,14 @@ async function rideAction(rpc){
   if(rpc==="start_ride"){
     try{pendingNavigationWindow=window.open("about:blank","rrydDriverNavigation");}catch{}
   }
+  let completionCaptureRideId=null;
   try{
+    if(rpc==="complete_ride"){
+      completionCaptureRideId=Number(activeRide.id);
+      stopMeterCaptureLoop();
+      await new Promise(resolve=>captureMeterPosition(resolve));
+      meterCompletingRideIds.add(completionCaptureRideId);
+    }
     const {data,error}=await sb.rpc(rpc,{p_ride_id:Number(activeRide.id)});
     if(error)throw error;
     if(data===false)throw Error("Database did not confirm this ride action.");
@@ -857,20 +864,40 @@ async function rideAction(rpc){
     if(rpc==="complete_ride"){
       try{if(activeNavigationWindow&&!activeNavigationWindow.closed)activeNavigationWindow.close()}catch{}
       activeNavigationWindow=null;
-      notify("Journey stopped and GPS meter stopped. Queued samples are uploading for verification. Final fare is not yet confirmed.");
+      activeRide={...activeRide,status:"completed",meter_tracking_status:"stopped"};
+      notify("Journey stopped. GPS capture is paused and saved samples are uploading for verification. Final fare is not yet confirmed.");
     }else if(rpc!=="driver_arriving"&&rpc!=="start_ride")notify("Ride action submitted.");
     await loadRides();
     if(rpc==="complete_ride"){
+      const {data:rideMeterState,error:rideMeterStateError}=await sb.from("rides").select("meter_stopped_at,meter_point_count").eq("id",Number(rideId)).maybeSingle();
+      if(rideMeterStateError)throw rideMeterStateError;
+      const stoppedAt=Date.parse(rideMeterState?.meter_stopped_at||"");
+      if(Number.isFinite(stoppedAt)){
+        const invalidAfterStop=meterQueue.filter(x=>Number(x.ride_id)===Number(rideId)&&Date.parse(x.recorded_at)>stoppedAt);
+        if(invalidAfterStop.length){
+          const previousReview=meterReviewQueue;
+          meterReviewQueue=[...meterReviewQueue,...invalidAfterStop.map(x=>({...x,review_reason:"GPS sample was captured after the server meter stop time; excluded from route verification",reviewed_at:new Date().toISOString()}))];
+          if(!saveMeterReviewQueue()){meterReviewQueue=previousReview;throw Error("Post-stop GPS samples could not be safely archived; upload remains paused.");}
+          const invalidKeys=new Set(invalidAfterStop.map(x=>String(x.ride_id)+":"+String(x.sample_number)));
+          const previousQueue=meterQueue;
+          meterQueue=meterQueue.filter(x=>!invalidKeys.has(String(x.ride_id)+":"+String(x.sample_number)));
+          if(!saveMeterQueue()){meterQueue=previousQueue;throw Error("Post-stop GPS samples were archived, but the upload queue could not be updated.");}
+        }
+      }
       await flushMeterQueue();
       const pendingForRide=meterQueue.filter(x=>Number(x.ride_id)===Number(rideId)).length;
       if(pendingForRide===0){
+        const {data:serverMax,error:serverMaxError}=await sb.rpc("get_ride_meter_max_sample_number",{p_ride_id:Number(rideId)});
+        if(serverMaxError)throw serverMaxError;
+        const expected=Math.max(0,Number(serverMax)||0);
         const {data:uploadConfirmed,error:uploadConfirmError}=await sb.rpc("confirm_ride_meter_upload_complete",{
           p_ride_id:Number(rideId),
-          p_expected_sample_count:Number(meterSampleSequence[String(rideId)]||localStorage.getItem("rryd_meter_seq_"+rideId)||0)
+          p_expected_sample_count:expected
         });
         if(uploadConfirmError)console.warn("GPS upload completion not confirmed",uploadConfirmError);
-        else if(uploadConfirmed!==true)notify("GPS upload count does not match the server record. This ride will need GPS review; no final fare will be issued.");
+        else if(uploadConfirmed!==true)notify("GPS upload count or sequence does not match the server record. This ride needs GPS review; no final fare will be issued.");
       }
+      meterCompletingRideIds.delete(Number(rideId));
     }
     if(rpc==="start_ride"&&activeRide&&String(activeRide.id)===rideId){
       await syncMeterSequence(activeRide.id);
@@ -891,6 +918,10 @@ async function rideAction(rpc){
     await refreshCommunication();
   }catch(e){
     try{pendingNavigationWindow?.close()}catch{}
+    if(completionCaptureRideId!==null){
+      meterCompletingRideIds.delete(completionCaptureRideId);
+      if(meterIsRecording())startMeterCaptureLoop();
+    }
     notify("Ride action failed: "+errorText(e));
   }
 }
