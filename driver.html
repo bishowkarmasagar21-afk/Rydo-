@@ -257,7 +257,7 @@ let sb=null,user=null,profile=null,vehicles=[],requests=[],rides=[],notification
 const hiddenRequestIds=new Set();
 let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
-let meterQueue=[],meterReviewQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={};
+let meterQueue=[],meterReviewQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterCaptureGeneration=0,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={};
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
 let activeNavigationWindow=null;
 let authView="login",portalStarting=false,audioContext=null,audioEnabled=false,soundTimer=null,pendingSoundIds=new Set(),knownRequestIds=new Set(),notificationView="new",resumeRefreshBusy=false,pollBusy=false,lastHeartbeatAt=0;
@@ -359,27 +359,32 @@ function queueMeterSample(position){
   lastMeterSampleAt=now;saveMeterQueue();
   text("gpsStatus","Ride GPS captured · "+meterQueue.filter(x=>Number(x.ride_id)===rideId).length+" sample(s) waiting or uploading.");
 }
-function captureMeterPosition(){
-  if(!meterIsRecording()||!navigator.geolocation)return;
+function captureMeterPosition(onFinished){
+  if(!meterIsRecording()||!navigator.geolocation){onFinished?.();return;}
+  let finished=false;
+  const finish=()=>{if(finished)return;finished=true;onFinished?.();};
   navigator.geolocation.getCurrentPosition(
-    pos=>{queueMeterSample(pos);},
-    err=>{console.warn("Fresh ride GPS sample unavailable",err);text("gpsStatus","Ride GPS sample unavailable: "+err.message);},
+    pos=>{queueMeterSample(pos);finish();},
+    err=>{console.warn("Fresh ride GPS sample unavailable",err);text("gpsStatus","Ride GPS sample unavailable: "+err.message);finish();},
     {enableHighAccuracy:true,maximumAge:0,timeout:15000}
   );
 }
 function startMeterCaptureLoop(){
-  if(meterCaptureTimer){clearTimeout(meterCaptureTimer);meterCaptureTimer=null;}
+  stopMeterCaptureLoop();
   if(!meterIsRecording()||!navigator.geolocation)return;
-  const captureAndReschedule=()=>{
+  const generation=++meterCaptureGeneration;
+  const captureNext=()=>{
+    if(generation!==meterCaptureGeneration||!meterIsRecording()||!navigator.geolocation)return;
     meterCaptureTimer=null;
-    if(!meterIsRecording()||!navigator.geolocation)return;
-    captureMeterPosition();
-    meterCaptureTimer=setTimeout(captureAndReschedule,METER_SAMPLE_INTERVAL_MS);
+    captureMeterPosition(()=>{
+      if(generation!==meterCaptureGeneration||!meterIsRecording())return;
+      meterCaptureTimer=setTimeout(captureNext,METER_SAMPLE_INTERVAL_MS);
+    });
   };
-  captureMeterPosition();
-  meterCaptureTimer=setTimeout(captureAndReschedule,METER_SAMPLE_INTERVAL_MS);
+  captureNext();
 }
 function stopMeterCaptureLoop(){
+  meterCaptureGeneration++;
   if(meterCaptureTimer){clearTimeout(meterCaptureTimer);meterCaptureTimer=null;}
 }
 async function flushMeterQueue(){
