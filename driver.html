@@ -365,20 +365,25 @@ function captureMeterPosition(onFinished){
   const finish=()=>{if(finished)return;finished=true;onFinished?.();};
   navigator.geolocation.getCurrentPosition(
     pos=>{queueMeterSample(pos);finish();},
-    err=>{console.warn("Fresh ride GPS sample unavailable",err);text("gpsStatus","Ride GPS sample unavailable: "+err.message);finish();},
-    {enableHighAccuracy:true,maximumAge:0,timeout:15000}
+    err=>{console.warn("Fresh ride GPS sample unavailable",err);text("gpsStatus","Ride GPS sample unavailable: "+err.message+"; retrying.");finish();},
+    {enableHighAccuracy:true,maximumAge:0,timeout:10000}
   );
 }
 function startMeterCaptureLoop(){
   stopMeterCaptureLoop();
   if(!meterIsRecording()||!navigator.geolocation)return;
   const generation=++meterCaptureGeneration;
+  let attemptStartedAt=0;
   const captureNext=()=>{
     if(generation!==meterCaptureGeneration||!meterIsRecording()||!navigator.geolocation)return;
     meterCaptureTimer=null;
+    attemptStartedAt=Date.now();
     captureMeterPosition(()=>{
       if(generation!==meterCaptureGeneration||!meterIsRecording())return;
-      meterCaptureTimer=setTimeout(captureNext,METER_SAMPLE_INTERVAL_MS);
+      // Keep attempts close to the intended 5-second cadence instead of
+      // adding another full 5 seconds after a slow GPS response.
+      const elapsed=Date.now()-attemptStartedAt;
+      meterCaptureTimer=setTimeout(captureNext,Math.max(750,METER_SAMPLE_INTERVAL_MS-elapsed));
     });
   };
   captureNext();
