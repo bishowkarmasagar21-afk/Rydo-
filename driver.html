@@ -359,6 +359,29 @@ function queueMeterSample(position){
   lastMeterSampleAt=now;saveMeterQueue();
   text("gpsStatus","Ride GPS captured · "+meterQueue.filter(x=>Number(x.ride_id)===rideId).length+" sample(s) waiting or uploading.");
 }
+function captureMeterPosition(){
+  if(!meterIsRecording()||!navigator.geolocation)return;
+  navigator.geolocation.getCurrentPosition(
+    pos=>{queueMeterSample(pos);},
+    err=>{console.warn("Fresh ride GPS sample unavailable",err);text("gpsStatus","Ride GPS sample unavailable: "+err.message);},
+    {enableHighAccuracy:true,maximumAge:0,timeout:15000}
+  );
+}
+function startMeterCaptureLoop(){
+  if(meterCaptureTimer){clearTimeout(meterCaptureTimer);meterCaptureTimer=null;}
+  if(!meterIsRecording()||!navigator.geolocation)return;
+  const captureAndReschedule=()=>{
+    meterCaptureTimer=null;
+    if(!meterIsRecording()||!navigator.geolocation)return;
+    captureMeterPosition();
+    meterCaptureTimer=setTimeout(captureAndReschedule,METER_SAMPLE_INTERVAL_MS);
+  };
+  captureMeterPosition();
+  meterCaptureTimer=setTimeout(captureAndReschedule,METER_SAMPLE_INTERVAL_MS);
+}
+function stopMeterCaptureLoop(){
+  if(meterCaptureTimer){clearTimeout(meterCaptureTimer);meterCaptureTimer=null;}
+}
 async function flushMeterQueue(){
   if(meterFlushBusy||!user||!sb||!meterQueue.length)return;
   try{await quarantineExpiredMeterSamples()}catch(error){console.warn("Expired GPS sample handling needs attention",error);text("gpsStatus","GPS upload paused: "+errorText(error));return}
@@ -576,12 +599,13 @@ async function enterPortal(){
       finally{pollBusy=false}
     },REQUEST_POLL_MS);
     locationTimer=setInterval(()=>{sendCurrentLocation();flushMeterQueue()},LOCATION_REFRESH_MS);
-    if(meterFlushTimer)clearInterval(meterFlushTimer);meterFlushTimer=setInterval(flushMeterQueue,10000);if(meterCaptureTimer)clearInterval(meterCaptureTimer);meterCaptureTimer=setInterval(()=>{if(!meterIsRecording()||!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(pos=>queueMeterSample(pos),err=>{console.warn("Fresh ride GPS sample unavailable",err);}, {enableHighAccuracy:true,maximumAge:0,timeout:12000});},5000);
+    if(meterFlushTimer)clearInterval(meterFlushTimer);meterFlushTimer=setInterval(flushMeterQueue,10000);
+    startMeterCaptureLoop();
     text("connectionStatus","Signed in to Rryd. Ride GPS meter queue is ready.");
   }catch(e){console.error(e);notify("Driver portal could not load: "+errorText(e));text("connectionStatus","Could not load all driver data: "+errorText(e))}
   finally{portalStarting=false}
 }
-function stopPollingOnly(){if(pollTimer)clearInterval(pollTimer);pollTimer=null;if(locationTimer)clearInterval(locationTimer);locationTimer=null;if(meterFlushTimer)clearInterval(meterFlushTimer);meterFlushTimer=null;if(meterCaptureTimer)clearInterval(meterCaptureTimer);meterCaptureTimer=null}
+function stopPollingOnly(){if(pollTimer)clearInterval(pollTimer);pollTimer=null;if(locationTimer)clearInterval(locationTimer);locationTimer=null;if(meterFlushTimer)clearInterval(meterFlushTimer);meterFlushTimer=null;stopMeterCaptureLoop()}
 function stopBackground(){stopPollingOnly();if(gpsWatch!==null&&navigator.geolocation)navigator.geolocation.clearWatch(gpsWatch);gpsWatch=null;stopRequestAlarm();clearCommunicationState()}
 let driverRatingLastLoadedAt=0;
 async function loadDriverRatingSummary(force=false){
@@ -818,7 +842,17 @@ async function rideAction(rpc){
     }
     if(rpc==="start_ride"&&activeRide&&String(activeRide.id)===rideId){
       await syncMeterSequence(activeRide.id);
+      if(meterIsRecording()){
+        lastMeterSampleAt=0;
+        await refreshGpsWatch();
+        startMeterCaptureLoop();
+        text("gpsStatus","Ride started. GPS meter capture restarted and an immediate fresh location request was made.");
+      }else{
+        stopMeterCaptureLoop();
+        throw Error("The ride started, but Supabase did not return an active GPS-meter recording state. Refresh the driver portal and check this ride before continuing.");
+      }
     }
+    if(rpc==="complete_ride"||rpc==="cancel_ride")stopMeterCaptureLoop();
     await loadRequests(false);
     if(rpc==="complete_ride"){const completed=rides.find(x=>String(x.id)===rideId)||activeRide||{id:rideId,status:"completed"};showDriverCompletionPopup({...completed,status:"completed"});}
     renderEverything();
@@ -1157,6 +1191,10 @@ async function refreshDriverPortalOnReturn(){
       if(heartbeatError)throw heartbeatError;
       lastHeartbeatAt=Date.now();
     }
+    if(activeRide&&activeRide.meter_tracking_status==="recording"){
+      await syncMeterSequence(activeRide.id);
+      startMeterCaptureLoop();
+    }else stopMeterCaptureLoop();
     await loadRequests(false);renderEverything();await refreshGpsWatch();await refreshCommunication();
     text("connectionStatus","Driver session verified. Profile, vehicle approval, ride requests and current ride refreshed.");
   }catch(error){
