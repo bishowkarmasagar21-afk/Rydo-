@@ -259,7 +259,7 @@ let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
 let meterQueue=[],meterReviewQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterPositionWatch=null,meterCaptureGeneration=0,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={},meterCompletingRideIds=new Set();
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
-let activeNavigationWindow=null;
+let activeNavigationWindow=null,driverCompletionRideId=null;
 let authView="login",portalStarting=false,audioContext=null,audioEnabled=false,soundTimer=null,pendingSoundIds=new Set(),knownRequestIds=new Set(),notificationView="new",resumeRefreshBusy=false,pollBusy=false,lastHeartbeatAt=0;
 
 function loadMeterQueue(){
@@ -827,12 +827,34 @@ function renderCurrentRide(){
   if(status!=="accepted"){textPassengerTracking("Passenger live location sharing is not active during this ride status. The confirmed pickup pin remains available.");clearPassengerMarker()}
 }
 
+function isDriverFareApproved(ride){
+  return !!ride&&String(ride.fare_approval_status||"").toLowerCase()==="approved"&&ride.final_fare!==null&&ride.final_fare!==undefined&&Number.isFinite(Number(ride.final_fare));
+}
+function renderDriverCompletionFare(ride){
+  if(!ride)return;
+  if(isDriverFareApproved(ride)){
+    $("driverCompletionFare").textContent=money(ride.final_fare);
+    $("driverCompletionFareNote").textContent="Ride #"+ride.id+" · Final fare approved. The same fare is shown to the passenger.";
+    return;
+  }
+  const needsReview=String(ride.fare_approval_status||"").toLowerCase()==="review"||String(ride.meter_tracking_status||"").toLowerCase()==="review"||!!ride.meter_tracking_issue;
+  $("driverCompletionFare").textContent=needsReview?"Needs review":"Pending review";
+  $("driverCompletionFareNote").textContent=needsReview
+    ?"Ride #"+ride.id+" · GPS evidence needs administrator review. Do not collect an unapproved amount as the final fare."
+    :!ride.meter_upload_completed_at
+      ?"Ride #"+ride.id+" · GPS upload is not yet confirmed. Keep the portal available and reconnect to finish uploading saved samples. No final fare is available yet."
+      :"Ride #"+ride.id+" · GPS upload is complete. Rryd must verify the road distance and approve the fare before a final amount is available.";
+}
 function showDriverCompletionPopup(ride){
   if(!ride||String(ride.status).toLowerCase()!=="completed")return;
-  const fare=ride.final_fare??ride.actual_fare??(ride.meter_tracking_status==="finalized"?ride.fare:null);
-  $("driverCompletionFare").textContent=fare==null?"Pending verification":money(fare);
-  $("driverCompletionFareNote").textContent=fare==null?"The final fare will appear after Rryd verifies the recorded trip distance. Do not collect an unverified amount as the final fare.":"Ride #"+ride.id+" · The same recorded fare is shown to the passenger.";
+  driverCompletionRideId=String(ride.id);
+  renderDriverCompletionFare(ride);
   $("driverCompletionPopup").classList.remove("hidden");
+}
+function updateDriverCompletionPopup(){
+  if(!driverCompletionRideId||$("driverCompletionPopup").classList.contains("hidden"))return;
+  const latest=rides.find(r=>String(r.id)===driverCompletionRideId);
+  if(latest)renderDriverCompletionFare(latest);
 }
 $("driverCompletionClose").addEventListener("click",()=>$("driverCompletionPopup").classList.add("hidden"));
 
@@ -1163,13 +1185,14 @@ async function routeToPassenger(lat,lon,rideId){
 
 function renderHistory(){
   const rows=rides.filter(r=>["completed","cancelled","canceled"].includes(String(r.status).toLowerCase()));
-  $("historyRows").innerHTML=rows.length?rows.map(r=>`<tr><td>${esc(r.created_at||"—")}</td><td>${esc(r.pickup_location||"—")} → ${esc(r.destination||"—")}</td><td>${esc(typeName(r.vehicle_type))}</td><td>${money(r.final_fare??r.fare)}</td><td>${money(r.driver_earnings)}</td><td><span class="pill">${esc(r.status)}</span>${cashPaymentHtml(r,"driver")}</td></tr>`).join(""):'<tr><td colspan="6">No completed or cancelled rides found.</td></tr>';
+  $("historyRows").innerHTML=rows.length?rows.map(r=>`<tr><td>${esc(r.created_at||"—")}</td><td>${esc(r.pickup_location||"—")} → ${esc(r.destination||"—")}</td><td>${esc(typeName(r.vehicle_type))}</td><td>${isDriverFareApproved(r)?money(r.final_fare):"Pending review"}</td><td>${money(r.driver_earnings)}</td><td><span class="pill">${esc(r.status)}</span>${cashPaymentHtml(r,"driver")}</td></tr>`).join(""):'<tr><td colspan="6">No completed or cancelled rides found.</td></tr>';
   $("historyRows").querySelectorAll("[data-cash-confirm]").forEach(btn=>btn.addEventListener("click",()=>confirmCashPayment(btn.dataset.cashConfirm,btn)));
 }
-function renderRecent(){$("recentRows").innerHTML=rides.slice(0,5).map(r=>`<tr><td>${esc(r.created_at||"—")}</td><td>${esc(r.pickup_location||"—")} → ${esc(r.destination||"—")}</td><td>${esc(typeName(r.vehicle_type))}</td><td>${money(r.final_fare??r.fare)}</td><td>${esc(r.status)}</td></tr>`).join("")||'<tr><td colspan="5">No ride history yet.</td></tr>'}
+function renderRecent(){$("recentRows").innerHTML=rides.slice(0,5).map(r=>`<tr><td>${esc(r.created_at||"—")}</td><td>${esc(r.pickup_location||"—")} → ${esc(r.destination||"—")}</td><td>${esc(typeName(r.vehicle_type))}</td><td>${isDriverFareApproved(r)?money(r.final_fare):"Pending review"}</td><td>${esc(r.status)}</td></tr>`).join("")||'<tr><td colspan="5">No ride history yet.</td></tr>'}
 function renderEarnings(){
-  const done=rides.filter(r=>String(r.status).toLowerCase()==="completed"),today=new Date().toLocaleDateString("en-CA"),todayRides=done.filter(r=>String(r.completed_at||r.created_at||"").slice(0,10)===today);
-  const total=done.reduce((s,r)=>s+Number(r.final_fare??r.fare??0),0),net=done.reduce((s,r)=>s+Number(r.driver_earnings??0),0),commission=done.reduce((s,r)=>s+Number(r.admin_earnings??0),0),todayNet=todayRides.reduce((s,r)=>s+Number(r.driver_earnings??0),0);
+  const done=rides.filter(r=>String(r.status).toLowerCase()==="completed"),approvedDone=done.filter(isDriverFareApproved);
+  const today=new Date().toLocaleDateString("en-CA"),todayRides=approvedDone.filter(r=>String(r.completed_at||r.created_at||"").slice(0,10)===today);
+  const total=approvedDone.reduce((s,r)=>s+Number(r.final_fare),0),net=approvedDone.reduce((s,r)=>s+Number(r.driver_earnings??0),0),commission=approvedDone.reduce((s,r)=>s+Number(r.admin_earnings??0),0),todayNet=todayRides.reduce((s,r)=>s+Number(r.driver_earnings??0),0);
   text("todayTotal",money(todayNet));text("earningTotal",money(total));text("driverNet",money(net));text("adminCommission",money(commission));text("completedCount",done.length);text("earnToday",money(todayNet));text("earnNet",money(net));text("earnCommission",money(commission))
 }
 let driverReportPeriod="today",driverReportRows=[],driverReportRange=null;
@@ -1185,7 +1208,7 @@ document.querySelectorAll("[data-report-period]").forEach(b=>b.addEventListener(
 $("reportCustomButton").addEventListener("click",()=>{const start=$("reportStart").value,end=$("reportEnd").value;if(!start||!end||start>end){text("reportStatus","Choose valid custom dates.");return}loadDriverReports("custom",{start,end})});
 $("reportCsvButton").addEventListener("click",downloadDriverReportCsv);
 
-function renderEverything(){updateEligibility();renderVehicles();renderRequests();renderCurrentRide();renderHistory();renderRecent();renderEarnings();loadDriverRatingSummary()}
+function renderEverything(){updateEligibility();renderVehicles();renderRequests();renderCurrentRide();renderHistory();renderRecent();renderEarnings();updateDriverCompletionPopup();loadDriverRatingSummary()}
 async function loadNotifications(){if(!user)return;const {data,error}=await sb.from("notifications").select("*").eq("user_id",user.id).order("created_at",{ascending:false}).limit(200);if(error){console.warn("Notifications query failed; check recipient column and RLS",error);return}notifications=data||[];text("bellCount",notifications.filter(n=>!n.is_read).length+requests.length)}
 
 function initMap(){
