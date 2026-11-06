@@ -373,8 +373,8 @@ function startMeterCaptureLoop(){
   stopMeterCaptureLoop();
   if(!meterIsRecording()||!navigator.geolocation)return;
   const generation=++meterCaptureGeneration;
-  // Prefer continuous GPS updates so slow one-shot requests cannot create
-  // multi-minute gaps while the driver portal remains open.
+
+  // Prefer continuous GPS updates whenever the browser supplies them.
   try{
     meterPositionWatch=navigator.geolocation.watchPosition(
       pos=>{
@@ -389,22 +389,37 @@ function startMeterCaptureLoop(){
       {enableHighAccuracy:true,maximumAge:0,timeout:20000}
     );
   }catch(error){
-    console.warn("Continuous GPS watch could not start; fallback capture remains active",error);
+    console.warn("Continuous ride GPS watch could not start; fallback capture remains active",error);
     meterPositionWatch=null;
   }
-  // Use a one-shot GPS request only if the continuous watch has gone quiet.
-  const captureFallback=()=>{
-    if(generation!==meterCaptureGeneration||!meterIsRecording()||!navigator.geolocation)return;
-    if(Date.now()-lastMeterSampleAt>=12000){
-      captureMeterPosition(()=>{
-        if(generation!==meterCaptureGeneration||!meterIsRecording())return;
-        meterCaptureTimer=setTimeout(captureFallback,METER_SAMPLE_INTERVAL_MS);
-      });
-    }else{
-      meterCaptureTimer=setTimeout(captureFallback,METER_SAMPLE_INTERVAL_MS);
+
+  // A separate one-shot request prevents the meter from depending only on
+  // watchPosition events, which may be infrequent on some devices/browsers.
+  const scheduleFallback=(delay)=>{
+    if(generation===meterCaptureGeneration&&meterIsRecording()){
+      meterCaptureTimer=setTimeout(captureFallback,delay);
     }
   };
-  meterCaptureTimer=setTimeout(captureFallback,METER_SAMPLE_INTERVAL_MS);
+  const captureFallback=()=>{
+    if(generation!==meterCaptureGeneration||!meterIsRecording()||!navigator.geolocation)return;
+    const age=lastMeterSampleAt>0?Date.now()-lastMeterSampleAt:Infinity;
+    if(age<10000){
+      scheduleFallback(Math.max(1500,10000-age));
+      return;
+    }
+    captureMeterPosition(()=>{
+      if(generation!==meterCaptureGeneration||!meterIsRecording())return;
+      // Retry after a short pause if GPS timed out or returned no usable fix.
+      scheduleFallback(4000);
+    });
+  };
+
+  // Request the first meter sample immediately instead of waiting for the
+  // browser's first watchPosition event or the first fallback timer.
+  captureMeterPosition(()=>{
+    if(generation!==meterCaptureGeneration||!meterIsRecording())return;
+    scheduleFallback(4000);
+  });
 }
 function stopMeterCaptureLoop(){
   meterCaptureGeneration++;
