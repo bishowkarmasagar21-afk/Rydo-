@@ -596,6 +596,15 @@ async function refreshCurrentRide(){
   try{
     const {data,error}=await db.from("rides").select("*").eq("passenger_id",session.user.id).order("created_at",{ascending:false}).limit(50);if(error)throw error;
     rideRows=data||[];const prev=currentRide;currentRide=rideRows.find(r=>isActive(r.status))||null;
+    if(activeFeedbackRide){
+      const latestFeedbackRide=rideRows.find(r=>String(r.id)===String(activeFeedbackRide.id));
+      if(latestFeedbackRide){
+        activeFeedbackRide=latestFeedbackRide;
+        const finalFare=latestFeedbackRide.final_fare??latestFeedbackRide.actual_fare??(latestFeedbackRide.meter_tracking_status==="finalized"?latestFeedbackRide.fare:null);
+        $("rrydFeedbackFare").textContent=finalFare==null?"Calculating automatically…":money(finalFare);
+        $("rrydFeedbackFareNote").textContent=finalFare==null?"Rryd is checking the uploaded GPS route. The confirmed fare will appear here automatically when verification succeeds.":"Ride #"+latestFeedbackRide.id+" · Confirmed final fare.";
+      }
+    }
     syncPassengerLocationSharing(currentRide);
     if(currentRide)await restoreMapFromRide(currentRide);
     renderCurrentRide();renderHistory();
@@ -852,8 +861,8 @@ function openRideFeedback(ride){
   activeFeedbackRide=ride;activeFeedbackRating=0;activeFeedbackAnswers={};activeFeedbackIssues=[];feedbackSubmitBusy=false;
   $("rrydFeedbackComment").value="";$("rrydFeedbackStatus").textContent="";
   const fare=ride.final_fare??ride.actual_fare??(ride.meter_tracking_status==="finalized"?ride.fare:null);
-  $("rrydFeedbackFare").textContent=fare==null?"Pending verification":money(fare);
-  $("rrydFeedbackFareNote").textContent=fare==null?"The final amount will appear after fare verification.": "Ride #"+ride.id;
+  $("rrydFeedbackFare").textContent=fare==null?"Calculating automatically…":money(fare);
+  $("rrydFeedbackFareNote").textContent=fare==null?"Rryd is checking the uploaded GPS route. The confirmed fare will appear here automatically when verification succeeds.":"Ride #"+ride.id+" · Confirmed final fare.";
   renderFeedbackStars();renderFeedbackQuestions(ride.vehicle_type);renderFeedbackIssues();
   $("rrydFeedbackSubmit").disabled=false;$("rrydFeedbackSubmit").textContent="Submit Feedback";
   $("rideFeedbackBackdrop").classList.remove("hidden");
