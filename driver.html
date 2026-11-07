@@ -789,6 +789,11 @@ async function loadRides(){
   const {data,error}=await sb.from("rides").select("*").eq("driver_id",user.id).order("created_at",{ascending:false}).limit(250);
   if(error){console.error("Ride history query failed",error);return}
   rides=data||[];activeRide=rides.find(r=>ACTIVE_STATUSES.includes(String(r.status||"").toLowerCase()))||null;
+  const popup=$("driverCompletionPopup");
+  if(popup&&!popup.classList.contains("hidden")){
+    const shownRide=rides.find(r=>String(r.id)===String(popup.dataset.rideId)&&String(r.status||"").toLowerCase()==="completed");
+    if(shownRide)showDriverCompletionPopup(shownRide);
+  }
 }
 
 function cashPaymentHtml(r,role){
@@ -829,10 +834,12 @@ function renderCurrentRide(){
 
 function showDriverCompletionPopup(ride){
   if(!ride||String(ride.status).toLowerCase()!=="completed")return;
+  const popup=$("driverCompletionPopup");
+  popup.dataset.rideId=String(ride.id);
   const fare=ride.final_fare??ride.actual_fare??(ride.meter_tracking_status==="finalized"?ride.fare:null);
-  $("driverCompletionFare").textContent=fare==null?"Pending verification":money(fare);
-  $("driverCompletionFareNote").textContent=fare==null?"The final fare will appear after Rryd verifies the recorded trip distance. Do not collect an unverified amount as the final fare.":"Ride #"+ride.id+" · The same recorded fare is shown to the passenger.";
-  $("driverCompletionPopup").classList.remove("hidden");
+  $("driverCompletionFare").textContent=fare==null?"Calculating automatically…":money(fare);
+  $("driverCompletionFareNote").textContent=fare==null?"Rryd is checking the uploaded GPS route. The confirmed fare will appear here automatically when verification succeeds. If the GPS record is incomplete or unreliable, the ride will be flagged for review. Do not collect an unconfirmed amount.":"Ride #"+ride.id+" · The same confirmed fare is shown to the passenger.";
+  popup.classList.remove("hidden");
 }
 $("driverCompletionClose").addEventListener("click",()=>$("driverCompletionPopup").classList.add("hidden"));
 
