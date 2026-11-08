@@ -194,7 +194,7 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
       </section>
 
       <section id="page-current" class="page hidden">
-        <div class="card"><h1>Current Ride</h1><div id="currentRide">No active ride.</div></div>
+        <div class="card"><h1>Current Ride</h1><div id="currentRide">No active ride.</div><p id="meterStatus" class="small muted" role="status" aria-live="polite">Ride meter: waiting for an active ride.</p></div>
         <div class="card hidden" id="communicationCard">
           <h1>Passenger contact & live pickup</h1>
           <p class="muted small">Call and chat are available only for your currently assigned ride. Passenger GPS is read through a secure ride-specific endpoint while the passenger shares location.</p>
@@ -258,6 +258,7 @@ const hiddenRequestIds=new Set();
 let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
 let meterQueue=[],meterReviewQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterPositionWatch=null,meterCaptureGeneration=0,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={},meterCompletingRideIds=new Set(),meterWakeLock=null,meterWakeLockRequest=null;
+let meterDiagnostics={rideId:null,captured:0,uploaded:0,uploadFailures:0,lastFixAt:0,lastError:""};
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
 let activeNavigationWindow=null;
 let authView="login",portalStarting=false,audioContext=null,audioEnabled=false,soundTimer=null,pendingSoundIds=new Set(),knownRequestIds=new Set(),notificationView="new",resumeRefreshBusy=false,pollBusy=false,lastHeartbeatAt=0;
@@ -287,6 +288,23 @@ function saveMeterQueue(){
 function saveMeterReviewQueue(){
   try{localStorage.setItem("rryd_driver_meter_review_v1",JSON.stringify(meterReviewQueue));return true}
   catch(error){console.error("GPS review archive could not be saved",error);return false}
+}
+function beginMeterDiagnostics(rideId,totalCount=0,uploadedCount=0){
+  const id=String(rideId);
+  if(meterDiagnostics.rideId!==id)meterDiagnostics={rideId:id,captured:0,uploaded:0,uploadFailures:0,lastFixAt:0,lastError:""};
+  meterDiagnostics.captured=Math.max(meterDiagnostics.captured,Number(totalCount)||0);
+  meterDiagnostics.uploaded=Math.max(meterDiagnostics.uploaded,Number(uploadedCount)||0);
+}
+function setMeterStatus(message,isError=false){
+  const el=$("meterStatus");if(!el)return;
+  el.textContent=String(message||"");el.style.color=isError?"var(--red)":"var(--muted)";
+}
+function updateMeterStatus(prefix){
+  if(!meterDiagnostics.rideId)return;
+  const id=Number(meterDiagnostics.rideId),pending=meterQueue.filter(x=>Number(x.ride_id)===id).length;
+  const age=meterDiagnostics.lastFixAt?Math.max(0,Math.round((Date.now()-meterDiagnostics.lastFixAt)/1000)):null;
+  const freshness=age===null?"waiting for first GPS fix":"last GPS fix "+age+"s ago";
+  setMeterStatus((prefix||"Ride GPS active")+" · "+meterDiagnostics.captured+" captured · "+meterDiagnostics.uploaded+" uploaded · "+pending+" waiting · "+freshness,!!meterDiagnostics.lastError);
 }
 async function quarantineExpiredMeterSamples(){
   if(!meterQueue.length||!user||!sb)return;
@@ -345,20 +363,26 @@ async function syncMeterSequence(rideId){
   const recovered=expectedNext-1;
   meterSampleSequence[key]=recovered;
   meterSequenceReady[key]=true;
+  beginMeterDiagnostics(id,recovered,serverMax);
   try{localStorage.setItem("rryd_meter_seq_"+key,String(recovered))}catch{}
+  updateMeterStatus("GPS sequence synchronized");
   return recovered;
 }
 function queueMeterSample(position){
-  if(!meterIsRecording()||!position?.coords)return false;
+  if(!meterIsRecording())return false;
+  if(!position?.coords){meterDiagnostics.lastError="The browser returned no GPS coordinates.";updateMeterStatus("GPS capture issue");return false;}
   const now=Date.now(),recordedMs=Number(position.timestamp)||now;
-  if(now-lastMeterSampleAt<METER_SAMPLE_INTERVAL_MS||!Number.isFinite(recordedMs)||recordedMs>now+120000||now-recordedMs>1800000)return false;
+  if(now-lastMeterSampleAt<METER_SAMPLE_INTERVAL_MS)return false;
+  if(!Number.isFinite(recordedMs)||recordedMs>now+120000||now-recordedMs>1800000){meterDiagnostics.lastError="The GPS timestamp is invalid or too old.";updateMeterStatus("GPS capture issue");return false;}
   const latitude=Number(position.coords.latitude),longitude=Number(position.coords.longitude),accuracy=Number(position.coords.accuracy);
-  if(!validNepalPoint(latitude,longitude))return false;
+  if(!validNepalPoint(latitude,longitude)){meterDiagnostics.lastError="GPS coordinates are outside the supported Nepal coverage area.";updateMeterStatus("GPS capture issue");return false;}
   const rideStartedAt=Date.parse(activeRide.meter_started_at);
-  if(!Number.isFinite(rideStartedAt)||recordedMs<rideStartedAt)return false;
+  // GPS device clocks can lag the database clock slightly. The server accepts
+  // a 30-second start tolerance, so permit the same tolerance in the browser.
+  if(!Number.isFinite(rideStartedAt)||recordedMs<rideStartedAt-30000){meterDiagnostics.lastError="Phone GPS time is more than 30 seconds before the server meter start.";updateMeterStatus("GPS clock mismatch");return false;}
   const rideId=Number(activeRide.id);if(!Number.isSafeInteger(rideId)||rideId<=0||meterCompletingRideIds.has(rideId))return false;
   const key=String(rideId);
-  if(meterSequenceReady[key]!==true){text("gpsStatus","Recovering the server GPS sample number. GPS capture will resume after synchronization.");return false}
+  if(meterSequenceReady[key]!==true){meterDiagnostics.lastError="GPS sample numbering has not synchronized with the server.";updateMeterStatus("GPS sequence synchronization required");return false}
   const current=Number(meterSampleSequence[key]??0);
   const queuedMax=meterQueue.filter(x=>Number(x.ride_id)===rideId).reduce((max,x)=>Math.max(max,Number(x.sample_number)||0),0);
   const previous=Math.max(Number.isSafeInteger(current)&&current>=0?current:0,queuedMax);
@@ -368,6 +392,9 @@ function queueMeterSample(position){
   const sample={ride_id:rideId,sample_number:sampleNumber,latitude,longitude,accuracy_m:Number.isFinite(accuracy)&&accuracy>=0?accuracy:null,recorded_at:new Date(recordedMs).toISOString()};
   meterQueue.push(sample);
   meterSampleSequence[key]=sampleNumber;
+  meterDiagnostics.captured=Math.max(meterDiagnostics.captured,sampleNumber);
+  meterDiagnostics.lastFixAt=now;
+  meterDiagnostics.lastError="";
   // Persist the sample before persisting its sequence. On reload, sequence recovery
   // uses the server maximum plus this durable queue; a stale local sequence is never trusted.
   const saved=saveMeterQueue();
@@ -376,26 +403,27 @@ function queueMeterSample(position){
   }
   lastMeterSampleAt=now;
   if(!saved){
-    text("gpsStatus","GPS sample is held in memory but local saving failed. Keep Rryd open while upload retries.");
+    setMeterStatus("GPS sample is in memory only because browser storage failed. Keep Rryd open while upload retries.",true);
     void flushMeterQueue();
     return true;
   }
-  text("gpsStatus","Ride GPS saved · "+meterQueue.filter(x=>Number(x.ride_id)===rideId).length+" sample(s) waiting or uploading.");
+  updateMeterStatus("GPS recording");
   return true;
 }
 function captureMeterPosition(onFinished){
-  if(!meterIsRecording()||!navigator.geolocation){onFinished?.();return;}
+  if(!meterIsRecording()){onFinished?.();return;}
+  if(!navigator.geolocation){meterDiagnostics.lastError="This browser does not provide geolocation.";setMeterStatus("GPS is unavailable in this browser.",true);onFinished?.();return;}
   let finished=false;
   const finish=()=>{if(finished)return;finished=true;onFinished?.();};
   try{
     navigator.geolocation.getCurrentPosition(
       pos=>{queueMeterSample(pos);finish();},
-      err=>{console.warn("Fresh ride GPS sample unavailable",err);text("gpsStatus","Ride GPS sample unavailable: "+err.message+"; retrying.");finish();},
+      err=>{console.warn("Fresh ride GPS sample unavailable",err);meterDiagnostics.lastError="GPS fix unavailable: "+(err.message||"location error");setMeterStatus("GPS fix unavailable: "+meterDiagnostics.lastError+" · retrying",true);finish();},
       {enableHighAccuracy:true,maximumAge:0,timeout:10000}
     );
   }catch(error){
     console.warn("Fresh ride GPS request could not start",error);
-    text("gpsStatus","Ride GPS request could not start: "+errorText(error)+"; retrying.");
+    meterDiagnostics.lastError="GPS request could not start: "+errorText(error);setMeterStatus(meterDiagnostics.lastError+" · retrying",true);
     finish();
   }
 }
@@ -409,11 +437,11 @@ async function acquireMeterWakeLock(){
       if(!meterIsRecording()||document.hidden){await lock.release();return false;}
       meterWakeLock=lock;
       lock.addEventListener("release",()=>{if(meterWakeLock===lock)meterWakeLock=null;});
-      text("gpsStatus","GPS meter active. Rryd is keeping the screen awake; keep this page open and location enabled.");
+      setMeterStatus("GPS meter active. Keep Rryd visible and location enabled.");
       return true;
     }catch(error){
       console.warn("Screen wake lock unavailable during ride",error);
-      text("gpsStatus","GPS meter is active, but this browser could not keep the screen awake. Keep Rryd visible and prevent the phone from sleeping.");
+      meterDiagnostics.lastError="Screen wake lock unavailable. Keep Rryd visible and prevent the phone from sleeping.";setMeterStatus(meterDiagnostics.lastError,true);
       return false;
     }finally{meterWakeLockRequest=null;}
   })();
@@ -425,7 +453,9 @@ function releaseMeterWakeLock(){
 }
 function startMeterCaptureLoop(){
   stopMeterCaptureLoop();
-  if(!meterIsRecording()||!navigator.geolocation)return;
+  if(!meterIsRecording()){setMeterStatus("Ride meter is not recording.");return;}
+  if(!navigator.geolocation){meterDiagnostics.lastError="Location permission or browser geolocation is unavailable.";setMeterStatus(meterDiagnostics.lastError,true);return;}
+  setMeterStatus("Starting ride GPS capture…");
   void acquireMeterWakeLock();
   const generation=++meterCaptureGeneration;
 
@@ -439,7 +469,7 @@ function startMeterCaptureLoop(){
       err=>{
         if(generation!==meterCaptureGeneration)return;
         console.warn("Continuous ride GPS watch reported an issue",err);
-        text("gpsStatus","Continuous GPS temporarily unavailable: "+err.message+". Rryd will retry GPS capture.");
+        meterDiagnostics.lastError="Continuous GPS watch error: "+(err.message||"location error");setMeterStatus(meterDiagnostics.lastError+" · fallback capture will retry",true);
       },
       {enableHighAccuracy:true,maximumAge:0,timeout:20000}
     );
@@ -458,8 +488,9 @@ function startMeterCaptureLoop(){
   const captureFallback=()=>{
     if(generation!==meterCaptureGeneration||!meterIsRecording()||!navigator.geolocation)return;
     const age=lastMeterSampleAt>0?Date.now()-lastMeterSampleAt:Infinity;
-    if(age<10000){
-      scheduleFallback(Math.max(1500,10000-age));
+    const fallbackAfterMs=Math.max(7500,METER_SAMPLE_INTERVAL_MS*1.5);
+    if(age<fallbackAfterMs){
+      scheduleFallback(Math.max(1200,fallbackAfterMs-age));
       return;
     }
     captureMeterPosition(()=>{
@@ -487,7 +518,7 @@ function stopMeterCaptureLoop(){
 }
 async function flushMeterQueue(){
   if(meterFlushBusy||!user||!sb||!meterQueue.length)return;
-  try{await quarantineExpiredMeterSamples()}catch(error){console.warn("Expired GPS sample handling needs attention",error);text("gpsStatus","GPS upload paused: "+errorText(error));return}
+  try{await quarantineExpiredMeterSamples()}catch(error){console.warn("Expired GPS sample handling needs attention",error);meterDiagnostics.lastError="GPS upload paused: "+errorText(error);setMeterStatus(meterDiagnostics.lastError,true);return}
   if(!meterQueue.length)return;
   // Flush one ride at a time, including a recently stopped ride after it is no longer active.
   const rideId=Number(meterQueue[0].ride_id);
@@ -502,7 +533,13 @@ async function flushMeterQueue(){
     let result={};try{result=await response.json()}catch{}
     if(!response.ok||result.success!==true)throw Error(result.error||("GPS upload failed (HTTP "+response.status+")."));
     const sent=new Set(batch.map(x=>String(x.sample_number)));
-    meterQueue=meterQueue.filter(x=>Number(x.ride_id)!==rideId||!sent.has(String(x.sample_number)));saveMeterQueue();
+    const previousQueue=meterQueue;
+    meterQueue=meterQueue.filter(x=>Number(x.ride_id)!==rideId||!sent.has(String(x.sample_number)));
+    if(!saveMeterQueue()){meterQueue=previousQueue;throw Error("Uploaded GPS points are still saved locally because the queue could not be updated.");}
+    beginMeterDiagnostics(rideId);
+    meterDiagnostics.uploaded+=Number(result.saved||0)+Number(result.duplicates||0);
+    meterDiagnostics.uploadFailures=0;
+    meterDiagnostics.lastError="";
     const remainingForRide=meterQueue.filter(x=>Number(x.ride_id)===rideId).length;
     if(remainingForRide===0){
       // Upload batches also run while the meter is recording. The completion RPC
@@ -519,17 +556,17 @@ async function flushMeterQueue(){
         const {data:completionData,error:completionError}=await sb.rpc("confirm_ride_meter_upload_complete",{p_ride_id:rideId,p_expected_sample_count:expected});
         if(completionError)throw completionError;
         if(completionData===true){
-          text("gpsStatus","All GPS samples uploaded and count-confirmed for completed ride #"+rideId+". Road verification can begin now.");
+          setMeterStatus("All GPS samples uploaded and count-confirmed for completed ride #"+rideId+". Road verification can begin now.");
         }else{
-          text("gpsStatus","GPS upload finished, but the server sample count or sequence does not match for ride #"+rideId+". This ride needs GPS review; no final fare will be issued.");
+          meterDiagnostics.lastError="The server sample count or sequence does not match.";setMeterStatus("GPS upload finished, but the server sample count or sequence does not match for ride #"+rideId+". This ride needs GPS review; no final fare will be issued.",true);
         }
       }else{
-        text("gpsStatus","GPS samples uploaded to the server for ride #"+rideId+". The meter is not stopped yet; upload completion will be confirmed after the ride ends.");
+        updateMeterStatus("GPS points uploaded; meter is still recording");
       }
     }else{
-      text("gpsStatus","Ride GPS upload confirmed · "+Number(result.saved||0)+" saved, "+Number(result.duplicates||0)+" duplicate(s), "+remainingForRide+" waiting.");
+      updateMeterStatus("GPS upload confirmed · "+Number(result.saved||0)+" new, "+Number(result.duplicates||0)+" already saved");
     }
-  }catch(error){console.warn("Ride GPS upload pending",error);text("gpsStatus","Ride GPS is safely queued; upload will retry: "+errorText(error))}
+  }catch(error){console.warn("Ride GPS upload pending",error);meterDiagnostics.uploadFailures++;meterDiagnostics.lastError="Upload retry pending: "+errorText(error);setMeterStatus(meterDiagnostics.lastError,true)}
   finally{meterFlushBusy=false}
 }
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
@@ -886,7 +923,7 @@ async function confirmCashPayment(rideId,button){
 }
 
 function renderCurrentRide(){
-  if(!activeRide){$("currentRide").innerHTML='<p class="muted">No active ride. Accept a ride request to begin.</p>';$("communicationCard").classList.add("hidden");return}
+  if(!activeRide){$("currentRide").innerHTML='<p class="muted">No active ride. Accept a ride request to begin.</p>';$("communicationCard").classList.add("hidden");setMeterStatus("Ride meter: waiting for an active ride.");return}
   $("communicationCard").classList.remove("hidden");
   const r=activeRide,status=String(r.status||"").toLowerCase();let actions="";
   if(status==="accepted")actions+='<button class="primary" onclick="rideAction(\'driver_arriving\')">I\'ve Arrived</button>';
@@ -916,11 +953,8 @@ async function rideAction(rpc){
   const prompt=rpc==="complete_ride"?"Complete this journey and stop GPS collection? The fare will remain pending road-distance verification; no final charge or earnings will be posted yet.":rpc==="start_ride"?"Start the passenger journey now? This starts the GPS meter. If no destination is set, confirm it with the passenger; no destination navigation will open.":"Confirm "+rpc.replace(/_/g," ")+"?";
   if(!confirm(prompt))return;
   const rideId=String(activeRide.id);
-  /* Open a blank tab during the click gesture so browser popup protection does not block auto-navigation. */
-  let pendingNavigationWindow=null;
-  if(rpc==="start_ride"){
-    try{pendingNavigationWindow=window.open("about:blank","rrydDriverNavigation");}catch{}
-  }
+  // Do not launch external navigation automatically: switching away from Rryd
+  // can put this page in the background and suspend browser GPS callbacks.
   let completionCaptureRideId=null;
   try{
     if(rpc==="complete_ride"){
@@ -932,17 +966,7 @@ async function rideAction(rpc){
     const {data,error}=await sb.rpc(rpc,{p_ride_id:Number(activeRide.id)});
     if(error)throw error;
     if(data===false)throw Error("Database did not confirm this ride action.");
-    if(rpc==="start_ride"){
-      const lat=Number(activeRide.destination_latitude),lon=Number(activeRide.destination_longitude);
-      if(activeRide.destination&&validNepalPoint(lat,lon)){
-        const url="https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(lat+","+lon)+"&travelmode=driving";
-        if(pendingNavigationWindow&&!pendingNavigationWindow.closed){pendingNavigationWindow.location.href=url;activeNavigationWindow=pendingNavigationWindow;}
-        else notify("Ride started and GPS meter is recording. Your browser blocked automatic navigation; tap Reopen destination navigation.");
-      }else{
-        try{pendingNavigationWindow?.close()}catch{}
-        notify(activeRide.destination?"Ride started and GPS meter is recording, but destination coordinates are missing. Confirm the destination before navigating.":"Pickup-only ride started. GPS meter is recording. Confirm the passenger destination; no destination pin was provided.");
-      }
-    }
+    if(rpc==="start_ride")notify("Ride started. GPS meter is recording. Keep Rryd open and visible for reliable GPS capture; use a separate device for navigation when possible.");
     if(rpc==="driver_arriving"&&activeRide&&String(activeRide.id)===rideId){
       activeRide={...activeRide,status:"arriving"};
       try{if(activeNavigationWindow&&!activeNavigationWindow.closed)activeNavigationWindow.close()}catch{}
@@ -1007,7 +1031,6 @@ async function rideAction(rpc){
     renderEverything();
     await refreshCommunication();
   }catch(e){
-    try{pendingNavigationWindow?.close()}catch{}
     if(completionCaptureRideId!==null){
       meterCompletingRideIds.delete(completionCaptureRideId);
       if(meterIsRecording())startMeterCaptureLoop();
@@ -1024,6 +1047,7 @@ function navigateRideTarget(target){
   const lat=Number(isPickup?activeRide.pickup_latitude:activeRide.destination_latitude);
   const lon=Number(isPickup?activeRide.pickup_longitude:activeRide.destination_longitude);
   if(!validNepalPoint(lat,lon))return notify("The saved "+(isPickup?"pickup":"destination")+" coordinates are unavailable. Ask the passenger to confirm the location.");
+  if(target==="destination"&&meterIsRecording()&&!confirm("Opening external navigation may put Rryd in the background and interrupt GPS capture. For a verified fare, keep Rryd visible or use a separate navigation device. Open navigation anyway?"))return;
   const url="https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(lat+","+lon)+"&travelmode=driving";
   const nav=window.open(url,"rrydDriverNavigation");
   if(nav)activeNavigationWindow=nav;
@@ -1376,7 +1400,7 @@ async function refreshDriverPortalOnReturn(){
 }
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden){
-    if(meterIsRecording())text("gpsStatus","Rryd is no longer visible. Return to this page immediately; phone browsers may pause GPS tracking in the background.");
+    if(meterIsRecording())setMeterStatus("Rryd is in the background. The browser may pause GPS capture; return to Rryd immediately. Keep this page visible during rides.",true);
     releaseMeterWakeLock();
     return;
   }
