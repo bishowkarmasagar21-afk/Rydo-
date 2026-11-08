@@ -339,35 +339,55 @@ async function syncMeterSequence(rideId){
   return recovered;
 }
 function queueMeterSample(position){
-  if(!meterIsRecording()||!position?.coords)return;
+  if(!meterIsRecording()||!position?.coords)return false;
   const now=Date.now(),recordedMs=Number(position.timestamp)||now;
-  if(now-lastMeterSampleAt<METER_SAMPLE_INTERVAL_MS||!Number.isFinite(recordedMs)||recordedMs>now+120000||now-recordedMs>1800000)return;
+  if(now-lastMeterSampleAt<METER_SAMPLE_INTERVAL_MS||!Number.isFinite(recordedMs)||recordedMs>now+120000||now-recordedMs>1800000)return false;
   const latitude=Number(position.coords.latitude),longitude=Number(position.coords.longitude),accuracy=Number(position.coords.accuracy);
-  if(!validNepalPoint(latitude,longitude))return;
+  if(!validNepalPoint(latitude,longitude))return false;
   const rideStartedAt=Date.parse(activeRide.meter_started_at);
-  if(!Number.isFinite(rideStartedAt)||recordedMs<rideStartedAt)return;
-  const rideId=Number(activeRide.id);if(!Number.isSafeInteger(rideId)||rideId<=0||meterCompletingRideIds.has(rideId))return;
+  if(!Number.isFinite(rideStartedAt)||recordedMs<rideStartedAt)return false;
+  const rideId=Number(activeRide.id);if(!Number.isSafeInteger(rideId)||rideId<=0||meterCompletingRideIds.has(rideId))return false;
   const key=String(rideId);
-  if(meterSequenceReady[key]!==true){text("gpsStatus","Recovering the server GPS sample number. GPS capture will resume after synchronization.");return}
-  let previous=Number(meterSampleSequence[key]||0);
-  try{previous=Math.max(previous,Number(localStorage.getItem("rryd_meter_seq_"+key)||0))}catch{}
+  if(meterSequenceReady[key]!==true){text("gpsStatus","Recovering the server GPS sample number. GPS capture will resume after synchronization.");return false}
+  const current=Number(meterSampleSequence[key]??0);
+  const queuedMax=meterQueue.filter(x=>Number(x.ride_id)===rideId).reduce((max,x)=>Math.max(max,Number(x.sample_number)||0),0);
+  const previous=Math.max(Number.isSafeInteger(current)&&current>=0?current:0,queuedMax);
   const lastForRide=meterQueue.filter(x=>Number(x.ride_id)===rideId).reduce((last,x)=>Math.max(last,Date.parse(x.recorded_at)||0),0);
-  if(recordedMs<lastForRide)return;
-  const sampleNumber=previous+1;meterSampleSequence[key]=sampleNumber;try{localStorage.setItem("rryd_meter_seq_"+key,String(sampleNumber))}catch{}
-  meterQueue.push({ride_id:rideId,sample_number:sampleNumber,latitude,longitude,accuracy_m:Number.isFinite(accuracy)&&accuracy>=0?accuracy:null,recorded_at:new Date(recordedMs).toISOString()});
-  // Keep every captured point; silently trimming the oldest samples would corrupt trip-distance review.
-  lastMeterSampleAt=now;saveMeterQueue();
-  text("gpsStatus","Ride GPS captured · "+meterQueue.filter(x=>Number(x.ride_id)===rideId).length+" sample(s) waiting or uploading.");
+  if(recordedMs<lastForRide)return false;
+  const sampleNumber=previous+1;
+  const sample={ride_id:rideId,sample_number:sampleNumber,latitude,longitude,accuracy_m:Number.isFinite(accuracy)&&accuracy>=0?accuracy:null,recorded_at:new Date(recordedMs).toISOString()};
+  meterQueue.push(sample);
+  meterSampleSequence[key]=sampleNumber;
+  // Persist the sample before persisting its sequence. On reload, sequence recovery
+  // uses the server maximum plus this durable queue; a stale local sequence is never trusted.
+  const saved=saveMeterQueue();
+  if(saved){
+    try{localStorage.setItem("rryd_meter_seq_"+key,String(sampleNumber))}catch{}
+  }
+  lastMeterSampleAt=now;
+  if(!saved){
+    text("gpsStatus","GPS sample is held in memory but local saving failed. Keep Rryd open while upload retries.");
+    void flushMeterQueue();
+    return true;
+  }
+  text("gpsStatus","Ride GPS saved · "+meterQueue.filter(x=>Number(x.ride_id)===rideId).length+" sample(s) waiting or uploading.");
+  return true;
 }
 function captureMeterPosition(onFinished){
   if(!meterIsRecording()||!navigator.geolocation){onFinished?.();return;}
   let finished=false;
   const finish=()=>{if(finished)return;finished=true;onFinished?.();};
-  navigator.geolocation.getCurrentPosition(
-    pos=>{queueMeterSample(pos);finish();},
-    err=>{console.warn("Fresh ride GPS sample unavailable",err);text("gpsStatus","Ride GPS sample unavailable: "+err.message+"; retrying.");finish();},
-    {enableHighAccuracy:true,maximumAge:0,timeout:10000}
-  );
+  try{
+    navigator.geolocation.getCurrentPosition(
+      pos=>{queueMeterSample(pos);finish();},
+      err=>{console.warn("Fresh ride GPS sample unavailable",err);text("gpsStatus","Ride GPS sample unavailable: "+err.message+"; retrying.");finish();},
+      {enableHighAccuracy:true,maximumAge:0,timeout:10000}
+    );
+  }catch(error){
+    console.warn("Fresh ride GPS request could not start",error);
+    text("gpsStatus","Ride GPS request could not start: "+errorText(error)+"; retrying.");
+    finish();
+  }
 }
 function startMeterCaptureLoop(){
   stopMeterCaptureLoop();
@@ -449,14 +469,26 @@ async function flushMeterQueue(){
     meterQueue=meterQueue.filter(x=>Number(x.ride_id)!==rideId||!sent.has(String(x.sample_number)));saveMeterQueue();
     const remainingForRide=meterQueue.filter(x=>Number(x.ride_id)===rideId).length;
     if(remainingForRide===0){
-      let expected=Number(meterSampleSequence[String(rideId)]||0);
-      try{expected=Math.max(expected,Number(localStorage.getItem("rryd_meter_seq_"+rideId)||0))}catch{}
-      const {data:completionData,error:completionError}=await sb.rpc("confirm_ride_meter_upload_complete",{p_ride_id:rideId,p_expected_sample_count:expected});
-      if(completionError)throw completionError;
-      if(completionData===true){
-        text("gpsStatus","All GPS samples uploaded and count-confirmed for ride #"+rideId+". Road verification can begin now.");
+      // Upload batches also run while the meter is recording. The completion RPC
+      // is valid only after the server has stopped a completed ride.
+      const {data:rideState,error:rideStateError}=await sb.from("rides").select("status,meter_tracking_status").eq("id",rideId).maybeSingle();
+      if(rideStateError)throw rideStateError;
+      const rideStatus=String(rideState?.status||"").toLowerCase();
+      const meterStatus=String(rideState?.meter_tracking_status||"").toLowerCase();
+      if(rideStatus==="completed"&&meterStatus==="stopped"){
+        const {data:serverMax,error:serverMaxError}=await sb.rpc("get_ride_meter_max_sample_number",{p_ride_id:rideId});
+        if(serverMaxError)throw serverMaxError;
+        const expected=Number(serverMax);
+        if(!Number.isSafeInteger(expected)||expected<0)throw Error("The server returned an invalid GPS sample count.");
+        const {data:completionData,error:completionError}=await sb.rpc("confirm_ride_meter_upload_complete",{p_ride_id:rideId,p_expected_sample_count:expected});
+        if(completionError)throw completionError;
+        if(completionData===true){
+          text("gpsStatus","All GPS samples uploaded and count-confirmed for completed ride #"+rideId+". Road verification can begin now.");
+        }else{
+          text("gpsStatus","GPS upload finished, but the server sample count or sequence does not match for ride #"+rideId+". This ride needs GPS review; no final fare will be issued.");
+        }
       }else{
-        text("gpsStatus","GPS upload batches finished, but the server sample count does not match the driver's queue for ride #"+rideId+". This ride needs GPS review; no final fare will be issued.");
+        text("gpsStatus","GPS samples uploaded to the server for ride #"+rideId+". The meter is not stopped yet; upload completion will be confirmed after the ride ends.");
       }
     }else{
       text("gpsStatus","Ride GPS upload confirmed · "+Number(result.saved||0)+" saved, "+Number(result.duplicates||0)+" duplicate(s), "+remainingForRide+" waiting.");
@@ -1218,7 +1250,8 @@ async function refreshGpsWatch(){
   gpsWatch=navigator.geolocation.watchPosition(pos=>{
     driverLat=pos.coords.latitude;driverLon=pos.coords.longitude;
     if(map){const ll=[driverLat,driverLon];if(driverMarker)driverMarker.setLatLng(ll);else driverMarker=L.marker(ll).addTo(map).bindPopup("Your current location")}
-    if(meterIsRecording())queueMeterSample(pos);
+    // Ride-meter samples are captured by the dedicated meter watch and fallback
+    // loop. This presence watch only updates the driver's online location.
     text("gpsStatus","Live GPS: "+driverLat.toFixed(5)+", "+driverLon.toFixed(5));sendCurrentLocation()
   },err=>text("gpsStatus","GPS: "+err.message),{enableHighAccuracy:true,maximumAge:5000,timeout:15000})
 }
