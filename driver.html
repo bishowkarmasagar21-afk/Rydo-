@@ -257,7 +257,7 @@ let sb=null,user=null,profile=null,vehicles=[],requests=[],rides=[],notification
 const hiddenRequestIds=new Set();
 let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
-let meterQueue=[],meterReviewQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterPositionWatch=null,meterCaptureGeneration=0,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={},meterCompletingRideIds=new Set();
+let meterQueue=[],meterReviewQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterPositionWatch=null,meterCaptureGeneration=0,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={},meterCompletingRideIds=new Set(),meterWakeLock=null,meterWakeLockRequest=null;
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
 let activeNavigationWindow=null;
 let authView="login",portalStarting=false,audioContext=null,audioEnabled=false,soundTimer=null,pendingSoundIds=new Set(),knownRequestIds=new Set(),notificationView="new",resumeRefreshBusy=false,pollBusy=false,lastHeartbeatAt=0;
@@ -399,9 +399,34 @@ function captureMeterPosition(onFinished){
     finish();
   }
 }
+async function acquireMeterWakeLock(){
+  if(!meterIsRecording()||document.hidden||!navigator.wakeLock?.request)return false;
+  if(meterWakeLock&&!meterWakeLock.released)return true;
+  if(meterWakeLockRequest)return meterWakeLockRequest;
+  meterWakeLockRequest=(async()=>{
+    try{
+      const lock=await navigator.wakeLock.request("screen");
+      if(!meterIsRecording()||document.hidden){await lock.release();return false;}
+      meterWakeLock=lock;
+      lock.addEventListener("release",()=>{if(meterWakeLock===lock)meterWakeLock=null;});
+      text("gpsStatus","GPS meter active. Rryd is keeping the screen awake; keep this page open and location enabled.");
+      return true;
+    }catch(error){
+      console.warn("Screen wake lock unavailable during ride",error);
+      text("gpsStatus","GPS meter is active, but this browser could not keep the screen awake. Keep Rryd visible and prevent the phone from sleeping.");
+      return false;
+    }finally{meterWakeLockRequest=null;}
+  })();
+  return meterWakeLockRequest;
+}
+function releaseMeterWakeLock(){
+  const lock=meterWakeLock;meterWakeLock=null;
+  if(lock&&!lock.released)lock.release().catch(error=>console.warn("Screen wake lock release failed",error));
+}
 function startMeterCaptureLoop(){
   stopMeterCaptureLoop();
   if(!meterIsRecording()||!navigator.geolocation)return;
+  void acquireMeterWakeLock();
   const generation=++meterCaptureGeneration;
 
   // Prefer continuous GPS updates whenever the browser supplies them.
@@ -458,6 +483,7 @@ function stopMeterCaptureLoop(){
     navigator.geolocation.clearWatch(meterPositionWatch);
     meterPositionWatch=null;
   }
+  releaseMeterWakeLock();
 }
 async function flushMeterQueue(){
   if(meterFlushBusy||!user||!sb||!meterQueue.length)return;
@@ -1348,7 +1374,16 @@ async function refreshDriverPortalOnReturn(){
     notify("Driver refresh failed: "+errorText(error));
   }finally{resumeRefreshBusy=false}
 }
-document.addEventListener("visibilitychange",()=>{if(!document.hidden){refreshDriverPortalOnReturn();if(user)flushMeterQueue()}});
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden){
+    if(meterIsRecording())text("gpsStatus","Rryd is no longer visible. Return to this page immediately; phone browsers may pause GPS tracking in the background.");
+    releaseMeterWakeLock();
+    return;
+  }
+  refreshDriverPortalOnReturn();
+  if(meterIsRecording())void acquireMeterWakeLock();
+  if(user)flushMeterQueue();
+});
 window.addEventListener("pageshow",()=>{if(user){refreshDriverPortalOnReturn();flushMeterQueue()}});
 window.addEventListener("online",()=>{if(user)flushMeterQueue()});
 window.addEventListener("beforeunload",stopBackground);
