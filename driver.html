@@ -263,12 +263,22 @@ let activeNavigationWindow=null;
 let authView="login",portalStarting=false,audioContext=null,audioEnabled=false,soundTimer=null,pendingSoundIds=new Set(),knownRequestIds=new Set(),notificationView="new",resumeRefreshBusy=false,pollBusy=false,lastHeartbeatAt=0;
 
 function loadMeterQueue(){
+  // Restore upload and review archives independently: a damaged review archive
+  // must never discard valid GPS samples waiting to upload.
   try{
     const raw=localStorage.getItem(METER_QUEUE_STORAGE_KEY),parsed=raw?JSON.parse(raw):[];
     meterQueue=Array.isArray(parsed)?parsed.filter(x=>x&&Number.isSafeInteger(Number(x.ride_id))&&Number.isSafeInteger(Number(x.sample_number))&&Number.isFinite(Number(x.latitude))&&Number.isFinite(Number(x.longitude))&&typeof x.recorded_at==="string"):[];
+  }catch(error){
+    console.warn("Offline GPS upload queue could not be restored",error);
+    meterQueue=[];
+  }
+  try{
     const reviewRaw=localStorage.getItem("rryd_driver_meter_review_v1"),reviewParsed=reviewRaw?JSON.parse(reviewRaw):[];
     meterReviewQueue=Array.isArray(reviewParsed)?reviewParsed:[];
-  }catch(error){console.warn("Offline GPS queue could not be fully restored",error);meterQueue=[];meterReviewQueue=[]}
+  }catch(error){
+    console.warn("GPS review archive could not be restored; upload queue remains intact",error);
+    meterReviewQueue=[];
+  }
 }
 function saveMeterQueue(){
   try{localStorage.setItem(METER_QUEUE_STORAGE_KEY,JSON.stringify(meterQueue));return true}
