@@ -601,8 +601,14 @@ async function refreshCurrentRide(){
       if(latestFeedbackRide){
         activeFeedbackRide=latestFeedbackRide;
         const finalFare=getVerifiedFinalFare(latestFeedbackRide);
-        $("rrydFeedbackFare").textContent=finalFare==null?"Verification pending":money(finalFare);
-        $("rrydFeedbackFareNote").textContent=finalFare==null?"Rryd is checking the uploaded GPS route. The estimate is not a final charge. The confirmed fare will appear here automatically when verification succeeds.":"Ride #"+latestFeedbackRide.id+" · Confirmed final fare.";
+        const reviewRequired=String(latestFeedbackRide.meter_tracking_status||"").toLowerCase()==="review"||latestFeedbackRide.meter_tracking_issue===true;
+        const reviewReason=String(latestFeedbackRide.meter_review_reason||"GPS road-distance verification could not be completed reliably.");
+        $("rrydFeedbackFare").textContent=finalFare!==null?money(finalFare):reviewRequired?"Review required":"Verification pending";
+        $("rrydFeedbackFareNote").textContent=finalFare!==null
+          ?"Ride #"+latestFeedbackRide.id+" · Confirmed final fare."
+          :reviewRequired
+            ?"Ride #"+latestFeedbackRide.id+" · Administrator review is required. "+reviewReason+" The estimate is not a final charge."
+            :"Rryd is checking the uploaded GPS route. The estimate is not a final charge. The confirmed fare will appear here automatically when verification succeeds.";
       }
     }
     syncPassengerLocationSharing(currentRide);
@@ -782,10 +788,14 @@ function renderCurrentRide(){
   const verifiedFare=getVerifiedFinalFare(r);
   const estimate=r.estimated_fare??r.fare??null;
   const showFare=verifiedFare!==null?verifiedFare:estimate;
-  const fareLabel=verifiedFare!==null?"Final fare":isFinal?"Estimated fare · verification pending":"Estimated fare";
+  const reviewRequired=String(r.meter_tracking_status||"").toLowerCase()==="review"||r.meter_tracking_issue===true;
+  const reviewReason=String(r.meter_review_reason||"GPS road-distance verification could not be completed reliably.");
+  const fareLabel=verifiedFare!==null?"Final fare":reviewRequired?"Fare requires review":isFinal?"Estimated fare · verification pending":"Estimated fare";
   const date=r.created_at?new Date(r.created_at).toLocaleString():"—";
   const meterNotice=isFinal&&verifiedFare===null
-    ?'<div class="message info"><b>Final fare verification pending.</b><p>Rryd is checking the recorded GPS journey against real roads. The amount shown is only an estimate. No final fare or driver earnings have been posted yet.</p></div>'
+    ?reviewRequired
+      ?'<div class="message error"><b>Fare review required.</b><p>'+esc(reviewReason)+' The amount shown is only an estimate, not a final charge. Please wait for Rryd administrator review.</p></div>'
+      :'<div class="message info"><b>Final fare verification pending.</b><p>Rryd is checking the recorded GPS journey against real roads. The amount shown is only an estimate. No final fare or driver earnings have been posted yet.</p></div>'
     :isMeterStopped&&!isFinal
       ?'<div class="message info"><b>Meter stopped — fare verification pending.</b><p>Rryd is checking the recorded journey against real roads. The amount shown is only an estimate. No final fare or driver earnings have been posted yet.</p></div>'
       :r.meter_tracking_status==="recording"&&!isFinal
@@ -951,7 +961,7 @@ function renderHistory(){const box=$("rideHistory");if(!rideRows.length){box.inn
 $("refreshRideBtn").addEventListener("click",refreshCurrentRide);$("refreshHistoryBtn").addEventListener("click",refreshCurrentRide);
 
 /* Receipt: only issue it for a completed ride. Automatically appears briefly after completion. */
-function receiptText(r){const fare=getVerifiedFinalFare(r),estimate=r.estimated_fare??r.fare??null,verified=fare!==null,date=r.completed_at||r.created_at;return["RRYD — RIDE RECEIPT","Ride ID: "+r.id,"Status: "+statusName(r.status),"Date: "+(date?new Date(date).toLocaleString():"—"),"Pickup: "+(r.pickup_location??r.pickup??"—"),"Destination: "+(r.destination??"—"),"Vehicle: "+(r.vehicle_type??"—"),(verified?"Verified billable distance: ":"Recorded distance (not verified): ")+(r.distance_km==null?"—":Number(r.distance_km).toFixed(2)+" km"),"Initial estimate: "+(estimate==null?"Not set — pickup-only metered ride":money(estimate)),"Final fare: "+(verified?money(fare):"Pending verification — estimate is not a final charge"),"Payment method: "+(r.payment_method??"cash"),"Payment status: "+(r.payment_status??"not recorded"),"","This receipt reflects ride/payment fields recorded by Rryd. It is not proof of online payment unless the payment status is confirmed by the payment system."].join("\n");}
+function receiptText(r){const fare=getVerifiedFinalFare(r),estimate=r.estimated_fare??r.fare??null,verified=fare!==null,review=String(r.meter_tracking_status||"").toLowerCase()==="review"||r.meter_tracking_issue===true,date=r.completed_at||r.created_at;return["RRYD — RIDE RECEIPT","Ride ID: "+r.id,"Status: "+statusName(r.status),"Date: "+(date?new Date(date).toLocaleString():"—"),"Pickup: "+(r.pickup_location??r.pickup??"—"),"Destination: "+(r.destination??"—"),"Vehicle: "+(r.vehicle_type??"—"),(verified?"Verified billable distance: ":"Recorded distance (not verified): ")+(r.distance_km==null?"—":Number(r.distance_km).toFixed(2)+" km"),"Initial estimate: "+(estimate==null?"Not set — pickup-only metered ride":money(estimate)),"Final fare: "+(verified?money(fare):review?"Review required — "+(r.meter_review_reason||"GPS verification needs administrator review"):"Pending verification — estimate is not a final charge"),"Payment method: "+(r.payment_method??"cash"),"Payment status: "+(r.payment_status??"not recorded"),"","This receipt reflects ride/payment fields recorded by Rryd. It is not proof of online payment unless the payment status is confirmed by the payment system."].join("\n");}
 function showReceiptOnce(r){if(!r||String(r.status).toLowerCase()!=="completed")return;let key="";try{key="rryd-feedback-popup-seen-"+session.user.id+"-"+r.id;if(localStorage.getItem(key)==="1")return;localStorage.setItem(key,"1");}catch(_){}lastReceiptPopupId=String(r.id);openRideFeedback(r);}
 function showReceipt(r){if(String(r.status).toLowerCase()!=="completed")return setMessage("appMessage","A final receipt is only available after the ride is completed.","info");closeReceipt();const popup=$("receiptPopup");popup.innerHTML=`<div class="receipt-head"><strong>Rryd receipt · Ride #${esc(r.id)}</strong><button class="receipt-close" id="closeReceiptBtn" type="button" aria-label="Close receipt">×</button></div><pre>${esc(receiptText(r))}</pre><div class="row"><button class="primary" id="downloadReceiptBtn" type="button">Download</button><button class="secondary" id="copyReceiptBtn" type="button">Copy</button><button class="ghost" id="shareReceiptBtn" type="button">Share</button><button class="ghost" id="printReceiptBtn" type="button">Print / PDF</button></div><p class="muted tiny">This receipt popup closes automatically after 10 seconds.</p>`;show("receiptPopup",true);$("closeReceiptBtn").onclick=closeReceipt;$("downloadReceiptBtn").onclick=()=>downloadReceipt(r);$("copyReceiptBtn").onclick=()=>copyText(receiptText(r),"Receipt copied.");$("shareReceiptBtn").onclick=()=>shareText("Rryd ride receipt",receiptText(r));$("printReceiptBtn").onclick=()=>printReceipt(r);receiptTimer=setTimeout(closeReceipt,10000);}
 function closeReceipt(){show("receiptPopup",false);$("receiptPopup").innerHTML="";if(receiptTimer){clearTimeout(receiptTimer);receiptTimer=null;}}
