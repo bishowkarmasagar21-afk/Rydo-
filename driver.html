@@ -378,7 +378,7 @@ function queueMeterSample(position){
   // Match the production verifier's 50 m accuracy ceiling before numbering or queuing.
   // Poor fixes are rejected locally so one bad point cannot poison an entire upload batch.
   if(!Number.isFinite(accuracy)||accuracy<0||accuracy>50){
-    meterDiagnostics.lastError="GPS accuracy is "+(Number.isFinite(accuracy)?Math.round(accuracy)+" m":"unavailable")+". Enable Precise Location for Chrome and move outdoors; this point was not queued.";
+    meterDiagnostics.lastError="GPS accuracy is "+(Number.isFinite(accuracy)?Math.round(accuracy)+" m":"unavailable")+". Enable Precise Location for your browser and move outdoors; this point was not queued.";
     updateMeterStatus("Poor GPS accuracy · waiting for a precise fix");
     return false;
   }
@@ -566,7 +566,7 @@ async function retryCompletedRideMeterConfirmations(){
 }
 async function quarantineInvalidQueuedMeterSamples(rideId){
   const id=Number(rideId),key=String(id);
-  const invalid=meterQueue.filter(x=>Number(x.ride_id)===id&&(!Number.isFinite(Number(x.accuracy_m))||Number(x.accuracy_m)<0||Number(x.accuracy_m)>50));
+  const invalid=meterQueue.filter(x=>Number(x.ride_id)===id&&(x.accuracy_m==null||!Number.isFinite(Number(x.accuracy_m))||Number(x.accuracy_m)<0||Number(x.accuracy_m)>50));
   if(!invalid.length)return;
   const {data:serverMax,error}=await sb.rpc("get_ride_meter_max_sample_number",{p_ride_id:id});
   if(error)throw error;
