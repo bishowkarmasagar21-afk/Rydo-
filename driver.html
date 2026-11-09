@@ -257,7 +257,7 @@ let sb=null,user=null,profile=null,vehicles=[],requests=[],rides=[],notification
 const hiddenRequestIds=new Set();
 let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
-let meterQueue=[],meterReviewQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterPositionWatch=null,meterCaptureGeneration=0,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={},meterCompletingRideIds=new Set(),meterWakeLock=null,meterWakeLockRequest=null;
+let meterQueue=[],meterReviewQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterPositionWatch=null,meterCaptureGeneration=0,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={},meterCompletingRideIds=new Set(),meterConfirmBusy=new Set(),meterWakeLock=null,meterWakeLockRequest=null;
 let meterDiagnostics={rideId:null,captured:0,uploaded:0,uploadFailures:0,lastFixAt:0,lastError:""};
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
 let activeNavigationWindow=null;
@@ -516,10 +516,54 @@ function stopMeterCaptureLoop(){
   }
   releaseMeterWakeLock();
 }
+async function confirmCompletedRideMeterUpload(rideId){
+  const id=Number(rideId);
+  if(!Number.isSafeInteger(id)||id<=0||!user||!sb||meterConfirmBusy.has(id))return false;
+  if(meterQueue.some(x=>Number(x.ride_id)===id))return false;
+  meterConfirmBusy.add(id);
+  try{
+    const {data:state,error:stateError}=await sb.from("rides")
+      .select("status,meter_tracking_status,meter_upload_completed_at,meter_tracking_issue")
+      .eq("id",id).maybeSingle();
+    if(stateError)throw stateError;
+    if(!state||String(state.status||"").toLowerCase()!=="completed"
+      ||String(state.meter_tracking_status||"").toLowerCase()!=="stopped"
+      ||state.meter_tracking_issue===true)return false;
+    if(state.meter_upload_completed_at)return true;
+    const {data:serverMax,error:serverMaxError}=await sb.rpc("get_ride_meter_max_sample_number",{p_ride_id:id});
+    if(serverMaxError)throw serverMaxError;
+    const expected=Number(serverMax);
+    if(!Number.isSafeInteger(expected)||expected<0)throw Error("The server returned an invalid GPS sample count.");
+    const {data:confirmed,error:confirmError}=await sb.rpc("confirm_ride_meter_upload_complete",{
+      p_ride_id:id,p_expected_sample_count:expected
+    });
+    if(confirmError)throw confirmError;
+    if(confirmed===true){
+      setMeterStatus("All GPS samples uploaded and count-confirmed for completed ride #"+id+". Road verification can begin now.");
+      return true;
+    }
+    meterDiagnostics.lastError="The server sample count or sequence does not match.";
+    setMeterStatus("GPS upload count or sequence does not match for ride #"+id+". This ride needs GPS review; no final fare will be issued.",true);
+    return false;
+  }catch(error){
+    console.warn("Completed ride GPS upload confirmation will retry",id,error);
+    meterDiagnostics.lastError="Upload confirmation retry pending: "+errorText(error);
+    setMeterStatus("Ride #"+id+" GPS points are uploaded, but upload confirmation will retry automatically: "+errorText(error),true);
+    return false;
+  }finally{meterConfirmBusy.delete(id)}
+}
+async function retryCompletedRideMeterConfirmations(){
+  if(!user||!sb||!Array.isArray(rides))return;
+  const candidates=rides.filter(r=>String(r.status||"").toLowerCase()==="completed"
+    &&String(r.meter_tracking_status||"").toLowerCase()==="stopped"
+    &&!r.meter_upload_completed_at&&r.meter_tracking_issue!==true
+    &&!meterQueue.some(x=>Number(x.ride_id)===Number(r.id)));
+  for(const ride of candidates.slice(0,5))await confirmCompletedRideMeterUpload(ride.id);
+}
 async function flushMeterQueue(){
-  if(meterFlushBusy||!user||!sb||!meterQueue.length)return;
+  if(meterFlushBusy||!user||!sb)return;
   try{await quarantineExpiredMeterSamples()}catch(error){console.warn("Expired GPS sample handling needs attention",error);meterDiagnostics.lastError="GPS upload paused: "+errorText(error);setMeterStatus(meterDiagnostics.lastError,true);return}
-  if(!meterQueue.length)return;
+  if(!meterQueue.length){await retryCompletedRideMeterConfirmations();return;}
   // Flush one ride at a time, including a recently stopped ride after it is no longer active.
   const rideId=Number(meterQueue[0].ride_id);
   if(!Number.isSafeInteger(rideId)||rideId<=0){meterQueue.shift();saveMeterQueue();return}
@@ -542,27 +586,13 @@ async function flushMeterQueue(){
     meterDiagnostics.lastError="";
     const remainingForRide=meterQueue.filter(x=>Number(x.ride_id)===rideId).length;
     if(remainingForRide===0){
-      // Upload batches also run while the meter is recording. The completion RPC
-      // is valid only after the server has stopped a completed ride.
       const {data:rideState,error:rideStateError}=await sb.from("rides").select("status,meter_tracking_status").eq("id",rideId).maybeSingle();
       if(rideStateError)throw rideStateError;
-      const rideStatus=String(rideState?.status||"").toLowerCase();
-      const meterStatus=String(rideState?.meter_tracking_status||"").toLowerCase();
-      if(rideStatus==="completed"&&meterStatus==="stopped"){
-        const {data:serverMax,error:serverMaxError}=await sb.rpc("get_ride_meter_max_sample_number",{p_ride_id:rideId});
-        if(serverMaxError)throw serverMaxError;
-        const expected=Number(serverMax);
-        if(!Number.isSafeInteger(expected)||expected<0)throw Error("The server returned an invalid GPS sample count.");
-        const {data:completionData,error:completionError}=await sb.rpc("confirm_ride_meter_upload_complete",{p_ride_id:rideId,p_expected_sample_count:expected});
-        if(completionError)throw completionError;
-        if(completionData===true){
-          setMeterStatus("All GPS samples uploaded and count-confirmed for completed ride #"+rideId+". Road verification can begin now.");
-        }else{
-          meterDiagnostics.lastError="The server sample count or sequence does not match.";setMeterStatus("GPS upload finished, but the server sample count or sequence does not match for ride #"+rideId+". This ride needs GPS review; no final fare will be issued.",true);
-        }
-      }else{
-        updateMeterStatus("GPS points uploaded; meter is still recording");
-      }
+      if(String(rideState?.status||"").toLowerCase()==="completed"
+        &&String(rideState?.meter_tracking_status||"").toLowerCase()==="stopped"){
+        // Confirmation is independently retryable after the local queue is empty.
+        await confirmCompletedRideMeterUpload(rideId);
+      }else updateMeterStatus("GPS points uploaded; meter is still recording");
     }else{
       updateMeterStatus("GPS upload confirmed · "+Number(result.saved||0)+" new, "+Number(result.duplicates||0)+" already saved");
     }
@@ -1008,15 +1038,7 @@ async function rideAction(rpc){
       await flushMeterQueue();
       const pendingForRide=meterQueue.filter(x=>Number(x.ride_id)===Number(rideId)).length;
       if(pendingForRide===0&&!rideMeterState?.meter_upload_completed_at){
-        const {data:serverMax,error:serverMaxError}=await sb.rpc("get_ride_meter_max_sample_number",{p_ride_id:Number(rideId)});
-        if(serverMaxError)throw serverMaxError;
-        const expected=Math.max(0,Number(serverMax)||0);
-        const {data:uploadConfirmed,error:uploadConfirmError}=await sb.rpc("confirm_ride_meter_upload_complete",{
-          p_ride_id:Number(rideId),
-          p_expected_sample_count:expected
-        });
-        if(uploadConfirmError)console.warn("GPS upload completion not confirmed",uploadConfirmError);
-        else if(uploadConfirmed!==true)notify("GPS upload count or sequence does not match the server record. This ride needs GPS review; no final fare will be issued.");
+        await confirmCompletedRideMeterUpload(rideId);
       }
       meterCompletingRideIds.delete(Number(rideId));
     }
