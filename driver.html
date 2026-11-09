@@ -257,7 +257,7 @@ let sb=null,user=null,profile=null,vehicles=[],requests=[],rides=[],notification
 const hiddenRequestIds=new Set();
 let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
-let meterQueue=[],meterReviewQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterPositionWatch=null,meterCaptureGeneration=0,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={},meterCompletingRideIds=new Set(),meterConfirmBusy=new Set(),meterWakeLock=null,meterWakeLockRequest=null;
+let meterQueue=[],meterReviewQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterPositionWatch=null,meterCaptureGeneration=0,meterFlushBusy=false,meterOneShotBusy=false,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={},meterCompletingRideIds=new Set(),meterConfirmBusy=new Set(),meterWakeLock=null,meterWakeLockRequest=null;
 let meterDiagnostics={rideId:null,captured:0,uploaded:0,uploadFailures:0,lastFixAt:0,lastError:""};
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
 let activeNavigationWindow=null;
@@ -413,11 +413,13 @@ function queueMeterSample(position){
 function captureMeterPosition(onFinished){
   if(!meterIsRecording()){onFinished?.();return;}
   if(!navigator.geolocation){meterDiagnostics.lastError="This browser does not provide geolocation.";setMeterStatus("GPS is unavailable in this browser.",true);onFinished?.();return;}
+  if(meterOneShotBusy){onFinished?.();return;}
+  meterOneShotBusy=true;
   let finished=false;
-  const finish=()=>{if(finished)return;finished=true;onFinished?.();};
+  const finish=()=>{if(finished)return;finished=true;meterOneShotBusy=false;onFinished?.();};
   try{
     navigator.geolocation.getCurrentPosition(
-      pos=>{queueMeterSample(pos);finish();},
+      pos=>{try{queueMeterSample(pos)}finally{finish()}},
       err=>{console.warn("Fresh ride GPS sample unavailable",err);meterDiagnostics.lastError="GPS fix unavailable: "+(err.message||"location error");setMeterStatus("GPS fix unavailable: "+meterDiagnostics.lastError+" · retrying",true);finish();},
       {enableHighAccuracy:true,maximumAge:0,timeout:10000}
     );
@@ -459,7 +461,7 @@ function startMeterCaptureLoop(){
   void acquireMeterWakeLock();
   const generation=++meterCaptureGeneration;
 
-  // Prefer continuous GPS updates whenever the browser supplies them.
+  // Continuous high-accuracy GPS is the primary source.
   try{
     meterPositionWatch=navigator.geolocation.watchPosition(
       pos=>{
@@ -469,47 +471,41 @@ function startMeterCaptureLoop(){
       err=>{
         if(generation!==meterCaptureGeneration)return;
         console.warn("Continuous ride GPS watch reported an issue",err);
-        meterDiagnostics.lastError="Continuous GPS watch error: "+(err.message||"location error");setMeterStatus(meterDiagnostics.lastError+" · fallback capture will retry",true);
+        meterDiagnostics.lastError="Continuous GPS watch error: "+(err.message||"location error");
+        setMeterStatus(meterDiagnostics.lastError+" · one-shot GPS fallback is active",true);
       },
       {enableHighAccuracy:true,maximumAge:0,timeout:20000}
     );
   }catch(error){
-    console.warn("Continuous ride GPS watch could not start; fallback capture remains active",error);
+    console.warn("Continuous ride GPS watch could not start; one-shot fallback remains active",error);
     meterPositionWatch=null;
   }
 
-  // A separate one-shot request prevents the meter from depending only on
-  // watchPosition events, which may be infrequent on some devices/browsers.
-  const scheduleFallback=(delay)=>{
-    if(generation===meterCaptureGeneration&&meterIsRecording()){
-      meterCaptureTimer=setTimeout(captureFallback,delay);
-    }
-  };
-  const captureFallback=()=>{
-    if(generation!==meterCaptureGeneration||!meterIsRecording()||!navigator.geolocation)return;
-    const age=lastMeterSampleAt>0?Date.now()-lastMeterSampleAt:Infinity;
-    const fallbackAfterMs=Math.max(7500,METER_SAMPLE_INTERVAL_MS*1.5);
-    if(age<fallbackAfterMs){
-      scheduleFallback(Math.max(1200,fallbackAfterMs-age));
-      return;
-    }
-    captureMeterPosition(()=>{
-      if(generation!==meterCaptureGeneration||!meterIsRecording())return;
-      // Retry after a short pause if GPS timed out or returned no usable fix.
-      scheduleFallback(4000);
-    });
-  };
-
-  // Request the first meter sample immediately instead of waiting for the
-  // browser's first watchPosition event or the first fallback timer.
-  captureMeterPosition(()=>{
+  // Independent watchdog: if watchPosition stops producing fixes, request a
+  // fresh one-shot fix. A busy guard prevents overlapping browser GPS requests.
+  const watchdog=()=>{
     if(generation!==meterCaptureGeneration||!meterIsRecording())return;
-    scheduleFallback(4000);
-  });
+    const age=lastMeterSampleAt>0?Date.now()-lastMeterSampleAt:Infinity;
+    const fallbackAfterMs=Math.max(7000,METER_SAMPLE_INTERVAL_MS*1.4);
+    if(age>=fallbackAfterMs&&!meterOneShotBusy){
+      captureMeterPosition(()=>{
+        if(generation!==meterCaptureGeneration||!meterIsRecording())return;
+        if(meterDiagnostics.lastError)updateMeterStatus("GPS fallback retrying");
+      });
+    }else if(meterDiagnostics.lastFixAt){
+      updateMeterStatus("GPS recording");
+    }
+  };
+  if(meterCaptureTimer)clearInterval(meterCaptureTimer);
+  meterCaptureTimer=setInterval(watchdog,2500);
+
+  // Get the first fix immediately; do not wait for the browser watch callback.
+  captureMeterPosition(()=>{if(generation===meterCaptureGeneration&&meterIsRecording())updateMeterStatus("GPS recording")});
 }
 function stopMeterCaptureLoop(){
   meterCaptureGeneration++;
-  if(meterCaptureTimer){clearTimeout(meterCaptureTimer);meterCaptureTimer=null;}
+  if(meterCaptureTimer){clearInterval(meterCaptureTimer);meterCaptureTimer=null;}
+  meterOneShotBusy=false;
   if(meterPositionWatch!==null&&navigator.geolocation){
     navigator.geolocation.clearWatch(meterPositionWatch);
     meterPositionWatch=null;
