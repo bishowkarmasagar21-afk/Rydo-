@@ -942,8 +942,15 @@ function showDriverCompletionPopup(ride){
   const popup=$("driverCompletionPopup");
   popup.dataset.rideId=String(ride.id);
   const fare=rideFareVerified(ride)?Number(ride.final_fare):null;
-  $("driverCompletionFare").textContent=fare==null?"Calculating automatically…":money(fare);
-  $("driverCompletionFareNote").textContent=fare==null?"Rryd is checking the uploaded GPS route. The confirmed fare will appear here automatically when verification succeeds. If the GPS record is incomplete or unreliable, the ride will be flagged for review. Do not collect an unconfirmed amount.":"Ride #"+ride.id+" · The same confirmed fare is shown to the passenger.";
+  const meterState=String(ride.meter_tracking_status||"").toLowerCase();
+  const reviewRequired=meterState==="review"||ride.meter_tracking_issue===true;
+  const reviewReason=String(ride.meter_review_reason||"GPS road-distance verification could not be completed reliably.");
+  $("driverCompletionFare").textContent=fare!==null?money(fare):reviewRequired?"Review required":meterState==="stopped"?"Verifying GPS route…":"Fare status pending";
+  $("driverCompletionFareNote").textContent=fare!==null
+    ?"Ride #"+ride.id+" · Verified final fare. The same confirmed fare is shown to the passenger."
+    :reviewRequired
+      ?"Ride #"+ride.id+" · Administrator review is required. "+reviewReason+" Do not collect an unconfirmed amount."
+      :"Ride #"+ride.id+" · Rryd is uploading and checking the recorded GPS journey. The estimate is not a final charge. If verification cannot be completed, this ride will be marked for review.";
   popup.classList.remove("hidden");
 }
 $("driverCompletionClose").addEventListener("click",()=>$("driverCompletionPopup").classList.add("hidden"));
@@ -983,7 +990,7 @@ async function rideAction(rpc){
     }else if(rpc!=="driver_arriving"&&rpc!=="start_ride")notify("Ride action submitted.");
     await loadRides();
     if(rpc==="complete_ride"){
-      const {data:rideMeterState,error:rideMeterStateError}=await sb.from("rides").select("meter_stopped_at,meter_point_count").eq("id",Number(rideId)).maybeSingle();
+      const {data:rideMeterState,error:rideMeterStateError}=await sb.from("rides").select("meter_stopped_at,meter_point_count,meter_upload_completed_at,meter_tracking_status").eq("id",Number(rideId)).maybeSingle();
       if(rideMeterStateError)throw rideMeterStateError;
       const stoppedAt=Date.parse(rideMeterState?.meter_stopped_at||"");
       if(Number.isFinite(stoppedAt)){
@@ -1000,7 +1007,7 @@ async function rideAction(rpc){
       }
       await flushMeterQueue();
       const pendingForRide=meterQueue.filter(x=>Number(x.ride_id)===Number(rideId)).length;
-      if(pendingForRide===0){
+      if(pendingForRide===0&&!rideMeterState?.meter_upload_completed_at){
         const {data:serverMax,error:serverMaxError}=await sb.rpc("get_ride_meter_max_sample_number",{p_ride_id:Number(rideId)});
         if(serverMaxError)throw serverMaxError;
         const expected=Math.max(0,Number(serverMax)||0);
@@ -1262,7 +1269,7 @@ async function routeToPassenger(lat,lon,rideId){
 
 function renderHistory(){
   const rows=rides.filter(r=>["completed","cancelled","canceled"].includes(String(r.status).toLowerCase()));
-  $("historyRows").innerHTML=rows.length?rows.map(r=>`<tr><td>${esc(r.created_at||"—")}</td><td>${esc(r.pickup_location||"—")} → ${esc(r.destination||"—")}</td><td>${esc(typeName(r.vehicle_type))}</td><td>${esc(rideFareLabel(r))}</td><td>${rideFareVerified(r)?money(r.driver_earnings):"—"}</td><td><span class="pill">${esc(r.status)}</span>${rideFareVerified(r)?"":String(r.status).toLowerCase()==="completed"?' <span class="pill">Fare pending verification</span>':""}${cashPaymentHtml(r,"driver")}</td></tr>`).join(""):'<tr><td colspan="6">No completed or cancelled rides found.</td></tr>';
+  $("historyRows").innerHTML=rows.length?rows.map(r=>{const review=String(r.meter_tracking_status||"").toLowerCase()==="review"||r.meter_tracking_issue===true;const fareState=rideFareVerified(r)?"":String(r.status).toLowerCase()==="completed"?(review?' <span class="pill">Review required</span>':' <span class="pill">Fare verification pending</span>'):"";return `<tr><td>${esc(r.created_at||"—")}</td><td>${esc(r.pickup_location||"—")} → ${esc(r.destination||"—")}</td><td>${esc(typeName(r.vehicle_type))}</td><td>${esc(rideFareLabel(r))}</td><td>${rideFareVerified(r)?money(r.driver_earnings):"—"}</td><td><span class="pill">${esc(r.status)}</span>${fareState}${review&&r.meter_review_reason?'<div class="small muted">'+esc(r.meter_review_reason)+'</div>':""}${cashPaymentHtml(r,"driver")}</td></tr>`}).join(""):'<tr><td colspan="6">No completed or cancelled rides found.</td></tr>';
   $("historyRows").querySelectorAll("[data-cash-confirm]").forEach(btn=>btn.addEventListener("click",()=>confirmCashPayment(btn.dataset.cashConfirm,btn)));
 }
 function renderRecent(){$("recentRows").innerHTML=rides.slice(0,5).map(r=>`<tr><td>${esc(r.created_at||"—")}</td><td>${esc(r.pickup_location||"—")} → ${esc(r.destination||"—")}</td><td>${esc(typeName(r.vehicle_type))}</td><td>${esc(rideFareLabel(r))}</td><td>${esc(r.status)}${String(r.status).toLowerCase()==="completed"&&!rideFareVerified(r)?" · Fare pending verification":""}</td></tr>`).join("")||'<tr><td colspan="5">No ride history yet.</td></tr>'}
