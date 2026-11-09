@@ -257,7 +257,7 @@ let sb=null,user=null,profile=null,vehicles=[],requests=[],rides=[],notification
 const hiddenRequestIds=new Set();
 let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
-let meterQueue=[],meterReviewQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterPositionWatch=null,meterCaptureGeneration=0,meterFlushBusy=false,meterOneShotBusy=false,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={},meterCompletingRideIds=new Set(),meterConfirmBusy=new Set(),meterWakeLock=null,meterWakeLockRequest=null;
+let meterQueue=[],meterReviewQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterPositionWatch=null,meterCaptureGeneration=0,meterFlushBusy=false,meterOneShotBusy=false,meterOneShotToken=null,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={},meterCompletingRideIds=new Set(),meterConfirmBusy=new Set(),meterWakeLock=null,meterWakeLockRequest=null;
 let meterDiagnostics={rideId:null,captured:0,uploaded:0,uploadFailures:0,lastFixAt:0,lastError:""};
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
 let activeNavigationWindow=null;
@@ -415,11 +415,12 @@ function captureMeterPosition(onFinished){
   if(!navigator.geolocation){meterDiagnostics.lastError="This browser does not provide geolocation.";setMeterStatus("GPS is unavailable in this browser.",true);onFinished?.();return;}
   if(meterOneShotBusy){onFinished?.();return;}
   meterOneShotBusy=true;
+  const token={};meterOneShotToken=token;
   let finished=false;
-  const finish=()=>{if(finished)return;finished=true;meterOneShotBusy=false;onFinished?.();};
+  const finish=()=>{if(finished)return;finished=true;if(meterOneShotToken===token){meterOneShotBusy=false;meterOneShotToken=null;}onFinished?.();};
   try{
     navigator.geolocation.getCurrentPosition(
-      pos=>{try{queueMeterSample(pos)}finally{finish()}},
+      pos=>{try{if(meterOneShotToken===token&&meterIsRecording())queueMeterSample(pos)}finally{finish()}},
       err=>{console.warn("Fresh ride GPS sample unavailable",err);meterDiagnostics.lastError="GPS fix unavailable: "+(err.message||"location error");setMeterStatus("GPS fix unavailable: "+meterDiagnostics.lastError+" · retrying",true);finish();},
       {enableHighAccuracy:true,maximumAge:0,timeout:10000}
     );
@@ -505,7 +506,7 @@ function startMeterCaptureLoop(){
 function stopMeterCaptureLoop(){
   meterCaptureGeneration++;
   if(meterCaptureTimer){clearInterval(meterCaptureTimer);meterCaptureTimer=null;}
-  meterOneShotBusy=false;
+  meterOneShotBusy=false;meterOneShotToken=null;
   if(meterPositionWatch!==null&&navigator.geolocation){
     navigator.geolocation.clearWatch(meterPositionWatch);
     meterPositionWatch=null;
