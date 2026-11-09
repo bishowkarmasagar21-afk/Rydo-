@@ -375,6 +375,13 @@ function queueMeterSample(position){
   if(now-lastMeterSampleAt<METER_SAMPLE_INTERVAL_MS)return false;
   if(!Number.isFinite(recordedMs)||recordedMs>now+120000||now-recordedMs>1800000){meterDiagnostics.lastError="The GPS timestamp is invalid or too old.";updateMeterStatus("GPS capture issue");return false;}
   const latitude=Number(position.coords.latitude),longitude=Number(position.coords.longitude),accuracy=Number(position.coords.accuracy);
+  // Match the production verifier's 50 m accuracy ceiling before numbering or queuing.
+  // Poor fixes are rejected locally so one bad point cannot poison an entire upload batch.
+  if(!Number.isFinite(accuracy)||accuracy<0||accuracy>50){
+    meterDiagnostics.lastError="GPS accuracy is "+(Number.isFinite(accuracy)?Math.round(accuracy)+" m":"unavailable")+". Enable Precise Location for Chrome and move outdoors; this point was not queued.";
+    updateMeterStatus("Poor GPS accuracy · waiting for a precise fix");
+    return false;
+  }
   if(!validNepalPoint(latitude,longitude)){meterDiagnostics.lastError="GPS coordinates are outside the supported Nepal coverage area.";updateMeterStatus("GPS capture issue");return false;}
   const rideStartedAt=Date.parse(activeRide.meter_started_at);
   // GPS device clocks can lag the database clock slightly. The server accepts
@@ -557,6 +564,36 @@ async function retryCompletedRideMeterConfirmations(){
     &&!meterQueue.some(x=>Number(x.ride_id)===Number(r.id)));
   for(const ride of candidates.slice(0,5))await confirmCompletedRideMeterUpload(ride.id);
 }
+async function quarantineInvalidQueuedMeterSamples(rideId){
+  const id=Number(rideId),key=String(id);
+  const invalid=meterQueue.filter(x=>Number(x.ride_id)===id&&(!Number.isFinite(Number(x.accuracy_m))||Number(x.accuracy_m)<0||Number(x.accuracy_m)>50));
+  if(!invalid.length)return;
+  const {data:serverMax,error}=await sb.rpc("get_ride_meter_max_sample_number",{p_ride_id:id});
+  if(error)throw error;
+  if(Number(serverMax)!==0){
+    throw Error("This ride already has server GPS points and also has inaccurate queued points. Upload is paused to protect sample sequence; administrator review is required.");
+  }
+  // Preserve rejected fixes for diagnostics before removing them from the upload queue.
+  const previousReview=meterReviewQueue;
+  meterReviewQueue=[...previousReview,...invalid.map(x=>({...x,review_reason:"GPS accuracy exceeds the production 50 m limit; not uploaded",reviewed_at:new Date().toISOString()}))];
+  if(!saveMeterReviewQueue()){meterReviewQueue=previousReview;throw Error("Inaccurate GPS points could not be safely archived; upload queue was not changed.");}
+  const previousQueue=meterQueue;
+  const valid=meterQueue.filter(x=>Number(x.ride_id)===id&&Number.isFinite(Number(x.accuracy_m))&&Number(x.accuracy_m)>=0&&Number(x.accuracy_m)<=50).sort((a,b)=>Number(a.sample_number)-Number(b.sample_number));
+  const others=meterQueue.filter(x=>Number(x.ride_id)!==id);
+  const resequenced=valid.map((x,index)=>({...x,sample_number:index+1}));
+  meterQueue=[...others,...resequenced];
+  if(!saveMeterQueue()){
+    meterQueue=previousQueue;meterReviewQueue=previousReview;saveMeterReviewQueue();
+    throw Error("The upload queue could not be safely updated; original GPS points remain queued.");
+  }
+  meterSampleSequence[key]=resequenced.length;meterSequenceReady[key]=true;
+  meterDiagnostics.captured=resequenced.length;meterDiagnostics.uploaded=0;
+  meterDiagnostics.lastError=resequenced.length
+    ?"Some inaccurate GPS fixes were archived. Accurate fixes have been renumbered for safe upload."
+    :"The previous GPS fixes were inaccurate and archived. Waiting for a new precise GPS fix.";
+  try{localStorage.setItem("rryd_meter_seq_"+key,String(resequenced.length))}catch{}
+  updateMeterStatus("GPS accuracy check completed");
+}
 async function flushMeterQueue(){
   if(meterFlushBusy||!user||!sb)return;
   try{await quarantineExpiredMeterSamples()}catch(error){console.warn("Expired GPS sample handling needs attention",error);meterDiagnostics.lastError="GPS upload paused: "+errorText(error);setMeterStatus(meterDiagnostics.lastError,true);return}
@@ -564,8 +601,15 @@ async function flushMeterQueue(){
   // Flush one ride at a time, including a recently stopped ride after it is no longer active.
   const rideId=Number(meterQueue[0].ride_id);
   if(!Number.isSafeInteger(rideId)||rideId<=0){meterQueue.shift();saveMeterQueue();return}
+  try{await quarantineInvalidQueuedMeterSamples(rideId)}catch(error){
+    console.warn("Inaccurate queued GPS points need attention",error);
+    meterDiagnostics.lastError=errorText(error);
+    setMeterStatus("GPS upload paused · "+errorText(error),true);
+    return;
+  }
+  if(!meterQueue.length){updateMeterStatus("Waiting for precise GPS fixes");return;}
   const batch=meterQueue.filter(x=>Number(x.ride_id)===rideId).sort((a,b)=>a.sample_number-b.sample_number).slice(0,METER_UPLOAD_BATCH_SIZE);
-  if(!batch.length)return;
+  if(!batch.length){void flushMeterQueue();return;}
   meterFlushBusy=true;
   try{
     const {data,error}=await sb.auth.getSession();if(error)throw error;
