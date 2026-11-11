@@ -28,6 +28,8 @@ th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left;vertical-
 th{color:#ffc08f;background:#0d1b29;position:sticky;top:0}td button{font-size:12px;padding:7px}
 label{display:block;margin:9px 0 5px}.auth{max-width:440px;margin:35px auto}
 small{color:var(--muted)}.pill{display:inline-block;padding:4px 8px;border-radius:7px;background:#263e52}
+.report-bars{display:grid;gap:10px}.report-bar-row{display:grid;grid-template-columns:minmax(100px,160px) 1fr 90px;gap:10px;align-items:center}.report-bar-track{height:15px;background:#081521;border-radius:8px;overflow:hidden}.report-bar-fill{height:100%;background:var(--orange);border-radius:8px}.daily-columns{display:flex;align-items:flex-end;gap:6px;min-height:210px;overflow-x:auto;padding:12px 4px 24px;border-bottom:1px solid var(--line)}.daily-column{min-width:24px;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:190px;gap:5px}.daily-column-fill{width:100%;max-width:42px;background:var(--orange);border-radius:5px 5px 0 0;min-height:2px}.daily-column small{font-size:10px;white-space:nowrap}.report-number{font-variant-numeric:tabular-nums}
+@media(max-width:650px){.report-bar-row{grid-template-columns:95px 1fr 72px;font-size:12px}.daily-column{min-width:20px}}
 @media(max-width:600px){main{padding:10px}header{padding:14px}h1{font-size:21px}.panel{padding:12px}}
 </style>
 </head>
@@ -115,12 +117,25 @@ small{color:var(--muted)}.pill{display:inline-block;padding:4px 8px;border-radiu
     </section>
 
     <section id="page-earnings" class="page hidden">
-      <div class="panel"><h2>Earnings & reports</h2>
-        <p class="muted">Totals are calculated from recorded ride fields, not verified bank payments.</p>
+      <div class="panel">
+        <h2>Reports & Analytics</h2>
+        <p class="muted">Detailed reports are calculated from ride records in the selected date range. Financial totals use completed rides and saved fare/earning fields. Payment status is not treated as proof of bank settlement.</p>
+        <div class="row">
+          <label>From <input id="reportFrom" type="date"></label>
+          <label>To <input id="reportTo" type="date"></label>
+          <label>Vehicle <select id="reportVehicle"><option value="all">All vehicles</option><option value="bike">Bike</option><option value="car">Car</option><option value="tuk_tuk">Tuk-tuk</option></select></label>
+          <label>Ride class <select id="reportClass"><option value="all">All rides</option><option value="local">Local</option><option value="interdistrict">Inter-district</option><option value="legacy">Legacy / unclassified</option></select></label>
+          <button id="runReport">Generate report</button>
+        </div>
+        <div id="reportStatus" class="muted">Choose a period and generate a report.</div>
         <div id="earningsSummary" class="stats"></div>
-        <div class="row"><button id="exportRides">Export rides CSV</button><button id="exportEarnings" class="secondary">Export earnings CSV</button></div>
-        <div id="earningsTable"></div>
+        <div class="row"><button id="exportRides">Export detailed rides CSV</button><button id="exportEarnings" class="secondary">Export financial CSV</button></div>
       </div>
+      <div class="panel"><h3>Ride status breakdown</h3><div id="reportStatusChart" class="report-bars"></div></div>
+      <div class="panel"><h3>Daily gross fare column chart</h3><p class="muted">Each column represents completed-ride gross fare for that day. Select a period to inspect daily performance.</p><div id="reportDailyChart" class="daily-columns"></div></div>
+      <div class="panel"><h3>Vehicle performance</h3><div id="reportVehicleTable"></div></div>
+      <div class="panel"><h3>Top district-to-district routes</h3><div id="reportRouteTable"></div></div>
+      <div class="panel"><h3>Detailed ride ledger</h3><p class="muted">One row per ride, including GPS verification, fare breakdown, payment state and timestamps.</p><div id="earningsTable"></div></div>
     </section>
 
     <section id="page-audit" class="page hidden">
@@ -136,7 +151,7 @@ const SUPABASE_URL = 'https://kqtvuorasqyzjbnlkkxs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_0YO71GOwynEf3ithOtFfxg_z6YL-LKG';
 const $ = id => document.getElementById(id);
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-let currentUser = null, allDrivers = [], allVehicles = [], allRides = [], allProfiles = [], allFares = [], allInterdistrictFares = [], allAudit = [];
+let currentUser = null, allDrivers = [], allVehicles = [], allRides = [], allProfiles = [], allFares = [], allInterdistrictFares = [], allAudit = [], reportRows = [];
 let busy = false;
 
 function message(text, kind='error') {
@@ -315,21 +330,129 @@ function renderPassengers() {
     {label:'Account action',render:r=>`<button class="${r.is_suspended?'secondary':'danger'}" data-suspend="${esc(r.id)}" data-suspended="${!r.is_suspended}">${r.is_suspended?'Reactivate':'Suspend'}</button>`}
   ],rows);
 }
+function localDateValue(d) {
+  const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);
+  return x.toISOString().slice(0,10);
+}
+function setDefaultReportDates() {
+  const now=new Date(), first=new Date(now.getFullYear(),now.getMonth(),1);
+  if(!$('reportFrom').value)$('reportFrom').value=localDateValue(first);
+  if(!$('reportTo').value)$('reportTo').value=localDateValue(now);
+}
+function reportMoney(r) { return Number(r.final_fare??r.fare??0); }
+function reportDateKey(r) {
+  const v=r.completed_at||r.created_at;
+  return v?localDateValue(new Date(v)):'Unknown';
+}
+function renderReportBars(container, pairs) {
+  if(!pairs.length){$(container).innerHTML='<p class="muted">No data for this period.</p>';return;}
+  const max=Math.max(1,...pairs.map(x=>Number(x[1])||0));
+  $(container).innerHTML=pairs.map(x=>'<div class="report-bar-row"><span>'+esc(x[0])+'</span><div class="report-bar-track"><div class="report-bar-fill" style="width:'+Math.max(0,Math.min(100,(Number(x[1])||0)/max*100))+'%"></div></div><strong class="report-number">'+fmt(x[1])+'</strong></div>').join('');
+}
+function renderDailyColumns(done) {
+  const from=$('reportFrom').value, to=$('reportTo').value;
+  const counts={};
+  if(from&&to){
+    const start=new Date(from+'T00:00:00'), end=new Date(to+'T00:00:00');
+    for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1))counts[localDateValue(d)]=0;
+  }
+  done.forEach(r=>{const k=reportDateKey(r);counts[k]=(counts[k]||0)+reportMoney(r);});
+  const entries=Object.entries(counts).sort((a,b)=>a[0].localeCompare(b[0]));
+  if(!entries.length){$('reportDailyChart').innerHTML='<p class="muted">No completed rides in this period.</p>';return;}
+  const max=Math.max(1,...entries.map(x=>x[1]));
+  $('reportDailyChart').innerHTML=entries.map(x=>{
+    const height=Math.max(2,x[1]/max*150);
+    const day=x[0]==='Unknown'?'?':x[0].slice(8);
+    return '<div class="daily-column" title="'+esc(x[0]+' · '+money(x[1]))+'"><small>'+esc(Math.round(x[1]))+'</small><div class="daily-column-fill" style="height:'+height+'px"></div><small>'+esc(day)+'</small></div>';
+  }).join('');
+}
 function renderEarnings() {
-  const done=allRides.filter(r=>String(r.status).toLowerCase()==='completed');
+  const rows=reportRows, done=rows.filter(r=>String(r.status).toLowerCase()==='completed');
   const sum=key=>done.reduce((n,r)=>n+Number(r[key]||0),0);
-  const fare=sum('final_fare')||sum('fare');
-  const commission=sum('admin_earnings');
-  const driver=sum('driver_earnings');
+  const gross=done.reduce((n,r)=>n+reportMoney(r),0);
+  const commission=sum('admin_earnings'), driver=sum('driver_earnings');
+  const cancelled=rows.filter(r=>String(r.status).toLowerCase()==='cancelled').length;
+  const active=rows.filter(r=>['requested','accepted','started'].includes(String(r.status).toLowerCase())).length;
+  const paid=done.filter(r=>String(r.payment_status||'').toLowerCase()==='paid').reduce((n,r)=>n+reportMoney(r),0);
+  const pending=done.filter(r=>String(r.payment_status||'').toLowerCase()!=='paid').reduce((n,r)=>n+reportMoney(r),0);
+  const avg=done.length?gross/done.length:0;
   $('earningsSummary').innerHTML=[
-    ['Completed rides',done.length],['Recorded fare total',money(fare)],
-    ['Recorded admin earnings',money(commission)],['Recorded driver earnings',money(driver)]
-  ].map(s=>'<div class="stat">'+esc(s[0])+'<strong>'+esc(s[1])+'</strong></div>').join('');
+    ['Total rides',rows.length],['Completed rides',done.length],['Cancelled rides',cancelled],['Active rides',active],
+    ['Gross completed fare',money(gross)],['Recorded Rryd commission',money(commission)],
+    ['Recorded driver earnings',money(driver)],['Average completed fare',money(avg)],
+    ['Completed fare marked paid',money(paid)],['Completed fare not marked paid',money(pending)]
+  ].map(s=>'<div class="stat">'+esc(s[0])+'<strong class="report-number">'+esc(s[1])+'</strong></div>').join('');
+  const statusCounts={};
+  rows.forEach(r=>{const k=String(r.status||'unknown');statusCounts[k]=(statusCounts[k]||0)+1;});
+  renderReportBars('reportStatusChart',Object.entries(statusCounts).sort((a,b)=>b[1]-a[1]));
+  renderDailyColumns(done);
+  const byVehicle={};
+  done.forEach(r=>{const k=r.vehicle_type||'Unknown';const x=byVehicle[k]||(byVehicle[k]={rides:0,gross:0,commission:0,driver:0});x.rides++;x.gross+=reportMoney(r);x.commission+=Number(r.admin_earnings||0);x.driver+=Number(r.driver_earnings||0);});
+  table('reportVehicleTable',[
+    {label:'Vehicle',render:r=>esc(r.vehicle)},{label:'Completed rides',render:r=>fmt(r.rides)},
+    {label:'Gross fare',render:r=>money(r.gross)},{label:'Recorded commission',render:r=>money(r.commission)},
+    {label:'Driver earnings',render:r=>money(r.driver)}
+  ],Object.entries(byVehicle).map(x=>({vehicle:x[0],...x[1]})).sort((a,b)=>b.gross-a.gross));
+  const byRoute={};
+  done.forEach(r=>{
+    const a=r.pickup_district_code||'Unknown',b=r.destination_district_code||'Unknown';
+    const k=a+' → '+b;const x=byRoute[k]||(byRoute[k]={route:k,rides:0,gross:0,distance:0});
+    x.rides++;x.gross+=reportMoney(r);x.distance+=Number(r.meter_route_distance_km??r.distance_km??0);
+  });
+  table('reportRouteTable',[
+    {label:'District route',render:r=>esc(r.route)},{label:'Completed rides',render:r=>fmt(r.rides)},
+    {label:'Gross fare',render:r=>money(r.gross)},{label:'Average fare',render:r=>money(r.rides?r.gross/r.rides:0)},
+    {label:'Total verified / recorded km',render:r=>fmt(Number(r.distance.toFixed(2)))}
+  ],Object.values(byRoute).sort((a,b)=>b.rides-a.rides).slice(0,30));
   table('earningsTable',[
-    {label:'Ride ID',key:'id'},{label:'Status',key:'status'},{label:'Fare',render:r=>money(r.final_fare??r.fare??r.estimated_fare)},
-    {label:'Driver earnings',render:r=>money(r.driver_earnings)},{label:'Admin earnings',render:r=>money(r.admin_earnings)},
-    {label:'Payment status',key:'payment_status'},{label:'Payment method',key:'payment_method'},{label:'Date',render:r=>date(r.created_at)}
-  ],done);
+    {label:'Ride ID',key:'id'},{label:'Created',render:r=>date(r.created_at)},
+    {label:'Requested',render:r=>date(r.requested_at)},{label:'Accepted',render:r=>date(r.accepted_at)},
+    {label:'Started',render:r=>date(r.started_at)},{label:'Completed',render:r=>date(r.completed_at)},
+    {label:'Passenger ID',key:'passenger_id'},{label:'Driver ID',key:'driver_id'},
+    {label:'Vehicle',key:'vehicle_type'},{label:'Ride class',render:r=>r.ride_type==='interdistrict'?'Inter-district':r.ride_type==='local'?'Local':'Legacy / unclassified'},
+    {label:'Districts',render:r=>esc((r.pickup_district_code||'—')+' → '+(r.destination_district_code||'—'))},
+    {label:'Pickup',key:'pickup_location'},{label:'Destination',key:'destination'},
+    {label:'GPS route km',render:r=>fmt(r.meter_route_distance_km??r.distance_km)},
+    {label:'GPS samples',render:r=>fmt(r.meter_point_count)},
+    {label:'GPS tracking',key:'meter_tracking_status'},
+    {label:'GPS review',render:r=>esc(r.meter_review_reason||'—')},
+    {label:'Fare approval',key:'fare_approval_status'},
+    {label:'Base snapshot',render:r=>money(r.base_fare_snapshot)},
+    {label:'Local rate snapshot',render:r=>money(r.per_km_fare_snapshot)},
+    {label:'Inter-district rate snapshot',render:r=>r.interdistrict_rate_snapshot==null?'—':money(r.interdistrict_rate_snapshot)},
+    {label:'Hybrid threshold km',key:'hybrid_threshold_km'},
+    {label:'Final gross fare',render:r=>money(r.final_fare??r.fare??r.estimated_fare)},
+    {label:'Rryd commission',render:r=>money(r.admin_earnings)},
+    {label:'Driver earnings',render:r=>money(r.driver_earnings)},
+    {label:'Payment method',key:'payment_method'},{label:'Payment status',key:'payment_status'},
+    {label:'Ride status',key:'status'}
+  ],rows);
+  $('reportStatus').textContent='Loaded '+rows.length+' ride records. Completed financial totals exclude cancelled and unfinished rides. Commission and driver earnings show saved database values; missing saved values are not estimated.';
+}
+async function loadDetailedReport() {
+  const from=$('reportFrom').value,to=$('reportTo').value;
+  if(!from||!to||from>to)throw new Error('Choose a valid start and end date.');
+  const start=new Date(from+'T00:00:00').toISOString();
+  const endDate=new Date(to+'T00:00:00');endDate.setDate(endDate.getDate()+1);
+  const end=endDate.toISOString();
+  let collected=[],offset=0,batchSize=1000;
+  while(true){
+    let q=db.from('rides').select('*').gte('created_at',start).lt('created_at',end).order('created_at',{ascending:false}).range(offset,offset+batchSize-1);
+    const {data,error}=await q;
+    if(error)throw new Error('Could not load report rides: '+error.message);
+    collected=collected.concat(data||[]);
+    if(!data||data.length<batchSize)break;
+    offset+=batchSize;
+  }
+  const vehicle=$('reportVehicle').value, rideClass=$('reportClass').value;
+  reportRows=collected.filter(r=>(vehicle==='all'||String(r.vehicle_type||'').toLowerCase()===vehicle)&&
+    (rideClass==='all'||(rideClass==='legacy'?!r.ride_type:r.ride_type===rideClass)));
+  renderEarnings();
+}
+async function runDetailedReport() {
+  $('runReport').disabled=true;$('reportStatus').textContent='Loading all matching ride records…';
+  try{await loadDetailedReport();}catch(e){$('reportStatus').textContent=e.message;message(e.message);}
+  finally{$('runReport').disabled=false;}
 }
 function renderAudit() {
   table('auditTable',[
@@ -498,13 +621,16 @@ $('loadDrivers').onclick=renderDrivers;$('driverSearch').oninput=renderDrivers;$
 $('loadRides').onclick=renderRides;$('rideSearch').oninput=renderRides;$('rideFilter').onchange=renderRides;
 $('loadPassengers').onclick=renderPassengers;$('passengerSearch').oninput=renderPassengers;
 $('loadAudit').onclick=()=>act('Audit logs refreshed.',async()=>{allAudit=await query('rydo_admin_audit_logs','*',{order:'created_at',limit:200});renderAudit();});
-$('exportRides').onclick=()=>downloadCSV('rydo-rides.csv',allRides);
-$('exportEarnings').onclick=()=>downloadCSV('rydo-earnings.csv',allRides.filter(r=>r.status==='completed'));
+$('runReport').onclick=()=>act('Detailed report generated.',runDetailedReport);
+$('reportFrom').addEventListener('change',()=>{});$('reportTo').addEventListener('change',()=>{});
+$('exportRides').onclick=()=>downloadCSV('rydo-detailed-rides.csv',reportRows);
+$('exportEarnings').onclick=()=>downloadCSV('rydo-financial-report.csv',reportRows.filter(r=>String(r.status).toLowerCase()==='completed').map(r=>({ride_id:r.id,created_at:r.created_at,completed_at:r.completed_at,vehicle_type:r.vehicle_type,ride_type:r.ride_type,pickup_district_code:r.pickup_district_code,destination_district_code:r.destination_district_code,final_fare:r.final_fare??r.fare,admin_earnings:r.admin_earnings,driver_earnings:r.driver_earnings,payment_method:r.payment_method,payment_status:r.payment_status})));
 $('nav').onclick=e=>{
   const b=e.target.closest('button[data-page]');if(!b)return;
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x===b));
   document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!=='page-'+b.dataset.page));
 };
+setDefaultReportDates();
 document.addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
   if(b.dataset.driver)updateDriver(b.dataset.driver,b.dataset.verified==='true');
