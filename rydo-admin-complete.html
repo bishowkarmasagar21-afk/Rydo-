@@ -102,7 +102,11 @@ small{color:var(--muted)}.pill{display:inline-block;padding:4px 8px;border-radiu
     </section>
 
     <section id="page-fares" class="page hidden">
-      <div class="panel"><h2>Fare settings</h2><p class="muted">Changes affect future fare calculations only if your passenger app reads these active fare rules.</p><div id="faresTable"></div></div>
+      <div class="panel"><h2>Fare settings</h2><p class="muted">Local fare settings. Existing local rules remain separate from inter-district rates.</p><div id="faresTable"></div></div>
+      <div class="panel"><h2>Inter-District Fare Settings</h2>
+        <p class="muted">For rides whose pickup and destination are in different districts. The hybrid threshold is 5 km by default: local fare applies through the threshold, then the inter-district rate applies to each additional verified kilometre. New rates are disabled until you configure and activate them.</p>
+        <div id="interdistrictFaresTable"></div>
+      </div>
     </section>
 
     <section id="page-passengers" class="page hidden">
@@ -131,7 +135,7 @@ const SUPABASE_URL = 'https://kqtvuorasqyzjbnlkkxs.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_0YO71GOwynEf3ithOtFfxg_z6YL-LKG';
 const $ = id => document.getElementById(id);
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-let currentUser = null, allDrivers = [], allVehicles = [], allRides = [], allProfiles = [], allFares = [], allAudit = [];
+let currentUser = null, allDrivers = [], allVehicles = [], allRides = [], allProfiles = [], allFares = [], allInterdistrictFares = [], allAudit = [];
 let busy = false;
 
 function message(text, kind='error') {
@@ -202,9 +206,10 @@ async function refreshAll() {
     query('rides','*',{order:'created_at',limit:1000}),
     query('vehicles','*',{order:'created_at',limit:1000}),
     query('fare_rules','*',{order:'vehicle_type',ascending:true,limit:100}),
-    query('rydo_admin_audit_logs','*',{order:'created_at',limit:200})
+    query('rydo_admin_audit_logs','*',{order:'created_at',limit:200}),
+    query('interdistrict_fare_rules','*',{order:'vehicle_type',ascending:true,limit:100})
   ]);
-  const names=['profiles','rides','vehicles','fare_rules','audit logs'];
+  const names=['profiles','rides','vehicles','fare_rules','audit logs','interdistrict fare rules'];
   const failed=[];
   results.forEach((r,i)=>{
     if(r.status==='fulfilled') {
@@ -213,10 +218,11 @@ async function refreshAll() {
       if(i===2)allVehicles=r.value;
       if(i===3)allFares=r.value;
       if(i===4)allAudit=r.value;
+      if(i===5)allInterdistrictFares=r.value;
     } else { failed.push(names[i]+': '+r.reason.message); }
   });
   allDrivers=allProfiles.filter(p=>p.role==='driver');
-  renderDashboard(); renderDrivers(); renderVehicles(); renderRides(); renderFares(); renderPassengers(); renderEarnings(); renderAudit();
+  renderDashboard(); renderDrivers(); renderVehicles(); renderRides(); renderFares(); renderInterdistrictFares(); renderPassengers(); renderEarnings(); renderAudit();
   $('systemStatus').textContent=failed.length?'Some data could not load:\n'+failed.join('\n'):'Connected. All requested tables loaded.';
   if(failed.length) message('Some sections could not load. Check the section error and Supabase RLS policies.');
 }
@@ -284,6 +290,15 @@ function renderFares() {
     {label:'Active',render:r=>r.is_active?'Yes':'No'},
     {label:'Save',render:r=>`<button data-savefare="${esc(r.id)}">Save</button>`}
   ],allFares);
+}
+function renderInterdistrictFares() {
+  table('interdistrictFaresTable',[
+    {label:'Vehicle',key:'vehicle_type'},
+    {label:'Inter-district rate per extra km (NPR)',render:r=>`<input type="number" min="0.01" step="0.01" id="idr-rate-${esc(r.id)}" value="${r.interdistrict_per_km_rate===null?'':esc(r.interdistrict_per_km_rate)}" placeholder="Set rate">`},
+    {label:'Hybrid threshold (km)',render:r=>`<input type="number" min="0.01" step="0.01" id="idr-threshold-${esc(r.id)}" value="${esc(r.hybrid_threshold_km)}">`},
+    {label:'Enabled',render:r=>`<input type="checkbox" id="idr-active-${esc(r.id)}" ${r.is_active?'checked':''}>`},
+    {label:'Save',render:r=>`<button data-saveinterdistrict="${esc(r.id)}">Save</button>`}
+  ],allInterdistrictFares);
 }
 function renderPassengers() {
   const term=$('passengerSearch').value.toLowerCase();
@@ -409,6 +424,32 @@ async function saveFare(id) {
     await audit('update_fare_rule','fare_rules',id,{base_fare:base,per_km_fare:km,commission:comm});
   });
 }
+async function saveInterdistrictFare(id) {
+  const rateText=$('idr-rate-'+id).value.trim();
+  const rate=rateText===''?null:Number(rateText);
+  const threshold=Number($('idr-threshold-'+id).value);
+  const active=$('idr-active-'+id).checked;
+  if((rate!==null&&(!Number.isFinite(rate)||rate<=0))||!Number.isFinite(threshold)||threshold<=0) {
+    message('Enter a positive inter-district rate and a positive hybrid threshold.'); return;
+  }
+  if(active&&(rate===null||rate<=0)) {
+    message('Set a positive inter-district rate before enabling this vehicle type.'); return;
+  }
+  if(!confirm('Save inter-district fare settings for this vehicle type?'))return;
+  await act('Inter-district fare settings saved.',async()=>{
+    const {error}=await db.from('interdistrict_fare_rules').update({
+      interdistrict_per_km_rate:rate,
+      hybrid_threshold_km:threshold,
+      is_active:active,
+      updated_at:new Date().toISOString(),
+      updated_by:currentUser.id
+    }).eq('id',id);
+    if(error)throw error;
+    await audit('update_interdistrict_fare_rule','interdistrict_fare_rules',id,{
+      interdistrict_per_km_rate:rate,hybrid_threshold_km:threshold,is_active:active
+    });
+  });
+}
 function csv(value) { return '"'+String(value??'').replace(/"/g,'""')+'"'; }
 function downloadCSV(filename, rows) {
   if(!rows.length){message('No rows available to export.');return;}
@@ -468,6 +509,7 @@ document.addEventListener('click',e=>{
   if(b.dataset.vehicle)updateVehicle(b.dataset.vehicle,b.dataset.approved==='true');
   if(b.dataset.cancelride)cancelRide(b.dataset.cancelride);
   if(b.dataset.savefare)saveFare(b.dataset.savefare);
+  if(b.dataset.saveinterdistrict)saveInterdistrictFare(b.dataset.saveinterdistrict);
 });
 db.auth.onAuthStateChange((event,session)=>{
   if(session?.user && !currentUser) setTimeout(()=>showApp(session.user),0);
