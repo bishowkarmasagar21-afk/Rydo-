@@ -281,6 +281,7 @@ let map=null,pickupMarker=null,destinationMarker=null,routeLayer=null,driverMark
 let passengerLiveGpsWatch=null,passengerLiveGps=null,passengerLiveGpsMarker=null,passengerLiveGpsFirstFix=false;
 let pickupPoint=null,destinationPoint=null,routeDistanceKm=0,routeDurationMinutes=0,routeGeometry=null;
 let fareRules={},fareRulesLoaded=false,fareRulesError="",mapPickTarget="",routeRequestSeq=0,driverRouteSeq=0,lastDriverRouteKey="",lastReceiptPopupId=null;
+let fareQuotes={},fareQuoteKey="",fareQuoteSeq=0;
 let currentRide=null,rideRows=[],ridePollTimer=null,availabilityTimer=null,isLoading=false;
 let passengerGpsWatch=null,passengerLocationConsent=false,lastPassengerLocationSentAt=0,passengerLocationSendBusy=false,passengerLocationAutoCheckRideId=null,passengerLocationStartPending=false;
 let lastKnownStatus="",lastKnownRideId=null,receiptTimer=null,notificationAllowed=false,soundEnabled=false,audioContext=null;
@@ -381,6 +382,57 @@ async function loadFareRules(){
   updateFareDisplay();
 }
 function estimateFare(type=selectedVehicle,distance=routeDistanceKm){const r=fareRules[type];if(!fareRulesLoaded||!r||!Number.isFinite(Number(distance))||Number(distance)<=0)return null;const canonicalDistance=Number(Number(distance).toFixed(2));return roundFare(r.base+r.perKm*canonicalDistance);}
+async function fetchRideFareQuote(type){
+  if(!db||!session?.user||!pickupPoint||!destinationPoint||!Number.isFinite(routeDistanceKm)||routeDistanceKm<=0)throw Error("Sign in and calculate a valid route to check the district fare.");
+  const {data,error}=await db.rpc("get_ride_fare_quote",{
+    p_vehicle_type:type,
+    p_distance_km:Number(routeDistanceKm.toFixed(2)),
+    p_pickup_latitude:pickupPoint.lat,
+    p_pickup_longitude:pickupPoint.lon,
+    p_destination_latitude:destinationPoint.lat,
+    p_destination_longitude:destinationPoint.lon
+  });
+  if(error)throw error;
+  if(!data||typeof data!=="object")throw Error("The fare quote service returned an invalid response.");
+  return data;
+}
+async function refreshFareQuotes(){
+  if(!session?.user||!pickupPoint||!destinationPoint||!Number.isFinite(routeDistanceKm)||routeDistanceKm<=0){
+    fareQuoteKey="";fareQuotes={};return;
+  }
+  const key=[session.user.id,selectedVehicle,routeDistanceKm.toFixed(2),pickupPoint.lat,pickupPoint.lon,destinationPoint.lat,destinationPoint.lon].join("|");
+  if(key===fareQuoteKey)return;
+  fareQuoteKey=key;const seq=++fareQuoteSeq;fareQuotes={};
+  for(const id of ["bikePrice","carPrice","tuk_tukPrice"])text(id,"Checking…");
+  text("fareDisplay","Checking district fare…");text("fareMini","Checking district fare…");
+  text("fareBreakdown","Checking the pickup and destination districts and current fare settings…");
+  const types=["bike","car","tuk_tuk"];
+  const results=await Promise.all(types.map(async type=>{
+    try{return [type,await fetchRideFareQuote(type),null];}
+    catch(error){return [type,null,error];}
+  }));
+  if(seq!==fareQuoteSeq||key!==fareQuoteKey)return;
+  for(const [type,quote,error] of results){
+    if(error){fareQuotes[type]={error:errorText(error)};continue;}
+    fareQuotes[type]=quote;
+    const id=type==="tuk_tuk"?"tuk_tukPrice":type+"Price";
+    text(id,quote.configured?money(quote.estimated_fare):(quote.ride_type==="interdistrict"?"Rate not set":"NPR —"));
+  }
+  const quote=fareQuotes[selectedVehicle];
+  if(!quote||quote.error){
+    text("fareDisplay","NPR —");text("fareMini","NPR —");
+    text("fareBreakdown","District-aware fare estimate is unavailable. Refresh the route or try again; booking will not use an unverified browser estimate.");
+  }else if(!quote.configured){
+    text("fareDisplay","Rate not set");text("fareMini","Rate not set");
+    text("fareBreakdown",`This route is ${quote.ride_type} (${quote.pickup_district} to ${quote.destination_district}), but no inter-district rate is configured for ${selectedVehicle}. Booking is blocked until an administrator sets and enables that rate.`);
+  }else{
+    text("fareDisplay",money(quote.estimated_fare));text("fareMini",money(quote.estimated_fare));
+    const label=quote.ride_type==="interdistrict"
+      ?`Inter-district: ${quote.pickup_district} → ${quote.destination_district}. First ${quote.hybrid_threshold_km} km use the local rate (${money(quote.local_per_km_rate)}/km); each additional km uses ${money(quote.interdistrict_per_km_rate)}/km. Rounded to nearest rupee. Estimate only.`
+      :`Local ride within ${quote.pickup_district}: ${money(quote.base_fare)} base + ${money(quote.local_per_km_rate)}/km × ${Number(quote.distance_km).toFixed(2)} km. Rounded to nearest rupee. Estimate only.`;
+    text("fareBreakdown",label);
+  }
+}
 function updateFareDisplay(){
   const ids={bike:"bikePrice",car:"carPrice",tuk_tuk:"tuk_tukPrice"};
   for(const [type,id] of Object.entries(ids)){const f=estimateFare(type);text(id,f===null?"NPR —":money(f));}
@@ -388,6 +440,11 @@ function updateFareDisplay(){
   const rule=fareRules[selectedVehicle];
   if(!fareRulesLoaded){text("fareBreakdown",fareRulesError?"Fare rules could not be loaded. Refresh and retry; no fallback price is used.":"Loading current active fare rules from Supabase...");return;}
   if(!rule){text("fareBreakdown","There is no active fare rule for this vehicle.");return;}
+  if(routeDistanceKm>0&&pickupPoint&&destinationPoint){
+    if(!session?.user){text("fareDisplay","Sign in for estimate");text("fareMini","Sign in for estimate");text("fareBreakdown","Sign in to check the pickup and destination districts and see the correct local or inter-district fare.");return;}
+    refreshFareQuotes();return;
+  }
+  fareQuoteKey="";fareQuotes={};
   text("fareBreakdown",fare===null?`${money(rule.base)} base + ${money(rule.perKm)}/km · Add a destination for an estimate.`:`${money(rule.base)} base + ${money(rule.perKm)}/km × ${routeDistanceKm.toFixed(2)} km. Rounded to the nearest rupee. This is an estimate.`);
 }
 document.querySelectorAll("[data-vehicle]").forEach(btn=>btn.addEventListener("click",()=>{selectedVehicle=btn.dataset.vehicle;document.querySelectorAll("[data-vehicle]").forEach(b=>b.classList.toggle("selected",b===btn));updateFareDisplay();refreshAvailability();}));
@@ -560,7 +617,10 @@ async function requestRide(){
     const {data:auth,error:authErr}=await db.auth.getUser();if(authErr)throw authErr;if(!auth?.user?.id)throw Error("Your session has expired. Sign in again.");
     const {data:sessionData,error:sessionErr}=await db.auth.getSession();if(sessionErr)throw sessionErr;session=sessionData.session;if(!session?.user?.id||session.user.id!==auth.user.id)throw Error("Session mismatch. Reload and sign in again.");
     const {data:p,error:pErr}=await db.from("profiles").select("id,role,is_suspended").eq("id",auth.user.id).maybeSingle();if(pErr)throw pErr;if(!p)throw Error("No profile exists for this signed-in user. Check the profile creation trigger.");if(p.role!=="passenger")throw Error("The signed-in account is not a passenger account.");if(p.is_suspended===true)throw Error("Your passenger account is suspended.");
-    setMessage("appMessage","Sending your ride request and estimate to Supabase…","info");
+    setMessage("appMessage","Checking the server-calculated district fare…","info");
+    const serverQuote=await fetchRideFareQuote(selectedVehicle);
+    if(serverQuote.configured!==true)throw Error(serverQuote.message||"Inter-district fare is not configured for this vehicle. Please contact Rryd support.");
+    setMessage("appMessage","Sending your ride request and verified fare settings to Supabase…","info");
     const args={p_pickup_location:pickupPoint.label,p_destination:hasDestination?destinationPoint.label:null,p_vehicle_type:selectedVehicle,p_distance_km:hasDestination?Number(routeDistanceKm.toFixed(2)):null,p_payment_method:paymentMethod,p_pickup_latitude:pickupPoint.lat,p_pickup_longitude:pickupPoint.lon,p_destination_latitude:hasDestination?destinationPoint.lat:null,p_destination_longitude:hasDestination?destinationPoint.lon:null};
     lastRequestAt=Date.now();
     const {data,error}=await db.rpc("request_ride",args);if(error)throw error;
