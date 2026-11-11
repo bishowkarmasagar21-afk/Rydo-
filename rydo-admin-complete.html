@@ -275,7 +275,9 @@ function renderRides() {
   });
   table('ridesTable',[
     {label:'ID',key:'id'},{label:'Status',key:'status'},{label:'Passenger',key:'passenger_id'},
-    {label:'Driver',key:'driver_id'},{label:'Pickup',key:'pickup_location'},{label:'Destination',key:'destination'},
+    {label:'Driver',key:'driver_id'},{label:'Ride class',render:r=>r.ride_type==='interdistrict'?'Inter-district':'Local'},
+    {label:'Districts',render:r=>r.pickup_district_code&&r.destination_district_code?esc(r.pickup_district_code+' → '+r.destination_district_code):'—'},
+    {label:'Pickup',key:'pickup_location'},{label:'Destination',key:'destination'},
     {label:'Vehicle',key:'vehicle_type'},{label:'Fare',render:r=>money(r.final_fare??r.fare??r.estimated_fare)},
     {label:'Created',render:r=>date(r.created_at)},
     {label:'Action',render:r=>['completed','cancelled'].includes(String(r.status).toLowerCase())?'—':`<button class="danger" data-cancelride="${esc(r.id)}">Cancel ride</button>`}
