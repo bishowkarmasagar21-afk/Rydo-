@@ -121,6 +121,7 @@ small{color:var(--muted)}.pill{display:inline-block;padding:4px 8px;border-radiu
         <h2>Reports & Analytics</h2>
         <p class="muted">Detailed reports are calculated from ride records in the selected date range. Financial totals use completed rides and saved fare/earning fields. Payment status is not treated as proof of bank settlement.</p>
         <div class="row">
+          <label>Period <select id="reportPeriod"><option value="month">This month</option><option value="day">Today</option><option value="7">Last 7 days</option><option value="15">Last 15 days</option><option value="year">This year</option><option value="custom">Custom range</option></select></label>
           <label>From <input id="reportFrom" type="date"></label>
           <label>To <input id="reportTo" type="date"></label>
           <label>Vehicle <select id="reportVehicle"><option value="all">All vehicles</option><option value="bike">Bike</option><option value="car">Car</option><option value="tuk_tuk">Tuk-tuk</option></select></label>
@@ -338,6 +339,18 @@ function setDefaultReportDates() {
   const now=new Date(), first=new Date(now.getFullYear(),now.getMonth(),1);
   if(!$('reportFrom').value)$('reportFrom').value=localDateValue(first);
   if(!$('reportTo').value)$('reportTo').value=localDateValue(now);
+}
+function applyReportPeriod() {
+  const now=new Date(), key=$('reportPeriod').value;
+  let start=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  if(key==='day'){}
+  else if(key==='7')start.setDate(start.getDate()-6);
+  else if(key==='15')start.setDate(start.getDate()-14);
+  else if(key==='month')start=new Date(now.getFullYear(),now.getMonth(),1);
+  else if(key==='year')start=new Date(now.getFullYear(),0,1);
+  else return;
+  $('reportFrom').value=localDateValue(start);
+  $('reportTo').value=localDateValue(now);
 }
 function reportMoney(r) { return Number(r.final_fare??r.fare??0); }
 function reportDateKey(r) {
@@ -622,7 +635,7 @@ $('loadRides').onclick=renderRides;$('rideSearch').oninput=renderRides;$('rideFi
 $('loadPassengers').onclick=renderPassengers;$('passengerSearch').oninput=renderPassengers;
 $('loadAudit').onclick=()=>act('Audit logs refreshed.',async()=>{allAudit=await query('rydo_admin_audit_logs','*',{order:'created_at',limit:200});renderAudit();});
 $('runReport').onclick=()=>act('Detailed report generated.',runDetailedReport);
-$('reportFrom').addEventListener('change',()=>{});$('reportTo').addEventListener('change',()=>{});
+$('reportPeriod').addEventListener('change',applyReportPeriod);
 $('exportRides').onclick=()=>downloadCSV('rydo-detailed-rides.csv',reportRows);
 $('exportEarnings').onclick=()=>downloadCSV('rydo-financial-report.csv',reportRows.filter(r=>String(r.status).toLowerCase()==='completed').map(r=>({ride_id:r.id,created_at:r.created_at,completed_at:r.completed_at,vehicle_type:r.vehicle_type,ride_type:r.ride_type,pickup_district_code:r.pickup_district_code,destination_district_code:r.destination_district_code,final_fare:r.final_fare??r.fare,admin_earnings:r.admin_earnings,driver_earnings:r.driver_earnings,payment_method:r.payment_method,payment_status:r.payment_status})));
 $('nav').onclick=e=>{
