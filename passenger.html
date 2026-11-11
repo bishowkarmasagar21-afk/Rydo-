@@ -441,7 +441,7 @@ function updateFareDisplay(){
   if(!fareRulesLoaded){text("fareBreakdown",fareRulesError?"Fare rules could not be loaded. Refresh and retry; no fallback price is used.":"Loading current active fare rules from Supabase...");return;}
   if(!rule){text("fareBreakdown","There is no active fare rule for this vehicle.");return;}
   if(routeDistanceKm>0&&pickupPoint&&destinationPoint){
-    if(!session?.user){text("fareDisplay","Sign in for estimate");text("fareMini","Sign in for estimate");text("fareBreakdown","Sign in to check the pickup and destination districts and see the correct local or inter-district fare.");return;}
+    if(!session?.user){for(const id of Object.values(ids))text(id,"Sign in");text("fareDisplay","Sign in for estimate");text("fareMini","Sign in for estimate");text("fareBreakdown","Sign in to check the pickup and destination districts and see the correct local or inter-district fare.");return;}
     refreshFareQuotes();return;
   }
   fareQuoteKey="";fareQuotes={};
