@@ -338,7 +338,7 @@ async function syncMeterSequence(rideId){
   try{localStorage.setItem("rryd_meter_seq_"+key,String(recovered))}catch{}
   return recovered;
 }
-function queueMeterSample(position){
+function queueMeterSample(position,allowCompleting=false){
   if(!meterIsRecording()||!position?.coords)return;
   const now=Date.now(),recordedMs=Number(position.timestamp)||now;
   if(now-lastMeterSampleAt<METER_SAMPLE_INTERVAL_MS||!Number.isFinite(recordedMs)||recordedMs>now+120000||now-recordedMs>1800000)return;
@@ -346,7 +346,7 @@ function queueMeterSample(position){
   if(!validNepalPoint(latitude,longitude))return;
   const rideStartedAt=Date.parse(activeRide.meter_started_at);
   if(!Number.isFinite(rideStartedAt)||recordedMs<rideStartedAt)return;
-  const rideId=Number(activeRide.id);if(!Number.isSafeInteger(rideId)||rideId<=0||meterCompletingRideIds.has(rideId))return;
+  const rideId=Number(activeRide.id);if(!Number.isSafeInteger(rideId)||rideId<=0||(!allowCompleting&&meterCompletingRideIds.has(rideId)))return;
   const key=String(rideId);
   if(meterSequenceReady[key]!==true){text("gpsStatus","Recovering the server GPS sample number. GPS capture will resume after synchronization.");return}
   let previous=Number(meterSampleSequence[key]||0);
@@ -359,12 +359,12 @@ function queueMeterSample(position){
   lastMeterSampleAt=now;saveMeterQueue();
   text("gpsStatus","Ride GPS captured · "+meterQueue.filter(x=>Number(x.ride_id)===rideId).length+" sample(s) waiting or uploading.");
 }
-function captureMeterPosition(onFinished){
+function captureMeterPosition(onFinished,allowCompleting=false){
   if(!meterIsRecording()||!navigator.geolocation){onFinished?.();return;}
   let finished=false;
   const finish=()=>{if(finished)return;finished=true;onFinished?.();};
   navigator.geolocation.getCurrentPosition(
-    pos=>{queueMeterSample(pos);finish();},
+    pos=>{queueMeterSample(pos,allowCompleting);finish();},
     err=>{console.warn("Fresh ride GPS sample unavailable",err);text("gpsStatus","Ride GPS sample unavailable: "+err.message+"; retrying.");finish();},
     {enableHighAccuracy:true,maximumAge:0,timeout:10000}
   );
@@ -858,8 +858,10 @@ async function rideAction(rpc){
     if(rpc==="complete_ride"){
       completionCaptureRideId=Number(activeRide.id);
       stopMeterCaptureLoop();
-      await new Promise(resolve=>captureMeterPosition(resolve));
+      // Lock out already-pending watch callbacks before requesting the final sample.
       meterCompletingRideIds.add(completionCaptureRideId);
+      // This one explicit final fix is allowed through the completion lock.
+      await new Promise(resolve=>captureMeterPosition(resolve,true));
     }
     const {data,error}=await sb.rpc(rpc,{p_ride_id:Number(activeRide.id)});
     if(error)throw error;
