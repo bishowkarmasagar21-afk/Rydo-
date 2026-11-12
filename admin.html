@@ -1163,14 +1163,10 @@ async function verifyRideMeter(id,button,automatic=false){
     if(tokenClaims.aal!=="aal2"||tokenClaims.sub!==currentUser.id){
       throw new Error("The refreshed access token does not contain the required AAL2 admin identity. Please verify MFA again.");
     }
-    const {data,error}=await supabaseClient.functions.invoke("verify-ride-meter",{body:{ride_id:Number(id)},headers:{Authorization:"Bearer "+adminSession.access_token}});
+    const {data,error}=await supabaseClient.rpc("admin_retry_ride_meter_verification",{p_ride_id:Number(id)});
     failIf(error);
-    if(!data||data.success!==true)throw new Error(data?.error||"Road-distance verification did not complete.");
-    if(data.status==="matched"){
-      showMessage("TEST MATCH PASSED · Ride #"+id+" · Road distance: "+rawMoney(data.route_distance_km)+" km · Indicative fare: "+money(data.estimated_fare_preview)+". No live fare, payment or earnings were posted.","success");
-    }else{
-      showMessage("GPS TRACE NEEDS REVIEW · Ride #"+id+" · "+(data.review_reason||"The road route could not be verified reliably.")+" No fare was finalized and no earnings were posted.","error");
-    }
+    if(!data||data.success!==true||data.queued!==true)throw new Error(data?.message||"Production road verification could not be queued.");
+    showMessage("PRODUCTION VERIFICATION QUEUED · Ride #"+id+". The secure worker will recheck the uploaded GPS trace. A final fare is posted only if every GPS, road-match and fare-snapshot check passes.","success");
     if(!automatic)await refreshAll();
   }catch(error){
     showMessage("Road-distance verification failed for ride #"+id+": "+rpcErrorHint(error),"error");
