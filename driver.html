@@ -1140,7 +1140,7 @@ async function routeToPassenger(lat,lon,rideId){
   if(key===lastPassengerRouteKey&&passengerRouteLayer)return;
   lastPassengerRouteKey=key;
   try{
-    const url="https://router.project-osrm.org/route/v1/driving/"+driverLon+","+driverLat+";"+lon+","+lat+"?overview=full&geometries=geojson&steps=false";
+    const url="https://desktop-ba45l71.tail596d34.ts.net/route/v1/driving/"+driverLon+","+driverLat+";"+lon+","+lat+"?overview=full&geometries=geojson&steps=false";
     const response=await fetch(url);
     if(!response.ok)throw Error("Routing service unavailable");
     const data=await response.json();
