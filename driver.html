@@ -354,7 +354,9 @@ function queueMeterSample(position,allowCompleting=false){
   const lastForRide=meterQueue.filter(x=>Number(x.ride_id)===rideId).reduce((last,x)=>Math.max(last,Date.parse(x.recorded_at)||0),0);
   if(recordedMs<lastForRide)return;
   const sampleNumber=previous+1;meterSampleSequence[key]=sampleNumber;try{localStorage.setItem("rryd_meter_seq_"+key,String(sampleNumber))}catch{}
-  const rawSpeed=position.coords.speed;\n  const speedMps=Number.isFinite(rawSpeed)&&rawSpeed>=0&&rawSpeed<=100?rawSpeed:null;\n  meterQueue.push({ride_id:rideId,sample_number:sampleNumber,latitude,longitude,accuracy_m:Number.isFinite(accuracy)&&accuracy>=0?accuracy:null,speed_mps:speedMps,recorded_at:new Date(recordedMs).toISOString()});
+  const rawSpeed=position.coords.speed;
+  const speedMps=Number.isFinite(rawSpeed)&&rawSpeed>=0&&rawSpeed<=100?rawSpeed:null;
+  meterQueue.push({ride_id:rideId,sample_number:sampleNumber,latitude,longitude,accuracy_m:Number.isFinite(accuracy)&&accuracy>=0?accuracy:null,speed_mps:speedMps,recorded_at:new Date(recordedMs).toISOString()});
   // Keep every captured point; silently trimming the oldest samples would corrupt trip-distance review.
   lastMeterSampleAt=now;saveMeterQueue();
   text("gpsStatus","Ride GPS captured · "+meterQueue.filter(x=>Number(x.ride_id)===rideId).length+" sample(s) waiting or uploading.");
