@@ -635,7 +635,7 @@ async function refreshAll(){
   renderRides();
   renderPassengers();
   renderDataStatus(errors);
-  if(!errors.length) void autoVerifyCompletedMeters();
+  // Production verification is triggered by the protected database upload-completion hook. Do not call the test-only public OSRM preview automatically.
   updateDriverSelect();
   $("lastUpdated").textContent = "Updated " + new Date().toLocaleTimeString("en-NP");
 
@@ -647,10 +647,19 @@ async function refreshAll(){
   }
   if(!$("reportsSection").classList.contains("hidden")) await generateReport();
 }
+function rideFareApproved(r){
+  return String(r.fare_approval_status||"").toLowerCase()==="approved" &&
+    r.final_fare!==null && r.final_fare!==undefined && Number.isFinite(Number(r.final_fare));
+}
 function rideFare(r){
-  return number(r.final_fare ?? r.actual_fare ?? r.fare ?? r.estimated_fare);
+  if(isCompleted(r)&&!rideFareApproved(r))return 0;
+  return number(r.final_fare ?? r.fare ?? r.estimated_fare);
+}
+function rideFareDisplay(r){
+  return isCompleted(r)&&!rideFareApproved(r)?"Pending approval":money(rideFare(r));
 }
 function rideCommission(r){
+  if(isCompleted(r)&&!rideFareApproved(r))return 0;
   const fare = rideFare(r);
   if(r.admin_earnings !== undefined && r.admin_earnings !== null) return number(r.admin_earnings);
   const rule = allFareRules.find(f=>f.vehicle_type===r.vehicle_type);
@@ -659,6 +668,7 @@ function rideCommission(r){
   return fare * pct / 100;
 }
 function rideDriverEarnings(r){
+  if(isCompleted(r)&&!rideFareApproved(r))return 0;
   if(r.driver_earnings !== undefined && r.driver_earnings !== null) return number(r.driver_earnings);
   return rideFare(r) - rideCommission(r);
 }
@@ -1043,11 +1053,12 @@ function rideMeterSummary(r){
   const state=String(r.meter_tracking_status||"not_started");
   if(state==="recording")return '<span class="pill warn">Recording</span><small>'+Number(r.meter_point_count||0)+' GPS points</small>';
   if(state==="stopped"){
-    if(r.meter_tracking_issue)return '<span class="pill bad">Review required</span><small>'+esc(r.meter_review_reason||"Check GPS trace")+'</small>';
-    if(r.meter_route_distance_km!=null)return '<span class="pill good">Road matched</span><small>'+rawMoney(r.meter_route_distance_km)+' km · test preview only</small>';
+    if(r.meter_tracking_issue)return '<span class="pill bad">Review required</span><small>'+esc(r.meter_review_reason||"GPS trace needs review")+'</small>';
+    if(r.meter_route_distance_km!=null)return '<span class="pill warn">Test preview only</span><small>'+rawMoney(r.meter_route_distance_km)+' km · not eligible for fare approval</small>';
+    if(r.meter_upload_completed_at)return '<span class="pill warn">Fare pending review</span><small>Production road-matching service is not configured. No final fare or earnings can be approved.</small>';
     const stop=Date.parse(r.meter_stopped_at||"");
     const remaining=Number.isFinite(stop)?Math.max(0,Math.ceil((stop+30*60*1000-Date.now())/60000)):30;
-    return '<span class="pill warn">Meter stopped</span><small>'+Number(r.meter_point_count||0)+' GPS points · '+(remaining>0?remaining+' min upload wait':'ready for verification')+'</small>';
+    return '<span class="pill warn">Meter stopped</span><small>'+Number(r.meter_point_count||0)+' GPS points · '+(remaining>0?remaining+' min upload wait':'GPS upload confirmation required')+'</small>';
   }
   return '<span class="pill">Not started</span>';
 }
@@ -1060,10 +1071,10 @@ function renderRideActions(r){
     const stop=Date.parse(r.meter_stopped_at||"");
     const ready=Number.isFinite(stop)&&Date.now()>=stop+30*60*1000;
     const hasPreview=r.meter_route_distance_km!=null&&!r.meter_tracking_issue;
-    if(hasPreview)return '<button class="secondary" type="button" data-view-meter-preview="'+esc(r.id)+'">View saved test preview</button>';
-    if(r.meter_tracking_issue)return '<button class="secondary" type="button" data-verify-meter="'+esc(r.id)+'">Retry road verification</button>';
-    if(!ready)return '<span class="muted small">Automatic verification starts after 30-minute GPS upload window</span>';
-    return '<span class="muted small">Automatic road verification queued</span>';
+    if(hasPreview)return '<button class="secondary" type="button" data-view-meter-preview="'+esc(r.id)+'">View test-only preview</button>';
+    if(r.meter_tracking_issue)return '<span class="muted small">Manual GPS review required. Test-only matching cannot approve a fare.</span>';
+    if(!ready)return '<span class="muted small">GPS upload window remains open</span>';
+    return '<span class="muted small">Production road verification unavailable. Fare remains pending review.</span>';
   }
   return "—";
 }
@@ -1079,7 +1090,7 @@ function renderRides(){
     '<tbody>'+list.map(r=>'<tr><td>'+esc(r.id)+'</td><td>'+statusPill(r.status)+'</td>'+
     '<td>'+esc(r.passenger_id||"—")+'</td><td>'+esc(driverName(r.driver_id))+'</td>'+
     '<td>'+esc(r.pickup_location||"—")+' → '+esc(r.destination||"—")+'</td>'+
-    '<td>'+esc(r.vehicle_type||"—")+'</td><td>'+money(rideFare(r))+'</td>'+
+    '<td>'+esc(r.vehicle_type||"—")+'</td><td>'+rideFareDisplay(r)+'</td>'+
     '<td>'+rideMeterSummary(r)+'</td>'+
     '<td>'+esc(r.payment_method||"—")+' · '+esc(r.payment_status||"—")+'</td>'+
     '<td>'+esc(dateText(r.created_at))+'</td><td>'+renderRideActions(r)+'</td></tr>').join("")+
