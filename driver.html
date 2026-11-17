@@ -245,6 +245,7 @@ const SUPABASE_KEY="sb_publishable_zZFJiy0YWZgOXFesVuAQcA_wd7rleMb";
 const REQUEST_POLL_MS=5000, LOCATION_REFRESH_MS=10000, PASSENGER_LOCATION_POLL_MS=8000;
 const METER_SAMPLE_INTERVAL_MS=5000, METER_UPLOAD_BATCH_SIZE=100;
 const METER_QUEUE_STORAGE_KEY="rryd_driver_meter_queue_v1";
+const METER_COMPLETION_STORAGE_KEY="rryd_driver_meter_completion_v1";
 const PASSENGER_DETAILS_RPC="get_passenger_details_for_my_ride";
 /* Passenger location is available through the ride-scoped, authenticated RPC. */
 const PASSENGER_LOCATION_RPC="get_passenger_location_for_my_ride";
@@ -257,7 +258,7 @@ let sb=null,user=null,profile=null,vehicles=[],requests=[],rides=[],notification
 const hiddenRequestIds=new Set();
 let alarmStopTimer=null,acceptingRideIds=new Set();
 let map=null,driverMarker=null,driverLat=null,driverLon=null,gpsWatch=null,pollTimer=null,locationTimer=null,lastLocationSent=0;
-let meterQueue=[],meterReviewQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterPositionWatch=null,meterCaptureGeneration=0,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={},meterCompletingRideIds=new Set();
+let meterQueue=[],meterReviewQueue=[],meterCompletionQueue=[],meterFlushTimer=null,meterCaptureTimer=null,meterPositionWatch=null,meterCaptureGeneration=0,meterFlushBusy=false,lastMeterSampleAt=0,meterSampleSequence={},meterSequenceReady={},meterCompletingRideIds=new Set();
 let passengerMap=null,passengerMarker=null,fixedPickupMarker=null,passengerRouteLayer=null,passengerContact=null,contactRideId=null,chatRideId=null,chatMessageIds=new Set(),chatInitialLoad=true,chatBusy=false,chatUnreadCount=0,lastPassengerRouteKey="";
 let activeNavigationWindow=null;
 let authView="login",portalStarting=false,audioContext=null,audioEnabled=false,soundTimer=null,pendingSoundIds=new Set(),knownRequestIds=new Set(),notificationView="new",resumeRefreshBusy=false,pollBusy=false,lastHeartbeatAt=0;
@@ -268,7 +269,9 @@ function loadMeterQueue(){
     meterQueue=Array.isArray(parsed)?parsed.filter(x=>x&&Number.isSafeInteger(Number(x.ride_id))&&Number.isSafeInteger(Number(x.sample_number))&&Number.isFinite(Number(x.latitude))&&Number.isFinite(Number(x.longitude))&&typeof x.recorded_at==="string"):[];
     const reviewRaw=localStorage.getItem("rryd_driver_meter_review_v1"),reviewParsed=reviewRaw?JSON.parse(reviewRaw):[];
     meterReviewQueue=Array.isArray(reviewParsed)?reviewParsed:[];
-  }catch(error){console.warn("Offline GPS queue could not be fully restored",error);meterQueue=[];meterReviewQueue=[]}
+    const completionRaw=localStorage.getItem(METER_COMPLETION_STORAGE_KEY),completionParsed=completionRaw?JSON.parse(completionRaw):[];
+    meterCompletionQueue=Array.isArray(completionParsed)?completionParsed.filter(x=>x&&Number.isSafeInteger(Number(x.ride_id))&&Number.isSafeInteger(Number(x.expected_sample_count))&&Number(x.expected_sample_count)>=0).map(x=>({...x,ride_id:Number(x.ride_id),expected_sample_count:Number(x.expected_sample_count),next_retry_at:Number(x.next_retry_at)||0,blocked:x.blocked===true})):[];
+  }catch(error){console.warn("Offline GPS queue could not be fully restored",error);meterQueue=[];meterReviewQueue=[];meterCompletionQueue=[]}
 }
 function saveMeterQueue(){
   try{localStorage.setItem(METER_QUEUE_STORAGE_KEY,JSON.stringify(meterQueue));return true}
@@ -277,6 +280,35 @@ function saveMeterQueue(){
 function saveMeterReviewQueue(){
   try{localStorage.setItem("rryd_driver_meter_review_v1",JSON.stringify(meterReviewQueue));return true}
   catch(error){console.error("GPS review archive could not be saved",error);return false}
+}
+function saveMeterCompletionQueue(){
+  try{localStorage.setItem(METER_COMPLETION_STORAGE_KEY,JSON.stringify(meterCompletionQueue));return true}
+  catch(error){console.error("GPS upload completion retry could not be saved",error);text("gpsStatus","GPS samples are uploaded, but completion retry storage is unavailable. Keep this page open.");return false}
+}
+function rememberMeterUploadCompletion(rideId,expectedCount){
+  const id=Number(rideId),count=Number(expectedCount);
+  if(!Number.isSafeInteger(id)||id<=0||!Number.isSafeInteger(count)||count<0)return false;
+  const previous=meterCompletionQueue;
+  meterCompletionQueue=[...meterCompletionQueue.filter(x=>Number(x.ride_id)!==id),{ride_id:id,expected_sample_count:count,queued_at:new Date().toISOString(),next_retry_at:0,blocked:false}];
+  if(!saveMeterCompletionQueue()){meterCompletionQueue=previous;return false;}
+  return true;
+}
+async function retryMeterUploadCompletions(rideIdFilter=null){
+  const now=Date.now();
+  const pending=meterCompletionQueue.filter(x=>(rideIdFilter===null||Number(x.ride_id)===Number(rideIdFilter))&&!x.blocked&&Number(x.next_retry_at||0)<=now);
+  for(const item of pending){
+    const {data,error}=await sb.rpc("confirm_ride_meter_upload_complete",{p_ride_id:Number(item.ride_id),p_expected_sample_count:Number(item.expected_sample_count)});
+    if(error){item.next_retry_at=Date.now()+60000;saveMeterCompletionQueue();throw error;}
+    if(data===true){
+      meterCompletionQueue=meterCompletionQueue.filter(x=>Number(x.ride_id)!==Number(item.ride_id));
+      if(!saveMeterCompletionQueue())throw Error("Upload completion was confirmed, but the local retry ledger could not be updated.");
+      text("gpsStatus","All GPS samples uploaded and count-confirmed for ride #"+item.ride_id+". Road verification can begin now.");
+    }else{
+      item.blocked=true;item.last_error="Supabase did not confirm the expected GPS sample count.";
+      saveMeterCompletionQueue();
+      text("gpsStatus","GPS upload count or sequence does not match the server record for ride #"+item.ride_id+". This ride needs review; no final fare will be issued.");
+    }
+  }
 }
 async function quarantineExpiredMeterSamples(){
   if(!meterQueue.length||!user||!sb)return;
@@ -432,39 +464,43 @@ function stopMeterCaptureLoop(){
   }
 }
 async function flushMeterQueue(){
-  if(meterFlushBusy||!user||!sb||!meterQueue.length)return;
-  try{await quarantineExpiredMeterSamples()}catch(error){console.warn("Expired GPS sample handling needs attention",error);text("gpsStatus","GPS upload paused: "+errorText(error));return}
-  if(!meterQueue.length)return;
-  // Flush one ride at a time, including a recently stopped ride after it is no longer active.
-  const rideId=Number(meterQueue[0].ride_id);
-  if(!Number.isSafeInteger(rideId)||rideId<=0){meterQueue.shift();saveMeterQueue();return}
-  const batch=meterQueue.filter(x=>Number(x.ride_id)===rideId).sort((a,b)=>a.sample_number-b.sample_number).slice(0,METER_UPLOAD_BATCH_SIZE);
-  if(!batch.length)return;
+  if(meterFlushBusy||!user||!sb)return;
   meterFlushBusy=true;
   try{
-    const {data,error}=await sb.auth.getSession();if(error)throw error;
-    const token=data?.session?.access_token;if(!token)throw Error("Driver session is unavailable for GPS upload.");
-    const response=await fetch(SUPABASE_URL+"/functions/v1/meter-sample",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token,"apikey":SUPABASE_KEY},body:JSON.stringify({ride_id:rideId,samples:batch})});
-    let result={};try{result=await response.json()}catch{}
-    if(!response.ok||result.success!==true)throw Error(result.error||("GPS upload failed (HTTP "+response.status+")."));
-    const sent=new Set(batch.map(x=>String(x.sample_number)));
-    meterQueue=meterQueue.filter(x=>Number(x.ride_id)!==rideId||!sent.has(String(x.sample_number)));saveMeterQueue();
-    const remainingForRide=meterQueue.filter(x=>Number(x.ride_id)===rideId).length;
-    if(remainingForRide===0){
-      let expected=Number(meterSampleSequence[String(rideId)]||0);
-      try{expected=Math.max(expected,Number(localStorage.getItem("rryd_meter_seq_"+rideId)||0))}catch{}
-      const {data:completionData,error:completionError}=await sb.rpc("confirm_ride_meter_upload_complete",{p_ride_id:rideId,p_expected_sample_count:expected});
-      if(completionError)throw completionError;
-      if(completionData===true){
-        text("gpsStatus","All GPS samples uploaded and count-confirmed for ride #"+rideId+". Road verification can begin now.");
+    if(meterQueue.length)await quarantineExpiredMeterSamples();
+    if(meterQueue.length){
+      // Flush one ride at a time, including a recently stopped ride.
+      const rideId=Number(meterQueue[0].ride_id);
+      if(!Number.isSafeInteger(rideId)||rideId<=0){
+        meterQueue.shift();saveMeterQueue();return;
+      }
+      const batch=meterQueue.filter(x=>Number(x.ride_id)===rideId).sort((a,b)=>a.sample_number-b.sample_number).slice(0,METER_UPLOAD_BATCH_SIZE);
+      if(!batch.length)return;
+      const {data,error}=await sb.auth.getSession();if(error)throw error;
+      const token=data?.session?.access_token;if(!token)throw Error("Driver session is unavailable for GPS upload.");
+      const response=await fetch(SUPABASE_URL+"/functions/v1/meter-sample",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token,"apikey":SUPABASE_KEY},body:JSON.stringify({ride_id:rideId,samples:batch})});
+      let result={};try{result=await response.json()}catch{}
+      if(!response.ok||result.success!==true)throw Error(result.error||("GPS upload failed (HTTP "+response.status+")."));
+      const sent=new Set(batch.map(x=>String(x.sample_number)));
+      meterQueue=meterQueue.filter(x=>Number(x.ride_id)!==rideId||!sent.has(String(x.sample_number)));
+      saveMeterQueue();
+      const remainingForRide=meterQueue.filter(x=>Number(x.ride_id)===rideId).length;
+      if(remainingForRide===0){
+        await retryMeterUploadCompletions(rideId);
+        if(!meterCompletionQueue.some(x=>Number(x.ride_id)===rideId)){
+          text("gpsStatus","GPS batch uploaded for ride #"+rideId+".");
+        }
       }else{
-        text("gpsStatus","GPS upload batches finished, but the server sample count does not match the driver's queue for ride #"+rideId+". This ride needs GPS review; no final fare will be issued.");
+        text("gpsStatus","Ride GPS upload confirmed · "+Number(result.saved||0)+" saved, "+Number(result.duplicates||0)+" duplicate(s), "+remainingForRide+" waiting.");
       }
     }else{
-      text("gpsStatus","Ride GPS upload confirmed · "+Number(result.saved||0)+" saved, "+Number(result.duplicates||0)+" duplicate(s), "+remainingForRide+" waiting.");
+      // A failed completion RPC no longer gets stranded after the sample queue empties.
+      await retryMeterUploadCompletions();
     }
-  }catch(error){console.warn("Ride GPS upload pending",error);text("gpsStatus","Ride GPS is safely queued; upload will retry: "+errorText(error))}
-  finally{meterFlushBusy=false}
+  }catch(error){
+    console.warn("Ride GPS upload or completion is pending",error);
+    text("gpsStatus","Ride GPS is safely queued; upload/completion will retry: "+errorText(error));
+  }finally{meterFlushBusy=false}
 }
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function money(v){return "NPR "+Math.round(Number(v)||0).toLocaleString("en-IN")}
@@ -894,6 +930,12 @@ async function rideAction(rpc){
       notify("Journey stopped. GPS capture is paused and saved samples are uploading for verification. Final fare is not yet confirmed.");
     }else if(rpc!=="driver_arriving"&&rpc!=="start_ride")notify("Ride action submitted.");
     await loadRides();
+    if(rpc==="start_ride"){
+      const {data:startedRide,error:startedRideError}=await sb.from("rides").select("*").eq("id",Number(rideId)).eq("driver_id",user.id).maybeSingle();
+      if(startedRideError)throw startedRideError;
+      if(!startedRide||String(startedRide.status)!=="started"||startedRide.meter_tracking_status!=="recording"||!startedRide.meter_started_at)throw Error("Supabase accepted the start request but did not return a confirmed recording meter state. Do not continue the trip until the driver portal is refreshed.");
+      rides=[startedRide,...rides.filter(x=>String(x.id)!==rideId)];activeRide=startedRide;
+    }
     if(rpc==="complete_ride"){
       const {data:rideMeterState,error:rideMeterStateError}=await sb.from("rides").select("meter_stopped_at,meter_point_count").eq("id",Number(rideId)).maybeSingle();
       if(rideMeterStateError)throw rideMeterStateError;
@@ -910,19 +952,11 @@ async function rideAction(rpc){
           if(!saveMeterQueue()){meterQueue=previousQueue;throw Error("Post-stop GPS samples were archived, but the upload queue could not be updated.");}
         }
       }
+      let expectedCount=Number(meterSampleSequence[String(rideId)]||0);
+      try{expectedCount=Math.max(expectedCount,Number(localStorage.getItem("rryd_meter_seq_"+rideId)||0))}catch{}
+      if(!Number.isSafeInteger(expectedCount)||expectedCount<0)throw Error("The local GPS sample sequence is unavailable; upload completion cannot be safely confirmed.");
+      if(!rememberMeterUploadCompletion(Number(rideId),expectedCount))throw Error("The GPS upload completion retry could not be saved locally; keep the driver portal open and do not collect an unconfirmed fare.");
       await flushMeterQueue();
-      const pendingForRide=meterQueue.filter(x=>Number(x.ride_id)===Number(rideId)).length;
-      if(pendingForRide===0){
-        const {data:serverMax,error:serverMaxError}=await sb.rpc("get_ride_meter_max_sample_number",{p_ride_id:Number(rideId)});
-        if(serverMaxError)throw serverMaxError;
-        const expected=Math.max(0,Number(serverMax)||0);
-        const {data:uploadConfirmed,error:uploadConfirmError}=await sb.rpc("confirm_ride_meter_upload_complete",{
-          p_ride_id:Number(rideId),
-          p_expected_sample_count:expected
-        });
-        if(uploadConfirmError)console.warn("GPS upload completion not confirmed",uploadConfirmError);
-        else if(uploadConfirmed!==true)notify("GPS upload count or sequence does not match the server record. This ride needs GPS review; no final fare will be issued.");
-      }
       meterCompletingRideIds.delete(Number(rideId));
     }
     if(rpc==="start_ride"&&activeRide&&String(activeRide.id)===rideId){
